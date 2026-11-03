@@ -158,6 +158,8 @@ export default function AppPage() {
             </div>
             <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 border-t pt-3 font-mono text-[11px] text-muted-foreground">
               <span>BeanPay refunds: {biz ? `${num(biz.beanpay.count)} · ${usd(biz.beanpay.total_cents)}` : "—"}</span>
+              <Link href="/ledger" className="underline-offset-4 hover:text-foreground hover:underline">View ledger →</Link>
+              <a href="/mail/" target="_blank" rel="noreferrer" className="underline-offset-4 hover:text-foreground hover:underline">Open inbox →</a>
             </div>
           </div>
 
