@@ -170,6 +170,9 @@ export default function AppPage() {
                 <TabsTrigger value="break" className="flex-1"><Ban className="size-3.5" /> Break it yourself</TabsTrigger>
               </TabsList>
               <TabsContent value="agent" className="space-y-3 pt-3">
+                {health && !health.inference_configured ? (
+                  <div className="rounded-lg border border-damage/30 bg-damage/[0.04] px-3 py-2 text-sm">The agent is offline: Vultr Serverless Inference isn&apos;t configured on this server yet. <button className="underline underline-offset-4" onClick={() => setMode("break")}>Break it yourself</button> still works.</div>
+                ) : null}
                 <Textarea value={task} onChange={(e) => setTask(e.target.value)} rows={3} className="resize-none text-[15px]" placeholder="What should the ops agent do?" />
                 <div className="flex flex-wrap gap-1.5">
                   {EXAMPLES.map((ex) => (
@@ -187,7 +190,7 @@ export default function AppPage() {
                 <Textarea value={code} onChange={(e) => setCode(e.target.value)} rows={7} spellCheck={false} className="resize-none font-mono text-[12.5px]" />
               </TabsContent>
             </Tabs>
-            <Button className="mt-4 h-11 w-full rounded-full text-[15px]" onClick={start} disabled={busy || running || (mode === "agent" ? task.trim().length < 3 : code.trim().length < 10)}>
+            <Button className="mt-4 h-11 w-full rounded-full text-[15px]" onClick={start} disabled={busy || running || (mode === "agent" ? task.trim().length < 3 || health?.inference_configured === false : code.trim().length < 10)}>
               {running ? <><Loader2 className="size-4 animate-spin" /> {STATUS_LABEL[run!.status]}</> : <><FlaskConical className="size-4" /> Rehearse it</>}
             </Button>
           </div>
