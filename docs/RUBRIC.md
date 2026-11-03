@@ -104,3 +104,9 @@ Re-score after every milestone and log it below.
 | When (IST) | Total | Change |
 |---|---|---|
 | Tue Nov 3, 22:45 | 13.1 | First rating. Engine, tests, CI, landing and console done; nothing on Vultr yet. |
+
+## Before submitting: claims to re-verify against live runs
+- [ ] Deck slide 4 and landing hero: verifier headline ("640 of these customers were never double-charged") matches a real verifier output
+- [ ] Deck slide 7: VIP and crash rows reflect real verifier behaviour
+- [ ] "gVisor (runsc)" everywhere: confirmed by `/api/health` → `sandbox_runtime: runsc` on the Vultr VM
+- [ ] Model names on slides match `SD_AGENT_MODEL` / `SD_VERIFIER_MODEL` in production
