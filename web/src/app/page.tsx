@@ -5,6 +5,7 @@ import { buttonVariants } from "@/components/ui/button";
 import { ApprovalCard, type ApprovalView } from "@/components/approval-card";
 import { GithubIcon, Mark, Wordmark } from "@/components/brand";
 import { cn } from "@/lib/utils";
+import { Business } from "@/components/landing-business";
 
 const GITHUB = "https://github.com/vidigoat/stunt-double";
 const pill = (variant: "default" | "outline" = "default") =>
@@ -49,6 +50,7 @@ function Nav() {
         <div className="hidden items-center gap-7 text-sm text-muted-foreground md:flex">
           <a href="#how" className="hover:text-foreground">How it works</a>
           <a href="#containment" className="hover:text-foreground">Containment</a>
+          <a href="#pricing" className="hover:text-foreground">Pricing</a>
           <a href="#faq" className="hover:text-foreground">FAQ</a>
           <a href={GITHUB} target="_blank" rel="noreferrer" className="hover:text-foreground">GitHub</a>
         </div>
@@ -253,6 +255,7 @@ export default function Home() {
       <How />
       <Features />
       <Stack />
+      <Business />
       <Faq />
       <Closing />
     </main>
