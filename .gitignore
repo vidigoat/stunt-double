@@ -8,3 +8,5 @@ __pycache__/
 !.env.example
 *.db
 .DS_Store
+.venv/
+data/
