@@ -1,0 +1,36 @@
+# Stunt Double on one Vultr Cloud Compute VM.
+services:
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    ports: ["80:80", "443:443"]
+    environment: { SITE_HOST: "${SITE_HOST}" }
+    volumes: ["./Caddyfile:/etc/caddy/Caddyfile:ro", "caddy_data:/data"]
+    depends_on: [web, api, mailpit]
+
+  web:
+    build: { context: ../web, args: { NEXT_PUBLIC_SITE_URL: "https://${SITE_HOST}" } }
+    restart: unless-stopped
+    environment: { API_URL: "http://api:8000" }
+
+  api:
+    build: ../api
+    restart: unless-stopped
+    env_file: [.env]           # VULTR_INFERENCE_KEY lives here, never inside a sandbox
+    environment:
+      SD_DATA_DIR: /opt/stunt-double/data
+      SD_RUNS_DIR_HOST: /opt/stunt-double/data/runs
+      SD_SANDBOX_RUNTIME: runsc                       # gVisor
+      SD_SMTP_HOST: mailpit
+      SD_SMTP_PORT: "1025"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock     # to start sandboxes on the host daemon
+      - /opt/stunt-double/data:/opt/stunt-double/data # same path inside and outside, so bind mounts line up
+
+  mailpit:
+    image: axllent/mailpit:v1.21
+    restart: unless-stopped
+    environment: { MP_WEBROOT: "mail", MP_MAX_MESSAGES: "5000" }
+
+volumes:
+  caddy_data:
