@@ -32,5 +32,25 @@ cd infra
 [ -f .env ] || cp .env.example .env
 if [ -n "${VULTR_INFERENCE_KEY:-}" ]; then sed -i "s|^VULTR_INFERENCE_KEY=.*|VULTR_INFERENCE_KEY=${VULTR_INFERENCE_KEY}|" .env; fi
 chmod 600 .env
+echo "$SITE_HOST" > /opt/stunt-double/site_host
 SITE_HOST=$SITE_HOST docker compose up -d --build
+
+# Continuous deploy: every 2 minutes, redeploy if GitHub main moved.
+cat > /etc/systemd/system/stunt-double-update.service <<UNIT
+[Unit]
+Description=Stunt Double pull-deploy
+[Service]
+Type=oneshot
+ExecStart=/opt/stunt-double/src/infra/update.sh
+UNIT
+cat > /etc/systemd/system/stunt-double-update.timer <<UNIT
+[Unit]
+Description=Stunt Double pull-deploy timer
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=2min
+[Install]
+WantedBy=timers.target
+UNIT
+systemctl daemon-reload && systemctl enable --now stunt-double-update.timer
 echo "Stunt Double is live at https://$SITE_HOST"
