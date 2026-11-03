@@ -35,7 +35,7 @@ Criterion score (1–5) = `1 + 4 × (points earned / points possible)`, rounded 
 | gVisor runtime on Vultr | 0 | 2 | Pending VM |
 | Uses Vultr meaningfully (VM + Inference + API) | 0 | 2 | All pending keys |
 | Production-grade apply (drift check, idempotency, policy) | 2 | 2 | Tested |
-| Engineering quality (tests, CI, commits across the event) | 2 | 2 | 11 commits, 9 tests, CI green |
+| Engineering quality (tests, CI, commits across the event) | 2 | 2 | 14+ commits, 9 tests, CI green |
 | **Total** | **10** | **16** | **→ 3.5 / 5** |
 
 ## 2. Presentation
@@ -49,9 +49,9 @@ Criterion score (1–5) = `1 + 4 × (points earned / points possible)`, rounded 
 | Public live URL judges can use | 0 | 2 | Pending VM |
 | Judges can trigger the wow moment themselves | 1 | 2 | "Break it yourself" exists; not public yet |
 | Demo video, 4–5 min, golden path rehearsed | 0 | 2 | Day 4 |
-| Slide deck (8–10 slides) | 0 | 2 | |
-| Cover image + lablab texts | 0 | 2 | |
-| **Total** | **5** | **14** | **→ 2.4 / 5** |
+| Slide deck (8–10 slides) | 2 | 2 | `presentation/stunt-double-deck.pdf`, 10 slides |
+| Cover image + lablab texts | 2 | 2 | `presentation/cover.png`, `docs/SUBMISSION.md` (lengths checked) |
+| **Total** | **9** | **14** | **→ 3.6 / 5** |
 
 ## 3. Business Value
 
@@ -59,13 +59,13 @@ Criterion score (1–5) = `1 + 4 × (points earned / points possible)`, rounded 
 
 | Check | Pts now | Max | Notes |
 |---|---|---|---|
-| Named buyer and painful problem | 1 | 2 | Implied (ops leads); not stated in product or materials |
-| Market size with sources | 0 | 2 | Research done (see PITCH.md once written) |
-| Revenue model | 0 | 2 | |
-| Why AI is essential (not a rules engine) | 1 | 2 | Verifier investigates intent; needs to be said clearly |
+| Named buyer and painful problem | 2 | 2 | Landing "Who it's for", PITCH.md, deck slide 8 |
+| Market size with sources | 2 | 2 | $7.6B → $50B (2025→2030), Gartner adoption stats, sourced in PITCH.md |
+| Revenue model | 2 | 2 | Pricing section on landing + deck |
+| Why AI is essential (not a rules engine) | 2 | 2 | Deck slide 7 table; verifier still to prove live |
 | Credible demo scenario with real numbers | 2 | 2 | Seeded trap with real measured numbers |
 | Fit with the listed business areas (finance, support, sales ops) | 1 | 2 | Refunds = finance/support; show more examples |
-| **Total** | **5** | **12** | **→ 2.7 / 5** |
+| **Total** | **11** | **12** | **→ 4.7 / 5** |
 
 ## 4. Originality
 
@@ -86,10 +86,10 @@ Criterion score (1–5) = `1 + 4 × (points earned / points possible)`, rounded 
 | Criterion | Now (Tue night) | Target (Sun) |
 |---|---|---|
 | Application of Technology | 3.5 | 5.0 |
-| Presentation | 2.4 | 5.0 |
-| Business Value | 2.7 | 4.5 |
+| Presentation | 2.4 → **3.6** | 5.0 |
+| Business Value | 2.7 → **4.7** | 4.5 |
 | Originality | 4.5 | 4.5 |
-| **Total (/20)** | **13.1** | **19.0** |
+| **Total (/20)** | 13.1 → **16.3** | 19.0 |
 | Gate | ❌ (G1–G3, G7 open) | ✅ |
 
 **Biggest score movers, in order:**
@@ -104,6 +104,7 @@ Re-score after every milestone and log it below.
 | When (IST) | Total | Change |
 |---|---|---|
 | Tue Nov 3, 22:45 | 13.1 | First rating. Engine, tests, CI, landing and console done; nothing on Vultr yet. |
+| Tue Nov 3, 23:30 | 16.3 | Pitch, pricing + buyer on landing, 10-slide deck, cover, submission texts, video script. Still blocked on Vultr keys (gate G1–G3). |
 
 ## Before submitting: claims to re-verify against live runs
 - [ ] Deck slide 4 and landing hero: verifier headline ("640 of these customers were never double-charged") matches a real verifier output
