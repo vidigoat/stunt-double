@@ -1,0 +1,28 @@
+"""Runtime configuration, all from environment variables."""
+import os
+from pathlib import Path
+
+DATA_DIR = Path(os.environ.get("SD_DATA_DIR", Path(__file__).resolve().parent.parent / "data"))
+DATA_DIR.mkdir(parents=True, exist_ok=True)
+PROD_DB = DATA_DIR / "business.db"          # "production" database of the demo business
+BEANPAY_DB = DATA_DIR / "beanpay.db"        # ledger of the payments provider
+RUNS_DIR = DATA_DIR / "runs"                # per-run artifacts (effects, consequences)
+RUNS_DIR.mkdir(parents=True, exist_ok=True)
+
+# Vultr Serverless Inference (OpenAI-compatible)
+INFERENCE_BASE_URL = os.environ.get("VULTR_INFERENCE_BASE_URL", "https://api.vultrinference.com/v1")
+INFERENCE_KEY = os.environ.get("VULTR_INFERENCE_KEY", "")
+AGENT_MODEL = os.environ.get("SD_AGENT_MODEL", "glm-5.3-flash")       # the ops agent being supervised
+VERIFIER_MODEL = os.environ.get("SD_VERIFIER_MODEL", "glm-5.3")       # Stunt Double's own checker
+
+# Sandbox
+SANDBOX_IMAGE = os.environ.get("SD_SANDBOX_IMAGE", "stunt-double-sandbox:latest")
+SANDBOX_RUNTIME = os.environ.get("SD_SANDBOX_RUNTIME", "")           # "runsc" for gVisor on the Vultr VM
+SANDBOX_MEMORY = os.environ.get("SD_SANDBOX_MEMORY", "256m")
+SANDBOX_TIMEOUT_S = int(os.environ.get("SD_SANDBOX_TIMEOUT", "60"))
+# Host path that maps to RUNS_DIR (needed when the API itself runs in a container and talks to the host Docker daemon)
+RUNS_DIR_HOST = os.environ.get("SD_RUNS_DIR_HOST", str(RUNS_DIR))
+
+# Real side effects (apply step only)
+SMTP_HOST = os.environ.get("SD_SMTP_HOST", "localhost")
+SMTP_PORT = int(os.environ.get("SD_SMTP_PORT", "1025"))
