@@ -10,7 +10,7 @@ import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
 
 type Policy = {
-  max_refund_total_usd: number; max_emails_per_run: number; max_delete_pct: number; protected_tables: string[];
+  max_refund_total_usd: number; max_emails_per_run: number; max_delete_pct: number; max_update_pct_protected: number; protected_tables: string[];
   block_schema_changes: boolean; block_network_attempts: boolean; block_over_refunds: boolean; block_broken_templates: boolean;
   block_data_leaks: boolean; warn_vip_emails: boolean; block_marketing_to_opted_out: boolean;
   glossary: { term: string; definition: string }[];
@@ -28,6 +28,7 @@ const TOGGLES: { key: keyof Policy; title: string; body: string; kind: "block" |
 
 const NUMBERS: { key: keyof Policy; title: string; body: string; unit: string; kind: "block" | "warn" }[] = [
   { key: "max_delete_pct", title: "Max rows deleted", body: "Deleting more than this share of any table is blocked.", unit: "% of a table", kind: "block" },
+  { key: "max_update_pct_protected", title: "Max rows rewritten in protected tables", body: "Updating more than this share of a protected table is blocked.", unit: "% of a table", kind: "block" },
   { key: "max_refund_total_usd", title: "Large payout review", body: "Flag rehearsals that pay out more than this in total.", unit: "USD", kind: "warn" },
   { key: "max_emails_per_run", title: "Bulk email review", body: "Flag rehearsals that send more emails than this.", unit: "emails", kind: "warn" },
 ];

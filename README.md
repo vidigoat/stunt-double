@@ -114,6 +114,10 @@ Stunt Double shows you the difference **before** the money moves. A poisoned sup
 | Swap the DB for a symlink to a host file | refused; host file never read |
 | Corrupt the database copy | reported as a failed plan; production untouched |
 | Tamper with recorded effects after approval review | integrity check refuses to apply |
+| Inject SQL through a crafted column name (`ALTER TABLE ... ADD COLUMN`) | schema change blocked; apply only uses production's own column names |
+| Header injection / extra recipients in an email | refused: exactly one plain customer address |
+| Replace the DB with a FIFO to hang the host | refused instantly (non-blocking, regular files only) |
+| Approve twice at the same moment | exactly one apply |
 | Read environment secrets | the environment is empty |
 
 ## Use it from any agent (MCP)
@@ -167,7 +171,10 @@ whenever `main` changes.
 | `api/tests/test_engine.py` | the seeded trap, exact refunds, containment, apply-once, drift blocking, read-only queries |
 | `api/tests/test_adversarial.py` | the attacks above |
 | `api/tests/test_policy.py` | every policy rule, validation of policy edits |
-| `api/tests/test_agent_loop.py` | the agent → rehearse → verify → approve flow, quirky-model robustness, SSE, audit, tamper check |
+| `api/tests/test_agent_loop.py` | the agent → rehearse → verify → approve flow, quirky-model robustness, SSE, audit, tamper check, evidence export |
+| `api/tests/test_review_fixes.py` | every finding of the independent security review (column-name injection, header injection, FIFO hang, double approval, …) |
+| `api/tests/test_archive.py` | evidence archiving to S3-compatible Object Storage (mocked) |
+| `api/tests/test_eval_harness.py` | wiring of the real-model evaluation harness |
 | `mcp/tests/test_mcp.py` | a real MCP client over stdio against the live API |
 | `e2e/golden-path.js` | a real browser: landing, containment, approve + apply, audit trail, policy, phone layout |
 
