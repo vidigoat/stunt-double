@@ -198,6 +198,7 @@ def _loop(models: str | list[str], messages: list, tools: list, handlers: dict[s
     nudged = False
     seen: dict[str, int] = {}  # identical tool calls, to stop a model that keeps re-running the same query
     force = False  # set when the model keeps answering in prose: its next turn may only call the decision tool
+    cutoffs = 0  # replies cut off at max_tokens; retried at most twice so a model that always overflows can't burn every turn
     for turn in range(max_turns):
         # The tool that ends the job: the verifier's verdict, or the agent's plan if it hasn't submitted one yet.
         decide = stop_tool or (required_tool if required_tool and required_tool not in called else None)
@@ -215,7 +216,8 @@ def _loop(models: str | list[str], messages: list, tools: list, handlers: dict[s
                 for c in calls]})
         else:
             messages.append({"role": "assistant", "content": msg.content or ""})
-        if not calls and _complete.last_finish == "length" and turn < max_turns - 1:
+        if not calls and _complete.last_finish == "length" and cutoffs < 2 and turn < max_turns - 1:
+            cutoffs += 1
             # The answer was cut off at max_tokens (usually a long plan after long reasoning): say so, ask for a shorter one.
             messages.append({"role": "user", "content": "Your last reply was cut off by the length limit before any tool call came through. "
                                                         "Think less, keep the code compact, and make the tool call now."})
