@@ -1,5 +1,6 @@
 """Stunt Double API: plan -> dispatch -> verify -> approve -> apply."""
 import asyncio
+import functools
 import hashlib
 import json
 import sqlite3
@@ -616,14 +617,21 @@ def _archive_async(run: dict) -> None:
     threading.Thread(target=job, daemon=True).start()
 
 
+@functools.lru_cache(maxsize=16)
+def _effects_cached(path: str, sha: str) -> dict:
+    """Parsed effects, cached per file + hash: paging through 10,000 changed rows shouldn't re-read the file each time."""
+    return json.loads(open(path).read())
+
+
 @app.get("/api/runs/{rid}/changes")
 def run_changes(rid: str, table: str = "", op: str = "", q: str = "", offset: int = 0, limit: int = 25):
     """Every changed row of the latest attempt (not just samples), filterable and paginated."""
     run = _get(rid)
     if not run["attempts"]:
         raise HTTPException(404, "no rehearsal yet")
+    att = run["attempts"][-1]
     try:
-        effects = json.loads(open(run["attempts"][-1]["effects_path"]).read())
+        effects = _effects_cached(att["effects_path"], att.get("effects_sha256") or "")
     except (OSError, ValueError) as e:
         raise HTTPException(404, "effects not available") from e
     limit = max(1, min(limit, 100))

@@ -96,8 +96,9 @@ def get_schema() -> dict:
     db = _ro()
     out = {}
     for (t,) in db.execute("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'"):
-        cols = [f"{r[1]} {r[2]}" for r in db.execute(f'PRAGMA table_info("{t}")')]
-        out[t] = {"columns": cols, "rows": db.execute(f'SELECT COUNT(*) FROM "{t}"').fetchone()[0]}
+        qt = '"' + t.replace('"', '""') + '"'
+        cols = [f"{r[1]} {r[2]}" for r in db.execute(f"PRAGMA table_info({qt})")]
+        out[t] = {"columns": cols, "rows": db.execute(f"SELECT COUNT(*) FROM {qt}").fetchone()[0]}
     return out
 
 

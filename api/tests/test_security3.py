@@ -245,3 +245,11 @@ def test_policy_changes_are_recorded_with_who_and_what(fresh_business):
     assert len(h) == 1 and h[0]["by"] == "Priya" and h[0]["changes"]["max_delete_pct"][1] == 2
     api.post("/api/demo/reset")
     assert api.get("/api/policy/history").json()["history"] == []
+
+
+# ---- generated columns can't shift values into the wrong column ------------------------------------------
+def test_snapshot_keeps_values_in_their_columns_with_generated_columns(tmp_path):
+    p = tmp_path / "g.db"
+    make_db(p, "CREATE TABLE t (a INTEGER, g INTEGER GENERATED ALWAYS AS (a * 100) VIRTUAL, c TEXT); INSERT INTO t (a, c) VALUES (3, 'zzz');")
+    row = runner.snapshot(str(p))["t"]["rows"][1]
+    assert row == {"a": 3, "c": "zzz"}

@@ -148,8 +148,10 @@ def snapshot(path: str) -> dict:
     db = sqlite3.connect(f"file:{path}?mode=ro&immutable=1", uri=True)
     snap = {}
     for (t,) in db.execute("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'"):
-        cols = [r[1] for r in db.execute(f'PRAGMA table_info("{t}")')]
-        snap[t] = {"cols": cols, "rows": {row[0]: dict(zip(cols, row[1:], strict=False)) for row in db.execute(f'SELECT rowid, * FROM "{t}"')}}
+        cols = [r[1] for r in db.execute(f"PRAGMA table_info({_q(t)})")]
+        # Name the columns: `SELECT *` would also return generated columns, which table_info leaves out, and shift values.
+        sel = ", ".join(_q(c) for c in cols)
+        snap[t] = {"cols": cols, "rows": {row[0]: dict(zip(cols, row[1:], strict=True)) for row in db.execute(f"SELECT rowid, {sel} FROM {_q(t)}")}}
     db.close()
     return snap
 
@@ -233,6 +235,11 @@ PROMO = re.compile(r"\b\d{1,2}\s?% off\b|\bdiscount\b|\bpromo(?:tion)?\b|\bcoupo
 def _unsafe_header(value: str) -> bool:
     """Anything that could split or break an email header line (\r, \n, \v, \x85, \u2028, ... or any control char)."""
     return len(value.splitlines()) > 1 or any(ord(ch) < 32 or ord(ch) == 127 or 0x80 <= ord(ch) <= 0x9F for ch in value)
+
+
+def _q(ident: str) -> str:
+    """Quote an SQL identifier."""
+    return '"' + str(ident).replace('"', '""') + '"'
 
 
 def unsafe_path(path: str) -> bool:
