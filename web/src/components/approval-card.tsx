@@ -90,7 +90,7 @@ export function ApprovalCard({ view, children, className, label = "Approval requ
           <Stat label="Money out" value={<CountUp value={view.moneyCents} format="usd" />} hot={hot && view.moneyCents > 0} sub={`${num(view.refunds)} refunds`} />
           <Stat label="Emails" value={<CountUp value={view.emails} />} sub={applied ? "delivered" : "would be sent"} />
           <Stat label="Rows changed" value={<CountUp value={view.rowsChanged} />} hot={t === "danger" && view.rowsChanged > 0} sub={view.biggestChange} />
-          <Stat label="Verdict" value={t === "ok" ? "Looks right" : t === "danger" ? "Critical" : t === "warn" ? "Check this" : "Passed checks"} hot={hot} small sub={view.verdict ? "verified by Stunt Double" : "policy checks only"} />
+          <Stat label="Verdict" value={t === "ok" ? "Looks right" : t === "danger" ? "Critical" : t === "warn" ? "Check this" : "Rules pass"} hot={hot} small sub={view.verdict ? "verified by Stunt Double" : "policy checks only"} />
         </div>
         {view.verdict || issues.length ? (
           <div className={cn("rounded-xl border p-4", hot ? "border-damage/30 bg-damage/[0.04]" : "bg-background")}>
@@ -113,6 +113,12 @@ export function ApprovalCard({ view, children, className, label = "Approval requ
               </div>
             </div>
           </div>
+        ) : null}
+        {!view.verdict && !applied && t !== "danger" ? (
+          <p className="rounded-xl border border-dashed px-4 py-3 text-sm text-muted-foreground">
+            <span className="font-medium text-foreground">Only rules ran.</span> Rules check <em>what</em> a plan does, not whether it&apos;s what you <em>meant</em>.
+            Telling “same item, same day” apart from “charged twice” is the AI verifier&apos;s job (Vultr Serverless Inference).
+          </p>
         ) : null}
         {children ? <div className="flex flex-wrap items-center gap-2">{children}</div> : null}
         {!applied ? <div className="flex items-center gap-1.5 text-xs text-muted-foreground"><ShieldCheck className="size-3.5" /> Nothing real has happened yet. Approving replays exactly these changes, after a drift check.</div> : null}
