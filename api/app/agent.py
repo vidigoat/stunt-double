@@ -23,6 +23,8 @@ CTX_DOC = """Your plan is a Python module that defines `def run(ctx):`.
   When you refund a charge also mark it in the DB: UPDATE charges SET status='refunded', refunded_at=<now> WHERE id=?
 - ctx.email.send(to: str, subject: str, body: str, kind: str = None): email a customer, kind is "transactional" or "marketing".
   Write the real final text (no template placeholders).
+- ctx.http.post(url, json=...) / .patch / .put / .delete: call an external API through a connector (see the list below).
+  Never put credentials in a plan: the server adds them after a human approves.
 - ctx.log(*values): leave a note for the reviewer.
 Standard library only. There is no network access."""
 
@@ -232,7 +234,10 @@ def clean_code(code: str) -> str:
 def ops_agent(task: str, rehearse: Callable[[str, str], dict], emit: Callable, feedback: str | None = None,
               history: list | None = None) -> tuple[str, list]:
     """Runs the ops agent. `rehearse(code, summary)` dispatches to the sandbox and returns consequences."""
-    messages = history or [{"role": "system", "content": OPS_SYSTEM}, {"role": "user", "content": task}]
+    from . import connectors as _connectors
+    conn = "\n".join(f"- {c['label']}: {', '.join(c['methods'])} https://{c['host']}/... ({c['description']})" for c in _connectors.public())
+    messages = history or [{"role": "system", "content": OPS_SYSTEM + "\n\nAvailable API connectors:\n" + conn},
+                           {"role": "user", "content": task}]
     if feedback:
         messages.append({"role": "user", "content": f"Stunt Double reviewed your rehearsed plan and the human asked you to fix it:\n{feedback}\nSubmit a corrected plan."})
 
@@ -352,5 +357,22 @@ def red_flags(c: dict, pol: dict | None = None) -> list[dict]:
     if p["warn_vip_emails"] and e.get("vip_count"):
         names = ", ".join(v["name"] for v in e.get("vip", [])[:3])
         flag("warn_vip_emails", False, f"Emails {e['vip_count']} VIP customer{'s' if e['vip_count'] != 1 else ''}", f"Including {names}.", "medium")
+    from . import connectors as _connectors
+    routes = ((c.get("audit") or {}).get("http") or {}).get("routes", [])
+    calls = [{**r, "url": f"{r['scheme']}://{r['host']}/…"} for r in routes]
+    if ((c.get("audit") or {}).get("http") or {}).get("routes_truncated"):
+        flag("connectors_only", True, "Too many different API destinations to review", "More than 200 distinct method/host combinations.")
+    bad = [(x, _connectors.check(x)) for x in calls]
+    bad = [(x, why) for x, why in bad if why]
+    if bad:
+        flag("connectors_only", True, f"{len(bad)} API calls can't go through an approved connector", f"e.g. {bad[0][0]['method']} {bad[0][0]['url'][:80]}: {bad[0][1]}.")
+    h = (a.get("http") or {})
+    if h.get("bulk_personal_data_count") or h.get("card_number_count"):
+        x = (h.get("bulk_personal_data") or h.get("card_numbers"))[0]
+        flag("block_data_leaks", p["block_data_leaks"], "API calls would send customer data to a third party",
+             f"e.g. {x['url']}" + (f": {x['customers']} customers' emails" if "customers" in x else ": a card-like number"))
+    n_http = (c.get("http") or {}).get("count", 0)
+    if n_http > p["max_http_per_run"]:
+        flag("max_http_per_run", False, f"Makes {n_http:,} API calls", f"Above the {p['max_http_per_run']:,}-call review threshold.", "medium")
     order = {"critical": 0, "high": 1, "medium": 2, "low": 3}
     return sorted(flags, key=lambda f: order[f["severity"]])

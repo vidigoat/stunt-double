@@ -109,7 +109,8 @@ def rehearse(plan_code: str) -> dict:
         consequences = json.loads(cpath.read_text())
     else:
         consequences = {"ok": False, "error": {"message": f"measurement failed: {killed2 or err2[-300:] or code2}"}, "tables": {}, "row_counts": {},
-                        "payments": {"count": 0, "total_cents": 0, "samples": []}, "emails": {"count": 0, "samples": []}, "blocked": [], "guards": {}, "audit": {}}
+                        "payments": {"count": 0, "total_cents": 0, "samples": []}, "emails": {"count": 0, "samples": []}, "http": {"count": 0, "samples": []},
+                        "blocked": [], "guards": {}, "audit": {}}
     if killed and consequences.get("ok"):
         consequences["ok"] = False
     if killed:

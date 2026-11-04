@@ -9,7 +9,7 @@ import smtplib
 import sqlite3
 from email.message import EmailMessage
 
-from . import beanpay, config
+from . import beanpay, config, connectors
 
 
 class DriftError(Exception):
@@ -66,6 +66,12 @@ def apply(run_id: str, effects_path: str) -> dict:
     if any(d.get("dropped") or d.get("created") or d.get("schema_changed") for d in changes.values()):
         raise ValueError("Schema changes (CREATE/DROP/ALTER TABLE) are never auto-applied")
 
+    # Every API call must be replayable through a connector, checked BEFORE anything changes.
+    calls = effects.get("http", [])
+    for c in calls:
+        why = connectors.check(c)
+        if why:
+            raise ValueError(f"Refusing to apply: {why}")
     # Build every email BEFORE touching the database: a malformed header must fail while nothing has changed.
     messages = []
     for e in effects["emails"]:
@@ -114,5 +120,7 @@ def apply(run_id: str, effects_path: str) -> dict:
                     failed += 1
     except OSError:
         failed = len(effects["emails"])
-    return {"rows_written": n, "refunds": len(refunds), "refund_total_cents": sum(p["amount_cents"] for p in effects["payments"]),
+    deliveries = [connectors.deliver(c, run_id) for c in calls]
+    return {"rows_written": n, "refunds": len(refunds), "http_delivered": sum(1 for d in deliveries if d.get("ok")),
+            "http_failed": sum(1 for d in deliveries if not d.get("ok")), "refund_total_cents": sum(p["amount_cents"] for p in effects["payments"]),
             "emails_sent": sent, "emails_failed": failed}

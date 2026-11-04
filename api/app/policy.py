@@ -8,6 +8,7 @@ PATH = config.DATA_DIR / "policy.json"
 DEFAULTS: dict = {
     "max_refund_total_usd": 10000,        # warn above this
     "max_emails_per_run": 500,            # warn above this
+    "max_http_per_run": 200,              # warn above this many API calls
     "max_delete_pct": 5,                  # block deleting more than this % of any table
     "protected_tables": ["customers"],    # block ANY delete in these tables
     "max_update_pct_protected": 20,       # block rewriting more than this % of a protected table

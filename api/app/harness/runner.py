@@ -28,6 +28,7 @@ import sqlite3
 import sys
 import time
 import traceback
+import urllib.parse
 from collections import Counter
 
 MAX_INTENTS = 20000
@@ -38,7 +39,9 @@ MAX_INTENTS = 20000
 BLOCKED: list[dict] = []
 PAYMENTS: list[dict] = []
 EMAILS: list[dict] = []
+HTTP: list[dict] = []
 LOGS: list[str] = []
+SECRET_HEADERS = {"authorization", "cookie", "x-api-key", "api-key", "x-auth-token", "proxy-authorization"}
 
 
 def _tripwire_connect(self, address):  # noqa: ANN001
@@ -63,11 +66,33 @@ class Email:
         return {"id": f"rehearsal_email_{len(EMAILS)}", "status": "recorded"}
 
 
+class Http:
+    """Any HTTP API call becomes a recorded intent. Nothing is sent from the sandbox. On approval the server replays it
+    through a configured connector and injects the real credentials then; auth headers set here are dropped."""
+    def request(self, method: str, url: str, json: object = None, headers: dict | None = None) -> dict:
+        hdrs = {str(k)[:100]: str(v)[:500] for k, v in (headers or {}).items() if str(k).lower() not in SECRET_HEADERS}
+        HTTP.append({"method": str(method).upper()[:10], "url": str(url)[:2000], "json": json, "headers": hdrs})
+        return {"id": f"rehearsal_http_{len(HTTP)}", "status": "recorded"}
+
+    def post(self, url: str, json: object = None, headers: dict | None = None) -> dict:
+        return self.request("POST", url, json, headers)
+
+    def put(self, url: str, json: object = None, headers: dict | None = None) -> dict:
+        return self.request("PUT", url, json, headers)
+
+    def patch(self, url: str, json: object = None, headers: dict | None = None) -> dict:
+        return self.request("PATCH", url, json, headers)
+
+    def delete(self, url: str, headers: dict | None = None) -> dict:
+        return self.request("DELETE", url, None, headers)
+
+
 class Ctx:
     def __init__(self, db: sqlite3.Connection):
         self.db = db
         self.payments = Payments()
         self.email = Email()
+        self.http = Http()
 
     def log(self, *parts) -> None:  # noqa: ANN002
         LOGS.append(" ".join(str(p) for p in parts)[:500])
@@ -110,7 +135,7 @@ def phase_run() -> None:
     with contextlib.suppress(Exception):
         db.close()
     intents = {"ok": error is None, "error": error, "stdout": stdout.getvalue()[-4000:], "logs": LOGS[-100:],
-               "payments": PAYMENTS[:MAX_INTENTS], "emails": EMAILS[:MAX_INTENTS], "blocked": BLOCKED[:50], "guards": guards,
+               "payments": PAYMENTS[:MAX_INTENTS], "emails": EMAILS[:MAX_INTENTS], "http": HTTP[:MAX_INTENTS], "blocked": BLOCKED[:50], "guards": guards,
                "duration_ms": int((time.time() - started) * 1000)}
     with open("/work/out/intents.json", "w") as f:
         json.dump(intents, f, default=str)
@@ -173,10 +198,26 @@ def validate_intents(raw: dict) -> dict:
         if isinstance(e, dict):
             mails.append({"to": str(e.get("to", ""))[:320], "subject": str(e.get("subject", ""))[:300], "body": str(e.get("body", ""))[:5000],
                           "kind": e.get("kind") if e.get("kind") in ("marketing", "transactional") else None})
+    calls = []
+    for c in (raw.get("http") or [])[:MAX_INTENTS]:
+        if not isinstance(c, dict):
+            continue
+        method, url = str(c.get("method", "")).upper(), str(c.get("url", ""))
+        try:
+            body = json.dumps(c.get("json"), default=str)
+        except (TypeError, ValueError):
+            body = "null"
+        hdrs = c.get("headers") if isinstance(c.get("headers"), dict) else {}
+        hdrs = {str(k)[:100]: str(v)[:500] for k, v in list(hdrs.items())[:20]
+                if str(k).lower() not in SECRET_HEADERS and not _unsafe_header(str(k)) and not _unsafe_header(str(v))}
+        parsed = urllib.parse.urlsplit(url)
+        calls.append({"method": method if method in ("GET", "POST", "PUT", "PATCH", "DELETE") else "INVALID", "url": url[:2000],
+                      "host": (parsed.hostname or "").lower(), "scheme": parsed.scheme, "path": parsed.path[:500],
+                      "json": json.loads(body) if len(body) <= 65536 else {"_truncated": True}, "body_bytes": len(body), "headers": hdrs})
     err = raw.get("error")
     return {"ok": bool(raw.get("ok")) and err is None, "error": err if isinstance(err, dict) else ({"message": str(err)[:2000]} if err else None),
             "stdout": str(raw.get("stdout", ""))[-4000:], "logs": [str(x)[:500] for x in (raw.get("logs") or [])[:100]],
-            "payments": pays, "emails": mails,
+            "payments": pays, "emails": mails, "http": calls,
             "blocked": [{"kind": str(b.get("kind", ""))[:20], "target": str(b.get("target", ""))[:200]} for b in (raw.get("blocked") or [])[:50] if isinstance(b, dict)],
             "guards": raw.get("guards") if isinstance(raw.get("guards"), dict) else {}, "duration_ms": _int(raw.get("duration_ms"), 0) or 0}
 
@@ -190,6 +231,25 @@ PROMO = re.compile(r"\b\d{1,2}\s?% off\b|\bdiscount\b|\bpromo(?:tion)?\b|\bcoupo
 def _unsafe_header(value: str) -> bool:
     """Anything that could split or break an email header line (\r, \n, \v, \x85, \u2028, ... or any control char)."""
     return len(value.splitlines()) > 1 or any(ord(ch) < 32 or ord(ch) == 127 or 0x80 <= ord(ch) <= 0x9F for ch in value)
+
+
+def audit_http(before: dict, calls: list) -> dict:
+    """Personal data leaving through API calls: how many distinct customers' emails / card-like numbers each payload carries."""
+    customers = {str(r.get("email", "")).lower() for r in before.get("customers", {}).get("rows", {}).values()}
+    bulk, cards, hosts = [], [], Counter()
+    for c in calls:
+        hosts[c["host"]] += 1
+        text = json.dumps(c.get("json"), default=str)
+        found = {x.lower() for x in EMAIL.findall(text)} & customers
+        if len(found) > 3:
+            bulk.append({"url": c["url"][:200], "customers": len(found)})
+        if CARD.search(text):
+            cards.append({"url": c["url"][:200]})
+    routes = sorted({(c["method"], c["host"], c["scheme"]) for c in calls})
+    return {"count": len(calls), "hosts": dict(hosts.most_common(20)),
+            "routes": [{"method": m, "host": h, "scheme": sc} for m, h, sc in routes[:200]], "routes_truncated": len(routes) > 200,
+            "bulk_personal_data": bulk[:5], "bulk_personal_data_count": len(bulk),
+            "card_numbers": cards[:5], "card_number_count": len(cards)}
 
 
 def audit(before: dict, payments: list, emails: list) -> dict:
@@ -267,19 +327,20 @@ def phase_measure() -> None:
             "changed_columns": sorted({c for u in d["updated"] for c in u["changed"]}),
             "samples": {"deleted": d["deleted"][:8], "inserted": d["inserted"][:8], "updated": d["updated"][:8]},
         }
-    pays, mails = intents["payments"], intents["emails"]
+    pays, mails, calls = intents["payments"], intents["emails"], intents["http"]
     consequences = {
         "ok": intents["ok"], "error": intents["error"], "stdout": intents["stdout"], "logs": intents["logs"], "duration_ms": intents["duration_ms"],
         "tables": tables,
         "row_counts": {t: {"before": len(before[t]["rows"]), "after": len(after.get(t, {"rows": {}})["rows"])} for t in before},
         "payments": {"count": len(pays), "total_cents": sum(p["amount_cents"] for p in pays), "samples": pays[:25]},
         "emails": {"count": len(mails), "samples": mails[:25]},
-        "blocked": intents["blocked"], "guards": intents["guards"], "audit": audit(before, pays, mails), "measured_by": "trusted-phase-2",
+        "blocked": intents["blocked"], "guards": intents["guards"], "audit": {**audit(before, pays, mails), "http": audit_http(before, calls)}, "measured_by": "trusted-phase-2",
+        "http": {"count": len(calls), "samples": calls[:25]},
     }
     with open("/out/consequences.json", "w") as f:
         json.dump(consequences, f, default=str)
     with open("/out/effects.json", "w") as f:
-        json.dump({"changes": changes, "payments": pays, "emails": mails}, f, default=str)
+        json.dump({"changes": changes, "payments": pays, "emails": mails, "http": calls}, f, default=str)
 
 
 if __name__ == "__main__":

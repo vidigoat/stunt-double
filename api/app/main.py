@@ -14,7 +14,7 @@ from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
-from . import agent, archive, beanpay, config, policy, sandbox, seed
+from . import agent, archive, beanpay, config, connectors, policy, sandbox, seed
 from . import apply as applier
 
 app = FastAPI(
@@ -401,7 +401,7 @@ def _apply_claimed(run: dict, att: dict, rid: str):
     with LOCK:
         run["apply_result"] = result
     _emit(run, "applied", f"Applied: {result['refunds']} refunds (${result['refund_total_cents'] / 100:,.2f}), "
-                          f"{result['emails_sent']} emails, {result['rows_written']} rows")
+                          f"{result['emails_sent']} emails, {result.get('http_delivered', 0)} API calls, {result['rows_written']} rows")
     _status(run, "applied")
     _archive_async(run)
     return _public(run)
@@ -462,6 +462,17 @@ def put_policy(body: dict, req: Request):
         raise HTTPException(422, str(e)) from e
 
 
+@app.get("/api/connectors")
+def list_connectors():
+    return {"connectors": connectors.public()}
+
+
+@app.get("/api/outbox")
+def outbox():
+    """Everything delivered to API connectors after approval (the demo connectors deliver here)."""
+    return connectors.deliveries()
+
+
 @app.get("/api/beanpay/ledger")
 def ledger():
     return beanpay.ledger()
@@ -474,6 +485,7 @@ def reset(req: Request):
         raise HTTPException(409, "A rehearsal is still running; try again in a moment")
     seed.seed(config.PROD_DB)
     beanpay.reset()
+    connectors.reset()
     policy.reset()
     if config.MAILPIT_API:  # empty the demo inbox too (best effort)
         try:
