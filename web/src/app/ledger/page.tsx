@@ -1,10 +1,9 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useState } from "react";
-import { ArrowLeft, Mail, RotateCw } from "lucide-react";
+import { RotateCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Wordmark } from "@/components/brand";
+import { AppHeader } from "@/components/app-header";
 import { num, usd } from "@/lib/api";
 
 type Ledger = { count: number; total_cents: number; refunds: { id: string; charge_id: number; amount_cents: number; reason: string; run_id: string; created_at: string }[] };
@@ -15,18 +14,7 @@ export default function LedgerPage() {
   useEffect(() => { load(); }, []);
   return (
     <div className="min-h-dvh">
-      <header className="border-b">
-        <div className="mx-auto flex h-14 max-w-5xl items-center justify-between gap-3 px-4 sm:px-6">
-          <div className="flex items-center gap-4">
-            <Link href="/app" className="text-muted-foreground hover:text-foreground" aria-label="Back to console"><ArrowLeft className="size-4" /></Link>
-            <Wordmark />
-          </div>
-          <div className="flex gap-2">
-            <a href="/mail/" target="_blank" rel="noreferrer" className="inline-flex h-8 items-center gap-1.5 rounded-full border px-3 text-sm hover:bg-muted"><Mail className="size-3.5" /> Inbox</a>
-            <Button variant="outline" className="h-8 rounded-full px-3" onClick={load}><RotateCw className="size-3.5" /> Refresh</Button>
-          </div>
-        </div>
-      </header>
+      <AppHeader right={<Button variant="outline" className="h-8 rounded-full px-3" onClick={load}><RotateCw className="size-3.5" /> Refresh</Button>} />
       <main className="mx-auto max-w-5xl px-4 py-10 sm:px-6">
         <div className="font-mono text-xs uppercase tracking-wider text-muted-foreground">BeanPay · payments provider of Bean There Coffee Co.</div>
         <h1 className="mt-2 font-display text-5xl">Refund ledger</h1>

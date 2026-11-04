@@ -1,7 +1,10 @@
+"use client";
+
 import { AlertTriangle, CheckCircle2, OctagonX, ShieldCheck } from "lucide-react";
 import type { Attempt, Flag, Verdict } from "@/lib/api";
-import { num, usd } from "@/lib/api";
+import { num } from "@/lib/api";
 import { cn } from "@/lib/utils";
+import { CountUp } from "@/components/count-up";
 
 export type ApprovalView = {
   task: string;
@@ -29,12 +32,12 @@ export function viewFromAttempt(task: string, a: Attempt, verdict: Verdict | nul
 
 function tone(v: ApprovalView) {
   if (v.flags.some((f) => f.severity === "critical") || v.verdict?.verdict === "dangerous") return "danger";
-  if (v.verdict?.verdict === "concerns" || v.flags.length) return "warn";
+  if (v.verdict?.verdict === "concerns" || v.flags.some((f) => f.severity === "high")) return "warn";
   if (v.verdict?.verdict === "looks_right") return "ok";
-  return "neutral";
+  return "checked"; // passed every deterministic check; no AI verdict (yet)
 }
 
-function Stat({ label, value, hot, sub, small }: { label: string; value: string; hot?: boolean; sub?: string; small?: boolean }) {
+function Stat({ label, value, hot, sub, small }: { label: string; value: React.ReactNode; hot?: boolean; sub?: string; small?: boolean }) {
   return (
     <div className="min-w-0 rounded-xl border bg-background px-4 py-3">
       <div className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">{label}</div>
@@ -59,10 +62,10 @@ export function ApprovalCard({ view, children, className, label = "Approval requ
       <div className="space-y-5 p-5 sm:p-6">
         <div className="text-[15px] leading-snug text-muted-foreground">“{view.task}”</div>
         <div className="grid grid-cols-2 gap-2.5 md:grid-cols-4">
-          <Stat label="Money out" value={usd(view.moneyCents)} hot={hot && view.moneyCents > 0} sub={`${num(view.refunds)} refunds`} />
-          <Stat label="Emails" value={num(view.emails)} sub="to real customers" />
-          <Stat label="Rows changed" value={num(view.rowsChanged)} hot={t === "danger"} sub={view.biggestChange} />
-          <Stat label="Verdict" value={t === "ok" ? "Looks right" : t === "danger" ? "Critical" : t === "warn" ? "Check this" : "Pending"} hot={hot} small sub={view.verdict ? "verified by Stunt Double" : undefined} />
+          <Stat label="Money out" value={<CountUp value={view.moneyCents} format="usd" />} hot={hot && view.moneyCents > 0} sub={`${num(view.refunds)} refunds`} />
+          <Stat label="Emails" value={<CountUp value={view.emails} />} sub="to real customers" />
+          <Stat label="Rows changed" value={<CountUp value={view.rowsChanged} />} hot={t === "danger"} sub={view.biggestChange} />
+          <Stat label="Verdict" value={t === "ok" ? "Looks right" : t === "danger" ? "Critical" : t === "warn" ? "Check this" : "Passed checks"} hot={hot} small sub={view.verdict ? "verified by Stunt Double" : "policy checks only"} />
         </div>
         {view.verdict || issues.length ? (
           <div className={cn("rounded-xl border p-4", hot ? "border-damage/30 bg-damage/[0.04]" : "bg-background")}>
@@ -76,6 +79,7 @@ export function ApprovalCard({ view, children, className, label = "Approval requ
                     {issues.slice(0, 5).map((c, i) => (
                       <li key={i} className="flex gap-2">
                         <span className={cn("mt-1.5 size-1.5 shrink-0 rounded-full", c.severity === "critical" || c.severity === "high" ? "bg-damage" : "bg-muted-foreground")} />
+                        {c.severity === "critical" ? <span className="mt-px shrink-0 rounded bg-damage/10 px-1 font-mono text-[10px] uppercase text-damage">blocks</span> : null}
                         <span><span className="font-medium">{c.title}.</span> <span className="text-muted-foreground">{c.detail}</span></span>
                       </li>
                     ))}
