@@ -427,6 +427,25 @@ export default function AppPage() {
 
               {run.attempts.length > 1 ? <AttemptCompare attempts={run.attempts} /> : null}
 
+              {run.status === "verifying" ? (() => {
+                const qs = run.events.filter((e) => e.kind === "verify" && /select|with/i.test(e.detail)).slice(-4);
+                return (
+                  <div className="animate-rise rounded-2xl border border-signal/30 bg-signal-soft/50 p-5">
+                    <div className="flex items-center gap-2 text-sm font-medium">
+                      <span className="relative flex size-2.5"><span className="absolute inline-flex size-full animate-ping rounded-full bg-signal opacity-60" /><span className="relative inline-flex size-2.5 rounded-full bg-signal" /></span>
+                      The AI verifier is investigating the double
+                      <span className="ml-auto font-mono text-[11px] font-normal text-muted-foreground">{run.verifier_model || "Vultr Serverless Inference"} · {qs.length ? `${run.events.filter((e) => e.kind === "verify" && /select|with/i.test(e.detail)).length} queries` : "reading the request"}</span>
+                    </div>
+                    <p className="mt-1 text-sm text-muted-foreground">It checks the measured outcome against what you asked for, with read-only SQL on the data. Rules can&apos;t judge meaning; this can.</p>
+                    {qs.length ? (
+                      <div className="mt-3 space-y-1.5">
+                        {qs.map((q, i) => <pre key={i} className="overflow-x-auto whitespace-pre-wrap break-words rounded-lg bg-foreground px-3 py-2 font-mono text-[11px] leading-relaxed text-background/90">{q.detail.slice(0, 280)}</pre>)}
+                      </div>
+                    ) : null}
+                  </div>
+                );
+              })() : null}
+
               <ApprovalCard view={view} label={run.status === "applied" ? "Applied" : run.status === "rejected" ? "Rejected" : run.status === "drifted" ? "Drift detected" : run.status === "failed" ? "Failed" : critical ? "Blocked by policy" : "Approval required"}
                 applied={run.status === "applied" && run.apply_result ? appliedSentence(run) : undefined}>
                 {run.status === "review" ? (
