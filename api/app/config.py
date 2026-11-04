@@ -14,7 +14,7 @@ INFERENCE_BASE_URL = os.environ.get("VULTR_INFERENCE_BASE_URL", "https://api.vul
 INFERENCE_KEY = os.environ.get("VULTR_INFERENCE_KEY", "")
 AGENT_MODEL = os.environ.get("SD_AGENT_MODEL", "glm-5.3-flash,qwen3.8-flash-next")  # the ops agent being supervised (comma = fallbacks)
 VERIFIER_MODEL = os.environ.get("SD_VERIFIER_MODEL", "glm-5.3-flash,qwen3.8-flash-next")  # Stunt Double's own checker (comma = fallbacks)
-MAX_TOKENS = int(os.environ.get("SD_MAX_TOKENS", "8192"))
+MAX_TOKENS = int(os.environ.get("SD_MAX_TOKENS", "16384"))  # flash models reason first; long plans need room
 LLM_TIMEOUT_S = float(os.environ.get("SD_LLM_TIMEOUT", "120"))
 AGENT_MAX_TURNS = int(os.environ.get("SD_AGENT_MAX_TURNS", "24"))
 

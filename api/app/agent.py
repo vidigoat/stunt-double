@@ -174,6 +174,7 @@ def _complete(ai, models: list[str], messages: list, tools: list, emit: Callable
             try:
                 resp = ai.chat.completions.create(model=model, messages=messages, tools=tools, temperature=0.2,
                                                   max_tokens=config.MAX_TOKENS, **extra)
+                _complete.last_finish = getattr(resp.choices[0], "finish_reason", None)
                 return model, resp.choices[0].message
             except Exception as e:  # noqa: BLE001
                 last = e
@@ -183,6 +184,9 @@ def _complete(ai, models: list[str], messages: list, tools: list, emit: Callable
                 time.sleep(min(8, 1.5 * 2 ** attempt))
         emit("system", f"Model {model} unavailable, trying the next one", str(last)[:200])
     raise RuntimeError(f"All models failed: {last}")
+
+
+_complete.last_finish = None
 
 
 def _loop(models: str | list[str], messages: list, tools: list, handlers: dict[str, Callable], emit: Callable, max_turns: int,
@@ -211,6 +215,11 @@ def _loop(models: str | list[str], messages: list, tools: list, handlers: dict[s
                 for c in calls]})
         else:
             messages.append({"role": "assistant", "content": msg.content or ""})
+        if not calls and _complete.last_finish == "length" and turn < max_turns - 1:
+            # The answer was cut off at max_tokens (usually a long plan after long reasoning): say so, ask for a shorter one.
+            messages.append({"role": "user", "content": "Your last reply was cut off by the length limit before any tool call came through. "
+                                                        "Think less, keep the code compact, and make the tool call now."})
+            continue
         if not calls:
             if required_tool and required_tool not in called and not nudged:
                 nudged = True

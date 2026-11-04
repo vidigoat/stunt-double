@@ -292,3 +292,28 @@ def test_a_verifier_that_answers_in_prose_is_made_to_decide(fresh_business, monk
                     "http": {"count": 0, "samples": []}, "blocked": [], "audit": {}}
     v = agent.verify("Refund everyone who was double-charged", "def run(ctx): pass", consequences, lambda *a: None)
     assert fake.forced == 1 and v["headline"] == "87 of 104 double charges missed"
+
+
+class CutOffVerifier:
+    """First reply is cut off at max_tokens (no tool call); after being told, it answers compactly."""
+    def __init__(self):
+        self.n = 0
+        self.saw_hint = False
+        self.chat = NS(completions=NS(create=self.create))
+
+    def create(self, model, messages, tools, temperature, **kw):
+        self.n += 1
+        if self.n == 1:
+            return NS(choices=[NS(message=NS(content="", tool_calls=None), finish_reason="length")])
+        self.saw_hint = any("cut off by the length limit" in str(m.get("content")) for m in messages)
+        msg = NS(content="", tool_calls=[_tool_call(0, "verdict", {"verdict": "looks_right", "headline": "ok", "summary": "s", "concerns": []})])
+        return NS(choices=[NS(message=msg, finish_reason="tool_calls")])
+
+
+def test_a_cut_off_reply_is_retried_with_a_hint(fresh_business, monkeypatch):
+    fake = CutOffVerifier()
+    monkeypatch.setattr(agent, "client", lambda: fake)
+    consequences = {"ok": True, "tables": {}, "payments": {"count": 0, "total_cents": 0, "samples": []}, "emails": {"count": 0, "samples": []},
+                    "http": {"count": 0, "samples": []}, "blocked": [], "audit": {}}
+    v = agent.verify("Refund double charges", "def run(ctx): pass", consequences, lambda *a: None)
+    assert fake.saw_hint and v["verdict"] == "looks_right"
