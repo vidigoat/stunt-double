@@ -73,8 +73,10 @@ async function step(name, fn) {
     await page.getByRole("button", { name: /Approve and apply/ }).click({ timeout: 60000 });
     await page.getByText("Applied for real").waitFor({ timeout: 60000 });
     const out = await fetch(`${BASE}/api/outbox`).then((r) => r.json());
-    assert.strictEqual(out.count, 1);
-    assert.strictEqual(out.deliveries[0].connector, "slack");
+    const fromPlans = out.deliveries.filter((d) => d.path !== "/stunt-double/notify");
+    assert.strictEqual(fromPlans.length, 1, "exactly the approved Slack post was delivered");
+    assert.strictEqual(fromPlans[0].connector, "slack");
+    assert.ok(out.deliveries.some((d) => d.path === "/stunt-double/notify"), "reviewers were pinged on Slack");
   });
 
   await step("audit trail: history shows the applied run with a plan fingerprint", async () => {

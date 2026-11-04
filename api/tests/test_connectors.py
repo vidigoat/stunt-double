@@ -42,10 +42,11 @@ def test_slack_call_is_recorded_then_delivered_after_approval_without_plan_secre
     assert c["http"]["count"] == 1 and "Authorization" not in c["http"]["samples"][0]["headers"]
     assert c["http"]["samples"][0]["headers"] == {"X-Request-Id": "abc"}
     assert not critical(c)
-    assert api.get("/api/outbox").json()["count"] == 0                    # nothing sent during the rehearsal
+    plan_deliveries = [d for d in api.get("/api/outbox").json()["deliveries"] if d["path"] != "/stunt-double/notify"]
+    assert plan_deliveries == []                                            # nothing from the plan is sent during the rehearsal
     applied = api.post(f"/api/runs/{rid}/approve").json()
     assert applied["status"] == "applied" and applied["apply_result"]["http_delivered"] == 1
-    d = api.get("/api/outbox").json()["deliveries"][0]
+    d = [x for x in api.get("/api/outbox").json()["deliveries"] if x["path"] != "/stunt-double/notify"][0]
     assert d["connector"] == "slack" and json.loads(d["body"]) == {"text": "Refunds are going out"} and d["run_id"] == rid
 
 
@@ -86,3 +87,28 @@ def test_connectors_endpoint_never_exposes_delivery_targets():
     data = api.get("/api/connectors").json()["connectors"]
     assert {c["name"] for c in data} >= {"slack", "crm"}
     assert all("deliver_to" not in c and "url_env" not in c and "token_env" not in c for c in data)
+
+
+@needs_docker
+def test_reviewers_are_notified_on_slack_but_not_for_blocked_runs(fresh_business, monkeypatch):
+    from tests.test_engine import CORRECT
+    monkeypatch.setattr(main.config, "INFERENCE_KEY", "")
+    monkeypatch.setattr(main.config, "PUBLIC_URL", "https://demo.example")
+    api = TestClient(main.app)
+    rid = api.post("/api/runs/manual", json={"task": "Refund duplicates", "code": CORRECT}).json()["id"]
+    for _ in range(80):
+        if api.get(f"/api/runs/{rid}").json()["status"] == "review":
+            break
+        time.sleep(0.25)
+    d = api.get("/api/outbox").json()["deliveries"]
+    assert len(d) == 1 and d[0]["connector"] == "slack" and f"https://demo.example/app?run={rid}" in json.loads(d[0]["body"])["text"]
+    r = api.post("/api/runs/manual", json={"task": "clean up", "code": "def run(ctx):\n    ctx.db.execute('DELETE FROM customers')\n"})
+    assert r.status_code == 200, r.text
+    blocked = r.json()["id"]
+    for _ in range(80):
+        if api.get(f"/api/runs/{blocked}").json()["status"] == "review":
+            break
+        time.sleep(0.25)
+    assert api.get("/api/outbox").json()["count"] == 1                       # no ping for a blocked run
+    assert api.put("/api/policy", json={"notify_connector": "nope"}).status_code == 422
+    assert api.put("/api/policy", json={"notify_connector": ""}).status_code == 200

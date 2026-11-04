@@ -34,3 +34,5 @@ SMTP_PORT = int(os.environ.get("SD_SMTP_PORT", "1025"))
 DAILY_AGENT_RUNS = int(os.environ.get("SD_DAILY_AGENT_RUNS", "300"))
 # Mailpit's HTTP API (demo inbox), so a demo reset can empty it. Empty = don't touch any inbox.
 MAILPIT_API = os.environ.get("SD_MAILPIT_API", "")
+# Public site URL, used in links sent to humans (notifications). Empty = run ids only.
+PUBLIC_URL = os.environ.get("SD_PUBLIC_URL", "")

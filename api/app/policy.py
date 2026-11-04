@@ -12,6 +12,7 @@ DEFAULTS: dict = {
     "two_person_over_usd": 10000,         # payouts above this need two different approvers
     "two_person_over_rows": 1000,         # changing more rows than this needs two different approvers
     "two_person_for_rollbacks": True,     # undoing an applied run needs two different approvers
+    "notify_connector": "slack",          # post "approval needed" to this connector ("" = off)
     "max_delete_pct": 5,                  # block deleting more than this % of any table
     "protected_tables": ["customers"],    # block ANY delete in these tables
     "max_update_pct_protected": 20,       # block rewriting more than this % of a protected table
@@ -71,6 +72,10 @@ def validate(update: dict) -> dict:
             if isinstance(v, bool) or not isinstance(v, (int, float)) or v < 0:
                 raise ValueError(f"'{k}' must be a non-negative number")
             v = int(v)
+        if want is str:
+            from . import connectors
+            if not isinstance(v, str) or (v and v not in connectors.registry()):
+                raise ValueError(f"'{k}' must be empty or one of: {', '.join(connectors.registry())}")
         if k == "glossary":
             if not isinstance(v, list) or len(v) > 50 or not all(
                     isinstance(x, dict) and isinstance(x.get("term"), str) and isinstance(x.get("definition"), str)

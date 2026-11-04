@@ -112,6 +112,22 @@ def _rehearse(run: dict, code: str, summary: str) -> dict:
     return c
 
 
+def _notify_review(run: dict) -> None:
+    """Ping humans through a connector when a decision is needed (not for blocked runs: nothing to decide)."""
+    att = run["attempts"][-1] if run["attempts"] else None
+    name = policy.load().get("notify_connector", "")
+    if not att or not name or any(f["severity"] == "critical" for f in att["flags"]):
+        return
+    c = att["consequences"]
+    site = config.PUBLIC_URL.rstrip("/")
+    text = (f"Approval needed: “{run['task'][:120]}”. If approved: ${c.get('payments', {}).get('total_cents', 0) / 100:,.2f} out, "
+            f"{c.get('emails', {}).get('count', 0)} emails, {(c.get('http') or {}).get('count', 0)} API calls"
+            + (f". Needs {att.get('approvals_required')} approvers" if att.get("approvals_required", 1) > 1 else "")
+            + (f". Review: {site}/app?run={run['id']}" if site else f". Run {run['id']}"))
+    result = connectors.notify(name, {"text": text}, run["id"])
+    _emit(run, "system", f"Notified {result.get('label', name)} that a decision is needed" if result.get("ok") else "Notification failed", text if result.get("ok") else str(result.get("error")))
+
+
 def _verify(run: dict) -> None:
     att = run["attempts"][-1]
     _status(run, "verifying")
@@ -128,6 +144,7 @@ def _verify(run: dict) -> None:
         run["flags"] = att["flags"]
     _emit(run, "verify", verdict.get("headline", "Review ready"))
     _status(run, "review")
+    _notify_review(run)
 
 
 def _agent_job(run: dict, feedback: str | None = None) -> None:
@@ -158,6 +175,7 @@ def _manual_job(run: dict, code: str) -> None:
             with LOCK:
                 run["flags"] = run["attempts"][-1]["flags"]
             _status(run, "review")
+            _notify_review(run)
     except Exception as e:  # noqa: BLE001
         with LOCK:
             run["error"] = str(e)[:1000]

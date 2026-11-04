@@ -100,6 +100,16 @@ def deliver(call: dict, run_id: str) -> dict:
         return {"connector": name, "ok": False, "error": str(e)[:200]}
 
 
+def notify(name: str, payload: dict, run_id: str) -> dict:
+    """A message from Stunt Double itself (not from a plan) through a configured connector."""
+    c = registry().get(name)
+    if not c:
+        return {"ok": False, "error": f"no connector named {name!r}"}
+    call = {"method": "POST", "url": f"https://{c['host']}/stunt-double/notify", "host": c["host"].lower(), "scheme": "https",
+            "path": "/stunt-double/notify", "json": payload, "headers": {}}
+    return {**deliver(call, run_id), "label": c.get("label", name)}
+
+
 def deliveries(limit: int = 100) -> dict:
     db = _outbox()
     rows = db.execute("SELECT id, connector, method, path, body, run_id, created_at, status FROM deliveries ORDER BY id DESC LIMIT ?", (limit,)).fetchall()
