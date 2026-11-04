@@ -178,8 +178,7 @@ def test_unbuildable_rollback_creates_no_run(fresh_business, monkeypatch):
     rid = api.post("/api/runs/manual", json={"task": "touch customer 1", "code": code}).json()["id"]
     wait(api, rid)
     assert api.post(f"/api/runs/{rid}/approve", json={"approver": "Priya"}).json()["status"] == "applied"
-    path = main.RUNS[rid]["attempts"][-1]["effects_path"]
-    open(path, "a").write(" ")  # tampered (or cleaned up) effects
+    main.RUNS[rid]["attempts"][-1]["effects_sha256"] = "0" * 64  # effects on disk no longer match what was approved
     n = len(main.RUNS)
     r = api.post(f"/api/runs/{rid}/rollback")
     assert r.status_code == 409 and len(main.RUNS) == n
