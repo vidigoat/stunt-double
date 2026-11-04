@@ -100,8 +100,8 @@ function Hero() {
           <Link href="/app" className={pill()}><Play className="size-4 fill-current" /> Try the live demo</Link>
           <a href="#how" className={pill("outline")}>See how it works</a>
         </div>
-        <p className="mt-4 inline-flex flex-wrap items-center justify-center gap-x-1.5 text-[13px] text-muted-foreground">
-          <BrandLogo name="vultr" tone="brand" className="size-3.5" /> Runs on Vultr · sandboxed with gVisor · nothing real happens until you approve
+        <p className="mt-4 text-[13px] text-muted-foreground">
+          <span className="inline-flex items-center gap-1.5 whitespace-nowrap align-middle"><BrandLogo name="vultr" tone="brand" className="size-3.5" />Runs on Vultr</span> · sandboxed with gVisor · nothing real happens until you approve
         </p>
 
         <div className="animate-rise relative mx-auto mt-14 max-w-4xl [animation-delay:260ms]">
