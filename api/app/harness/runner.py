@@ -211,9 +211,11 @@ def validate_intents(raw: dict) -> dict:
         hdrs = {str(k)[:100]: str(v)[:500] for k, v in list(hdrs.items())[:20]
                 if str(k).lower() not in SECRET_HEADERS and not _unsafe_header(str(k)) and not _unsafe_header(str(v))}
         parsed = urllib.parse.urlsplit(url)
+        path = parsed.path + (f"?{parsed.query}" if parsed.query else "")  # the query string is part of what gets delivered
         calls.append({"method": method if method in ("GET", "POST", "PUT", "PATCH", "DELETE") else "INVALID", "url": url[:2000],
-                      "host": (parsed.hostname or "").lower(), "scheme": parsed.scheme, "path": parsed.path[:500],
-                      "json": json.loads(body) if len(body) <= 65536 else {"_truncated": True}, "body_bytes": len(body), "headers": hdrs})
+                      "host": (parsed.hostname or "").lower(), "scheme": parsed.scheme, "path": path[:2000],
+                      "json": json.loads(body) if len(body) <= 65536 else {"_truncated": True}, "body_bytes": len(body), "headers": hdrs,
+                      **({"oversized": True} if len(body) > 65536 or len(url) > 2000 else {})})
     err = raw.get("error")
     return {"ok": bool(raw.get("ok")) and err is None, "error": err if isinstance(err, dict) else ({"message": str(err)[:2000]} if err else None),
             "stdout": str(raw.get("stdout", ""))[-4000:], "logs": [str(x)[:500] for x in (raw.get("logs") or [])[:100]],
@@ -233,23 +235,38 @@ def _unsafe_header(value: str) -> bool:
     return len(value.splitlines()) > 1 or any(ord(ch) < 32 or ord(ch) == 127 or 0x80 <= ord(ch) <= 0x9F for ch in value)
 
 
+def unsafe_path(path: str) -> bool:
+    """Dot segments (also percent-encoded), backslashes or control characters: a path that could climb out of a connector's base."""
+    p = urllib.parse.unquote(urllib.parse.unquote(str(path).split("?", 1)[0]))
+    return chr(92) in p or any(ord(ch) < 32 or ord(ch) == 127 for ch in p) or any(seg in (".", "..") for seg in p.split("/"))
+
+
 def audit_http(before: dict, calls: list) -> dict:
     """Personal data leaving through API calls: how many distinct customers' emails / card-like numbers each payload carries."""
-    customers = {str(r.get("email", "")).lower() for r in before.get("customers", {}).get("rows", {}).values()}
-    bulk, cards, hosts = [], [], Counter()
+    customers = {str(r.get("email", "")).lower() for r in before.get("customers", {}).get("rows", {}).values()} - {""}
+    bulk, cards, hosts, oversized, unsafe = [], [], Counter(), [], []
+    leaked: set = set()  # across ALL calls: spreading customer data over many small calls doesn't hide it
     for c in calls:
         hosts[c["host"]] += 1
-        text = json.dumps(c.get("json"), default=str)
+        text = " ".join([json.dumps(c.get("json"), default=str), c.get("path", ""), json.dumps(c.get("headers", {}))])
         found = {x.lower() for x in EMAIL.findall(text)} & customers
+        leaked |= found
         if len(found) > 3:
             bulk.append({"url": c["url"][:200], "customers": len(found)})
         if CARD.search(text):
             cards.append({"url": c["url"][:200]})
+        if c.get("oversized"):
+            oversized.append({"url": c["url"][:200], "bytes": c.get("body_bytes", 0)})
+        if unsafe_path(c.get("path", "")):
+            unsafe.append({"url": c["url"][:200]})
+    if len(leaked) > 3 and not bulk:
+        bulk.append({"url": f"{len(calls)} calls combined", "customers": len(leaked)})
     routes = sorted({(c["method"], c["host"], c["scheme"]) for c in calls})
     return {"count": len(calls), "hosts": dict(hosts.most_common(20)),
             "routes": [{"method": m, "host": h, "scheme": sc} for m, h, sc in routes[:200]], "routes_truncated": len(routes) > 200,
             "bulk_personal_data": bulk[:5], "bulk_personal_data_count": len(bulk),
-            "card_numbers": cards[:5], "card_number_count": len(cards)}
+            "card_numbers": cards[:5], "card_number_count": len(cards), "customers_in_payloads": len(leaked),
+            "oversized": oversized[:5], "oversized_count": len(oversized), "unsafe_paths": unsafe[:5], "unsafe_path_count": len(unsafe)}
 
 
 def audit(before: dict, payments: list, emails: list) -> dict:

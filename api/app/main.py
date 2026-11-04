@@ -61,7 +61,7 @@ def _load_history() -> None:
 
 _load_history()
 try:
-    sandbox.cleanup_orphans(keep={a["sandbox_id"] for r in RUNS.values() if r["status"] == "review" for a in r["attempts"]})
+    sandbox.cleanup_orphans(keep={a["sandbox_id"] for r in RUNS.values() if r["status"] in ("review", "applied") for a in r["attempts"]})
 except OSError:
     pass
 
@@ -98,7 +98,7 @@ def _rehearse(run: dict, code: str, summary: str) -> dict:
     c = res["consequences"]
     effects = open(res["effects_path"], "rb").read() if c.get("ok") else b""
     attempt = {"n": len(run["attempts"]) + 1, "sandbox_id": res["id"], "code": code, "summary": summary,
-               "consequences": c, "flags": agent.red_flags(c), "effects_path": res["effects_path"],
+               "consequences": c, "flags": _gate_flags(c, run), "effects_path": res["effects_path"],
                "plan_sha256": hashlib.sha256(code.encode()).hexdigest(), "effects_sha256": hashlib.sha256(effects).hexdigest() if effects else None,
                "created_at": time.time()}
     attempt["approvals_required"], attempt["approval_reasons"] = policy.approvals_required(c, run["mode"])
@@ -112,6 +112,28 @@ def _rehearse(run: dict, code: str, summary: str) -> dict:
     return c
 
 
+def _gate_flags(c: dict, run: dict, pol: dict | None = None) -> list[dict]:
+    """Policy flags for a run, plus the workspace rule: money and email only exist for the demo business."""
+    flags = agent.red_flags(c, pol)
+    if run.get("workspace", workspaces.DEMO) != workspaces.DEMO and (c.get("payments", {}).get("count") or c.get("emails", {}).get("count")):
+        flags.insert(0, {"rule": "workspace_side_effects", "severity": "critical", "title": "Refunds and email aren't connected for this workspace",
+                         "detail": "Uploaded databases can change rows and call connectors. Payments and email only exist for the demo business."})
+    return flags
+
+
+def _person(name: str) -> str:
+    """Identity key for the two-person rule: lookalikes (fullwidth, zero-width, soft hyphen, case) collapse to one person."""
+    import unicodedata
+    n = unicodedata.normalize("NFKC", name)
+    n = "".join(ch for ch in n if unicodedata.category(ch) != "Cf")
+    return " ".join(n.split()).casefold()
+
+
+def _slack(text: str) -> str:
+    """Escape user text for Slack mrkdwn so a task can't @channel or hide a link."""
+    return text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+
+
 def _notify_review(run: dict) -> None:
     """Ping humans through a connector when a decision is needed (not for blocked runs: nothing to decide)."""
     att = run["attempts"][-1] if run["attempts"] else None
@@ -120,7 +142,7 @@ def _notify_review(run: dict) -> None:
         return
     c = att["consequences"]
     site = config.PUBLIC_URL.rstrip("/")
-    text = (f"Approval needed: “{run['task'][:120]}”. If approved: ${c.get('payments', {}).get('total_cents', 0) / 100:,.2f} out, "
+    text = (f"Approval needed: “{_slack(run['task'][:120])}”. If approved: ${c.get('payments', {}).get('total_cents', 0) / 100:,.2f} out, "
             f"{c.get('emails', {}).get('count', 0)} emails, {(c.get('http') or {}).get('count', 0)} API calls"
             + (f". Needs {att.get('approvals_required')} approvers" if att.get("approvals_required", 1) > 1 else "")
             + (f". Review: {site}/app?run={run['id']}" if site else f". Run {run['id']}"))
@@ -219,6 +241,12 @@ class ManualIn(TaskIn):
 
 class ApproveIn(BaseModel):
     approver: str | None = Field(default=None, max_length=80)
+    note: str | None = Field(default=None, max_length=500)
+
+
+class RejectIn(BaseModel):
+    approver: str | None = Field(default=None, max_length=80)
+    reason: str | None = Field(default=None, max_length=500)
 
 
 class FixIn(BaseModel):
@@ -263,11 +291,29 @@ async def upload_workspace(request: Request, name: str = ""):
     _rate_limit(request, per_hour=10)
     if int(request.headers.get("content-length") or 0) > workspaces.MAX_BYTES:
         raise HTTPException(413, "Databases up to 20 MB, please")
-    data = await request.body()
+    chunks, size = [], 0
+    async for chunk in request.stream():  # count as we read: chunked uploads have no Content-Length to trust
+        size += len(chunk)
+        if size > workspaces.MAX_BYTES:
+            raise HTTPException(413, "Databases up to 20 MB, please")
+        chunks.append(chunk)
+    data = b"".join(chunks)
     try:
         return workspaces.create(name, data)
     except ValueError as e:
         raise HTTPException(422, str(e)) from e
+
+
+@app.delete("/api/workspaces/{ws}")
+def delete_workspace(ws: str):
+    if ws == workspaces.DEMO or not workspaces.exists(ws):
+        raise HTTPException(404, "unknown workspace (the demo business can't be deleted)")
+    with LOCK:
+        if any(r.get("workspace") == ws and r["status"] in ("queued", "planning", "rehearsing", "verifying", "review", "applying") for r in RUNS.values()):
+            raise HTTPException(409, "This workspace has runs in progress or awaiting review")
+    if not workspaces.delete(ws):
+        raise HTTPException(404, "unknown workspace")
+    return {"deleted": ws}
 
 
 @app.get("/api/business")
@@ -355,6 +401,29 @@ def stats():
             "rolled_back": sum(1 for r in runs if r.get("rolled_back_by"))}
 
 
+@app.get("/api/runs.csv")
+def runs_csv():
+    """The audit trail as CSV, for auditors and spreadsheets."""
+    import csv
+    import io
+    from fastapi.responses import Response
+    buf = io.StringIO()
+    w = csv.writer(buf)
+    w.writerow(["run_id", "created_utc", "workspace", "mode", "request", "status", "money_out_usd", "emails", "rows", "blocked_by_policy",
+                "approvers", "approval_notes", "rejected_by", "rejection_reason", "plan_sha256", "effects_sha256"])
+    with LOCK:
+        runs = sorted(RUNS.values(), key=lambda r: r["created_at"])
+        for r in runs:
+            sm = _summary(r)
+            a = r.get("approval") or {}
+            rej = r.get("rejection") or {}
+            att = r["attempts"][-1] if r["attempts"] else {}
+            w.writerow([r["id"], time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime(r["created_at"])), sm["workspace"], r["mode"], r["task"], r["status"],
+                        f"{sm['money_cents'] / 100:.2f}", sm["emails"], sm["rows"], sm["blocked"], " & ".join(a.get("approvers", [])),
+                        " | ".join(a.get("notes", [])), rej.get("by", ""), rej.get("reason", ""), att.get("plan_sha256", ""), att.get("effects_sha256", "")])
+    return Response(buf.getvalue(), media_type="text/csv", headers={"Content-Disposition": 'attachment; filename="stunt-double-audit.csv"'})
+
+
 @app.get("/api/runs/{rid}/stream")
 async def stream_run(rid: str, request: Request):
     """Server-sent events: the full run every time it changes; ends when the run is no longer active."""
@@ -404,14 +473,17 @@ def fix_run(rid: str, body: FixIn):
 
 
 @app.post("/api/runs/{rid}/reject")
-def reject_run(rid: str):
+def reject_run(rid: str, body: RejectIn | None = None):
     run = _get(rid)
+    who = " ".join(((body.approver if body else None) or "").split())[:80] or "Approver"
+    reason = " ".join(((body.reason if body else None) or "").split())[:500]
     with LOCK:
         if run["status"] != "review":
             raise HTTPException(409, f"Run is {run['status']}, not awaiting review")
         run["status"] = "rejected"
+        run["rejection"] = {"by": who, "at": time.time(), "reason": reason}
         _save(run)
-    _emit(run, "human", "Rejected by approver. Nothing was changed.")
+    _emit(run, "human", f"Rejected by {who}. Nothing was changed.", reason)
     _archive_async(run)
     return _public(run)
 
@@ -427,18 +499,25 @@ def approve_run(rid: str, body: ApproveIn | None = None):
             raise HTTPException(409, "A plan that crashed in rehearsal cannot be applied")
         if any(f["severity"] == "critical" for f in att["flags"]):
             raise HTTPException(409, "Blocked by policy: critical blast radius. Ask the agent to fix it or reject.")
+        if run["mode"] != "rollback":  # policy may have changed since the rehearsal: the stricter result wins
+            now = [f for f in _gate_flags(att["consequences"], run) if f["severity"] == "critical"]
+            if now:
+                raise HTTPException(409, f"Blocked by the current policy: {now[0]['title']}. Rehearse again or reject.")
         effects = open(att["effects_path"], "rb").read()
         if hashlib.sha256(effects).hexdigest() != att.get("effects_sha256"):
             raise HTTPException(409, "Integrity check failed: the recorded effects changed after the rehearsal")
         name = " ".join(((body.approver if body else None) or "").split())[:80]
-        needed = att.get("approvals_required", 1)
+        needed = max(att.get("approvals_required", 1), policy.approvals_required(att["consequences"], run["mode"])[0])
         approvals = [x for x in run.get("approvals", []) if x.get("effects_sha256") == att["effects_sha256"]]
         if needed > 1 and not name:
             raise HTTPException(422, "This change needs two named approvers. Enter your name to approve.")
         name = name or "Demo approver"
-        if any(x["name"].casefold() == name.casefold() for x in approvals):
+        if not _person(name):
+            raise HTTPException(422, "Enter a real name to approve.")
+        if any(_person(x["name"]) == _person(name) for x in approvals):
             raise HTTPException(409, f"{name} already approved. The second approval must come from a different person.")
-        approvals.append({"name": name, "at": time.time(), "effects_sha256": att["effects_sha256"]})
+        note = " ".join(((body.note if body else None) or "").split())[:500]
+        approvals.append({"name": name, "at": time.time(), "effects_sha256": att["effects_sha256"], **({"note": note} if note else {})})
         run["approvals"] = approvals
         if len(approvals) < needed:
             _save(run)
@@ -446,6 +525,7 @@ def approve_run(rid: str, body: ApproveIn | None = None):
         else:
             pending = False
             run["approval"] = {"approved_at": time.time(), "approver": " & ".join(x["name"] for x in approvals), "approvers": [x["name"] for x in approvals],
+                               "notes": [f"{x['name']}: {x['note']}" for x in approvals if x.get("note")],
                                "plan_sha256": att["plan_sha256"], "effects_sha256": att["effects_sha256"], "sandbox_id": att["sandbox_id"],
                                "policy": policy.load(), "warnings": [f["title"] for f in att["flags"]]}
             run["status"] = "applying"
@@ -624,13 +704,20 @@ def rollback_run(rid: str, req: Request):
         if existing and RUNS.get(existing, {}).get("status") in ("review", "applying", "applied"):
             raise HTTPException(409, f"Rollback already exists: {existing}")
     att = src["attempts"][-1]
-    run = _new_run(f"Undo: {src['task']}", "rollback", src.get("workspace", workspaces.DEMO))
-    db = sqlite3.connect(f"file:{workspaces.db_path(run['workspace'])}?mode=ro", uri=True)
-    rows_now = {t: db.execute(f'SELECT COUNT(*) FROM "{t}"').fetchone()[0]  # noqa: S608 - names from sqlite_master
-                for (t,) in db.execute("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'")}
-    db.close()
-    rb_id = "rb-" + run["id"][4:]
-    c, effects_path, effects_sha = rollback.build(att["effects_path"], config.RUNS_DIR / rb_id / "out", rb_id, rows_now)
+    ws = src.get("workspace", workspaces.DEMO)
+    # Build the inverse BEFORE creating the run: a failure here must not leave a run stuck in "queued".
+    try:
+        if hashlib.sha256(open(att["effects_path"], "rb").read()).hexdigest() != att.get("effects_sha256"):
+            raise ValueError("the approved effects changed on disk")
+        db = sqlite3.connect(f"file:{workspaces.db_path(ws)}?mode=ro", uri=True)
+        rows_now = {t: db.execute(f"SELECT COUNT(*) FROM {applier.q(t)}").fetchone()[0]  # noqa: S608 - quoted identifier
+                    for (t,) in db.execute("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'").fetchall()}
+        db.close()
+        rb_id = "rb-" + uuid.uuid4().hex[:10]
+        c, effects_path, effects_sha = rollback.build(att["effects_path"], config.RUNS_DIR / rb_id / "out", rb_id, rows_now)
+    except (OSError, ValueError, KeyError, sqlite3.Error) as e:
+        raise HTTPException(409, f"Can't build an undo for this run: {str(e)[:200]}") from e
+    run = _new_run(f"Undo: {src['task']}", "rollback", ws)
     flags = agent.red_flags(c)
     irr = c["irreversible"]
     if irr["refunds"] or irr["emails"] or irr["http"]:

@@ -9,6 +9,7 @@ Stunt Double's own "outbox" so the demo is fully observable without third-party 
 """
 import json
 import os
+import urllib.parse
 import sqlite3
 import time
 
@@ -60,9 +61,20 @@ def check(call: dict) -> str | None:
     name, c = match(call)
     if not name:
         return f"no connector for {call.get('host') or 'this URL'}"
+    if unsafe_path(call.get("path", "")):
+        return "the path escapes the connector ('..' segments, backslashes or control characters)"
     if call.get("method") not in c.get("methods", ["POST"]):
         return f"{call.get('method')} is not allowed for {c.get('label', name)}"
     return None
+
+
+FORWARD_HEADERS = {"content-type", "accept", "idempotency-key", "x-request-id"}
+
+
+def unsafe_path(path: str) -> bool:
+    """Same rule as the sandbox audit: no dot segments (also percent-encoded), backslashes or control characters."""
+    p = urllib.parse.unquote(urllib.parse.unquote(str(path).split("?", 1)[0]))
+    return chr(92) in p or any(ord(ch) < 32 or ord(ch) == 127 for ch in p) or any(seg in (".", "..") for seg in p.split("/"))
 
 
 # ---- delivery ---------------------------------------------------------------------------------------------
@@ -91,8 +103,12 @@ def deliver(call: dict, run_id: str) -> dict:
     if not base.startswith("https://"):
         return {"connector": name, "ok": False, "error": "connector has no https delivery URL configured"}
     url = base.rstrip("/") + (call.get("path", "") if c.get("append_path") else "")
+    if not urllib.parse.urlsplit(url).path.startswith(urllib.parse.urlsplit(base).path.rstrip("/")):
+        return {"connector": name, "ok": False, "error": "the path escapes the connector's base URL"}
     token = os.environ.get(c.get("token_env", ""), "")
-    headers = {**call.get("headers", {}), **({"Authorization": f"Bearer {token}"} if token else {})}
+    # Only plain content headers from the plan: Host, X-Forwarded-*, auth and the like are never forwarded.
+    plan_headers = {k: v for k, v in call.get("headers", {}).items() if k.lower() in FORWARD_HEADERS}
+    headers = {**plan_headers, **({"Authorization": f"Bearer {token}"} if token else {})}
     try:
         r = httpx.request(call["method"], url, json=call.get("json"), headers=headers, timeout=10)
         return {"connector": name, "ok": r.status_code < 400, "status": r.status_code}

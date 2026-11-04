@@ -372,6 +372,12 @@ def red_flags(c: dict, pol: dict | None = None) -> list[dict]:
         x = (h.get("bulk_personal_data") or h.get("card_numbers"))[0]
         flag("block_data_leaks", p["block_data_leaks"], "API calls would send customer data to a third party",
              f"e.g. {x['url']}" + (f": {x['customers']} customers' emails" if "customers" in x else ": a card-like number"))
+    if h.get("oversized_count"):
+        flag("connectors_only", True, f"{h['oversized_count']} API calls are too large to review",
+             "Payloads over 64 KB (or URLs over 2,000 characters) are never delivered.")
+    if h.get("unsafe_path_count"):
+        flag("connectors_only", True, f"{h['unsafe_path_count']} API calls use a path that escapes the connector",
+             f"e.g. {h['unsafe_paths'][0]['url']}: '..' segments aren't allowed.")
     n_http = (c.get("http") or {}).get("count", 0)
     if n_http > p["max_http_per_run"]:
         flag("max_http_per_run", False, f"Makes {n_http:,} API calls", f"Above the {p['max_http_per_run']:,}-call review threshold.", "medium")

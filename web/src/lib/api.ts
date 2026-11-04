@@ -21,12 +21,13 @@ export type Consequences = {
 };
 export type Attempt = { n: number; sandbox_id: string; code: string; summary: string; consequences: Consequences; flags: Flag[]; plan_sha256?: string; effects_sha256?: string | null; created_at?: number;
   approvals_required?: number; approval_reasons?: string[] };
-export type Approval = { approved_at: number; approver: string; approvers?: string[]; plan_sha256: string; effects_sha256: string; sandbox_id: string; warnings: string[] };
+export type Approval = { approved_at: number; approver: string; approvers?: string[]; notes?: string[]; plan_sha256: string; effects_sha256: string; sandbox_id: string; warnings: string[] };
 export type RunEvent = { t: number; kind: string; title: string; detail: string };
 export type RunStatus = "queued" | "planning" | "rehearsing" | "verifying" | "review" | "applying" | "applied" | "drifted" | "rejected" | "failed";
 export type Run = {
   id: string; task: string; mode: "agent" | "manual" | "rollback"; status: RunStatus; approvals?: { name: string; at: number }[]; rollback_of?: string; rolled_back_by?: string; rollback_run?: string; created_at: number; events: RunEvent[]; attempts: Attempt[];
   verdict: Verdict | null; flags: Flag[]; final_message: string | null; error: string | null; agent_model: string; verifier_model: string; approval?: Approval | null; version?: number;
+  rejection?: { by: string; at: number; reason: string } | null;
   apply_result: null | { rows_written?: number; refunds?: number; refund_total_cents?: number; emails_sent?: number; emails_failed?: number; http_delivered?: number; http_failed?: number; drift_count?: number; drifted?: unknown[]; error?: string };
 };
 export type Workspace = { id: string; name: string; kind: "demo" | "upload"; description: string };
@@ -68,8 +69,8 @@ export const api = {
   run: (id: string) => req<Run>(`/runs/${id}`),
   runs: () => req<RunSummary[]>("/runs"),
   fix: (id: string, note?: string) => req<{ id: string }>(`/runs/${id}/fix`, { note }),
-  approve: (id: string, approver?: string) => req<Run>(`/runs/${id}/approve`, { approver }),
-  reject: (id: string) => req<Run>(`/runs/${id}/reject`, {}),
+  approve: (id: string, approver?: string, note?: string) => req<Run>(`/runs/${id}/approve`, { approver, note: note || undefined }),
+  reject: (id: string, approver?: string, reason?: string) => req<Run>(`/runs/${id}/reject`, { approver, reason: reason || undefined }),
   rollback: (id: string) => req<{ id: string }>(`/runs/${id}/rollback`, {}),
   reset: () => req<Business>("/demo/reset", {}),
 };

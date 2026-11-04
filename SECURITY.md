@@ -35,6 +35,16 @@ Please open a private security advisory on GitHub (Security → Report a vulnera
 | Agent self-approval | No approve tool in the MCP server; approval only via the human UI | `mcp/tests/test_mcp.py` |
 | SQL from agents during planning | read-only connection, `PRAGMA query_only`, single SELECT only | `test_engine::test_read_only_query_tool_rejects_writes` |
 | DNS rebinding against the MCP endpoint | host allow-list kept on (421 for unknown hosts) | manual check, see commit history |
+| Plan calls an arbitrary API | `ctx.http` calls are recorded, never sent from the sandbox; only configured connectors, allowed methods and https; checked at rehearsal and again at apply | `test_connectors.py` |
+| Credential theft through a connector | Secrets live only in the server's environment and are added after approval; auth headers from plans are dropped; only `Content-Type`, `Accept`, `Idempotency-Key`, `X-Request-Id` are forwarded | `test_security3::test_real_delivery_forwards_only_allowlisted_headers` |
+| Path escape out of a connector's base URL | `..`/`.` segments (also percent-encoded twice), backslashes and control characters block; the final URL must stay under the base | `test_security3::test_dot_segments_never_pass_the_connector_check` |
+| Customer data leaking through API calls | distinct customer emails are counted across *all* calls, plus card-like numbers; payloads over 64 KB block | `test_security3::test_customer_data_spread_over_many_calls_is_still_a_leak` |
+| Uploaded database used to move demo money or send mail | refunds and email block for any workspace but the demo, at rehearsal and again in apply | `test_security3::test_uploaded_workspace_cannot_refund_or_email` |
+| Hidden writes in an uploaded database | databases with triggers or generated columns are refused; apply also disables triggers | `test_security3::test_upload_rejects_triggers` |
+| Upload abuse | byte limit counted while streaming; oldest upload evicted when full; registry under a lock; delete endpoint | `test_security3::test_chunked_upload_over_limit_is_refused_while_streaming` |
+| One person approving twice | approvals bound to the effects hash; names compared after NFKC, removing format characters, casefold | `test_security3::test_lookalike_names_are_one_person` |
+| Policy tightened after a rehearsal | the current policy is re-applied at approval; the stricter result wins | `test_security3::test_tightened_policy_blocks_pending_run` |
+| Undo that can't be trusted | the inverse is built only from effects whose SHA-256 still matches; nothing is created if that fails | `test_security3::test_unbuildable_rollback_creates_no_run` |
 
 ## Independent review (Nov 4)
 
@@ -57,12 +67,27 @@ race and a cross-run refund race. Fixed: exact single-address match with case-in
 blocked; any control or line-break character in To/Subject is refused and every email is built before the database is
 touched; `fix` claims the run atomically; one global apply lock plus BeanPay's one-refund-per-charge rule.
 
+**Round 3 (connectors, workspaces, two-person rule, rollback, notifications):** 2 high, 6 medium, 6 low. All fixed with
+regression tests in `api/tests/test_security3.py`:
+- *High:* an uploaded database could pass the refund and email audit, then pay through the demo BeanPay and send real
+  mail. Fixed: money and email are demo-only.
+- *High:* lookalike names (zero-width, fullwidth, soft hyphen) counted as a second person. Fixed: names are normalised
+  before comparing.
+- *Medium:* trigger re-firing on apply; generated columns misaligning values; connector path traversal and forwarded
+  `Host:`/`X-Forwarded-For`; chunked uploads bypassing the size check, plus a permanent workspace cap; policy changes not
+  reaching runs already in review; a failed rollback build leaving a run stuck in "queued".
+- *Low:* Slack markup in task text (now escaped); dropped query strings (now part of the reviewed path); silent payload
+  truncation (now blocks); per-call-only PII counting; unquoted identifiers; effects files of applied runs being cleaned up
+  after 24 h (now kept, so undo keeps working).
+
 ## Known limitations (hackathon scope)
 - The API container talks to the host Docker daemon to start sandboxes; a compromise of the API process is host-level.
   Production deployments should use a dedicated sandbox host or a rootless/remote runtime.
 - Phase 2 parses a SQLite file the plan wrote. It does so inside a sandbox with the same caps, but SQLite itself is
   part of the trusted computing base of the measurement.
 - The demo has no authentication: anyone with the URL can rehearse, edit policy and approve. Rate limits apply.
+  The two-person rule therefore stops *accidents* (one click moving $37,404), not a determined insider typing two
+  names. In production, approver identity comes from your SSO and policy edits need an admin.
 - The plan shares a process with phase 1, so it can erase its own *blocked network attempt* log. The container still
   has no network, and every measured effect comes from phase 2, so this only affects that informational flag.
 - BLOB columns would be serialized as strings in effects (the demo schema has none).

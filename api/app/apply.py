@@ -81,7 +81,11 @@ def apply(run_id: str, effects_path: str, workspace: str | None = None) -> dict:
         messages.append(msg)
 
     from . import workspaces
+    if (workspace or workspaces.DEMO) != workspaces.DEMO and (effects["payments"] or effects["emails"]):
+        raise ValueError("Refusing to apply: payments and email are only connected for the demo business, not uploaded workspaces")
     db = sqlite3.connect(workspaces.db_path(workspace), isolation_level=None)
+    if hasattr(sqlite3, "SQLITE_DBCONFIG_ENABLE_TRIGGER"):  # apply replays exactly the measured rows: no trigger writes on top
+        db.setconfig(sqlite3.SQLITE_DBCONFIG_ENABLE_TRIGGER, False)
     db.execute("BEGIN IMMEDIATE")  # lock: nothing can change between the drift check and the write
     try:
         _check_identifiers(_schema(db), changes)

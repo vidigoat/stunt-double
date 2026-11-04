@@ -109,6 +109,7 @@ export default function AppPage() {
   const [run, setRun] = useState<Run | null>(null);
   const [busy, setBusy] = useState(false);
   const [approver, setApprover] = useState("");
+  const [note, setNote] = useState("");
   useEffect(() => { try { setApprover(localStorage.getItem("sd-approver") || ""); } catch { /* storage unavailable */ } }, []);
   const runId = run?.id;
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -206,8 +207,8 @@ export default function AppPage() {
       if (kind === "fix") { await api.fix(run.id); setRun({ ...run, status: "planning" }); }
       else if (kind === "approve") {
         try { localStorage.setItem("sd-approver", approver); } catch { /* storage unavailable */ }
-        const r = await api.approve(run.id, approver.trim() || undefined); setRun(r); refreshBiz();
-      } else { const r = await api.reject(run.id); setRun(r); refreshBiz(); }
+        const r = await api.approve(run.id, approver.trim() || undefined, note.trim()); setRun(r); setNote(""); refreshBiz();
+      } else { const r = await api.reject(run.id, approver.trim() || undefined, note.trim()); setRun(r); setNote(""); refreshBiz(); }
     } catch (e) {
       toast.error((e as Error).message);
     } finally {
@@ -425,6 +426,9 @@ export default function AppPage() {
                       {critical ? <><Lock className="size-4" /> Blocked by policy</> : needed > 1 && approvalsSoFar.length === 0 ? <><Users className="size-4" /> First approval (1 of 2)</>
                         : needed > 1 ? <><Check className="size-4" /> Second approval and apply</> : <><Check className="size-4" /> Approve and apply</>}
                     </Button>
+                    <input value={note} onChange={(e) => setNote(e.target.value)} maxLength={500} aria-label="Decision note"
+                      placeholder={critical ? "Why are you rejecting it? (optional, goes in the audit trail)" : "Note for the audit trail (optional): why approve or reject"}
+                      className="h-10 w-full rounded-full border bg-background px-4 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring/50" />
                     {needed > 1 && !critical ? (
                       <div className="flex w-full flex-wrap items-center gap-2 rounded-lg border bg-background px-3 py-2 text-sm">
                         <Users className="size-4 shrink-0" />
@@ -434,6 +438,8 @@ export default function AppPage() {
                     ) : null}
                   </>
                 ) : null}
+                {run.status === "rejected" && run.rejection ? <p className="w-full text-sm text-muted-foreground">Rejected by {run.rejection.by}{run.rejection.reason ? `: “${run.rejection.reason}”` : ". No reason given."}</p> : null}
+                {run.status === "applied" && run.approval?.notes?.length ? <p className="w-full text-sm text-muted-foreground">{run.approval.notes.map((n) => `“${n}”`).join(" · ")}</p> : null}
                 {run.status === "drifted" ? <Button className="h-10 rounded-full px-4" onClick={start} disabled={busy}><RotateCcw className="size-4" /> Rehearse again</Button> : null}
                 {!ACTIVE.has(run.status) && run.status !== "review" && run.attempts.length ? <a href={`/api/runs/${run.id}/evidence`} className="ml-auto text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline">Download evidence ↓</a> : null}
               </ApprovalCard>
