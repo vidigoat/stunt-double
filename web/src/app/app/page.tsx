@@ -177,7 +177,7 @@ export default function AppPage() {
   }, [runId]);
 
   const attempt = run?.attempts.at(-1);
-  const view = useMemo(() => (run && attempt ? viewFromAttempt(run.task, attempt, run.verdict, run.flags.length ? run.flags : attempt.flags) : null), [run, attempt]);
+  const view = useMemo(() => (run && attempt ? { ...viewFromAttempt(run.task, attempt, run.verdict, run.flags.length ? run.flags : attempt.flags), checking: run.status === "verifying" } : null), [run, attempt]);
   const critical = !!attempt?.flags.some((f) => f.severity === "critical");
   const aiObjected = !!run?.verdict && ["concerns", "dangerous"].includes(run.verdict.verdict) && run.verdict.headline !== "Verifier could not finish";
   const needed = attempt?.approvals_required ?? 1;

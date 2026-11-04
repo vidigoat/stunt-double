@@ -8,6 +8,7 @@ import { CountUp } from "@/components/count-up";
 
 export type ApprovalView = {
   task: string;
+  checking?: boolean;   // the AI verifier is still investigating: no verdict yet, and none implied
   moneyCents: number;
   refunds: number;
   emails: number;
@@ -93,7 +94,8 @@ export function ApprovalCard({ view, children, className, label = "Approval requ
           <Stat label="Money out" value={<CountUp value={view.moneyCents} format="usd" />} hot={hot && view.moneyCents > 0} sub={`${num(view.refunds)} refunds`} />
           <Stat label="Emails" value={<CountUp value={view.emails} />} sub={applied ? "approved" : "would be sent"} />
           <Stat label="Rows changed" value={<CountUp value={view.rowsChanged} />} hot={t === "danger" && view.rowsChanged > 0} sub={view.biggestChange} />
-          <Stat label="Verdict" value={t === "ok" ? "Looks right" : t === "danger" ? "Critical" : t === "warn" ? "Check this" : "Rules pass"} hot={hot} good={!hot} small sub={view.verdict ? "verified by Stunt Double" : "policy checks only"} />
+          {view.checking && !hot ? <Stat label="Verdict" value="Checking…" small sub="AI verifier at work" />
+            : <Stat label="Verdict" value={t === "ok" ? "Looks right" : t === "danger" ? "Critical" : t === "warn" ? "Check this" : "Rules pass"} hot={hot} good={!hot} small sub={view.verdict ? "verified by Stunt Double" : "policy checks only"} />}
         </div>
         {view.verdict || issues.length ? (
           <div className={cn("rounded-xl border p-4", hot ? "border-damage/30 bg-damage/[0.04]" : "bg-background")}>
@@ -117,7 +119,7 @@ export function ApprovalCard({ view, children, className, label = "Approval requ
             </div>
           </div>
         ) : null}
-        {!view.verdict && !applied && t !== "danger" ? (
+        {!view.verdict && !view.checking && !applied && t !== "danger" ? (
           <p className="rounded-xl border border-dashed px-4 py-3 text-sm text-muted-foreground">
             <span className="font-medium text-foreground">Only rules ran.</span> Rules check <em>what</em> a plan does, not whether it&apos;s what you <em>meant</em>.
             Telling “same item, same day” apart from “charged twice” is the AI verifier&apos;s job (Vultr Serverless Inference).
