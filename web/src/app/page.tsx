@@ -29,7 +29,7 @@ const HERO: ApprovalView = {
       { severity: "medium", title: "8 VIP customers emailed by mistake", detail: "They'd get an apology for a problem they never had." },
     ],
   },
-  sandboxId: "sd-7f3a91c2", sandboxMs: 880, runtime: "runsc",
+  sandboxId: "sd-d002755d", sandboxMs: 1910, runtime: "runsc",
   plain: "If approved, this refunds $37,404.00 across 744 charges, emails 744 people (8 VIPs) and changes 744 charges (refunded_at, status). Nothing else leaves the sandbox.",
 };
 
