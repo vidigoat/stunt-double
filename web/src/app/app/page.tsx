@@ -10,7 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ApprovalCard, viewFromAttempt } from "@/components/approval-card";
 import { BlastRadius } from "@/components/blast-radius";
 import { AppHeader } from "@/components/app-header";
-import { api, num, usd, type Business, type Flag, type Health, type Run } from "@/lib/api";
+import { api, num, usd, type Business, type Flag, type Health, type Run, type Workspace } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
 const EXAMPLES = [
@@ -113,7 +113,11 @@ export default function AppPage() {
   const runId = run?.id;
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const refreshBiz = useCallback(() => api.business().then(setBiz).catch(() => {}), []);
+  const [ws, setWs] = useState("demo");
+  const [spaces, setSpaces] = useState<Workspace[]>([]);
+  const [uploading, setUploading] = useState(false);
+  const refreshBiz = useCallback(() => api.business(ws).then(setBiz).catch(() => {}), [ws]);
+  useEffect(() => { api.workspaces().then((w) => setSpaces(w.workspaces)).catch(() => {}); }, []);
   useEffect(() => {
     refreshBiz();
     api.health().then((h) => { setHealth(h); if (!h.inference_configured) setMode((m) => (touchedMode.current ? m : "break")); }).catch(() => {});
@@ -185,7 +189,7 @@ export default function AppPage() {
   async function start() {
     setBusy(true);
     try {
-      const { id } = mode === "agent" ? await api.createRun(task) : await api.createManualRun(breakTask, code);
+      const { id } = mode === "agent" ? await api.createRun(task, ws) : await api.createManualRun(breakTask, code, ws);
       setRun({ id, task: mode === "agent" ? task : breakTask, mode: mode === "agent" ? "agent" : "manual", status: "queued", created_at: Date.now() / 1000,
         events: [], attempts: [], verdict: null, flags: [], final_message: null, error: null, agent_model: "", verifier_model: "", apply_result: null });
     } catch (e) {
@@ -245,22 +249,42 @@ export default function AppPage() {
         {/* LEFT: business + composer + timeline */}
         <div className="min-w-0 space-y-5">
           <div className="rounded-2xl border bg-card p-5">
-            <div className="flex items-baseline justify-between gap-3">
-              <div className="font-display text-2xl">Bean There Coffee Co.</div>
+            <div className="flex items-center justify-between gap-3">
+              <select aria-label="Workspace" value={ws} disabled={running} onChange={(e) => { setWs(e.target.value); setRun(null); }}
+                className="min-w-0 max-w-[70%] truncate rounded-lg bg-transparent font-display text-2xl outline-none focus-visible:ring-2 focus-visible:ring-ring/50">
+                {(spaces.length ? spaces : [{ id: "demo", name: "Bean There Coffee Co.", kind: "demo", description: "" } as Workspace]).map((w) => (
+                  <option key={w.id} value={w.id}>{w.name}{w.kind === "upload" ? " (yours)" : ""}</option>
+                ))}
+              </select>
               <span className="font-mono text-[11px] uppercase tracking-wider text-muted-foreground">production</span>
             </div>
             <div className="mt-4 grid grid-cols-4 gap-2 font-mono text-sm">
-              {(["customers", "orders", "charges", "tickets"] as const).map((k) => (
+              {Object.entries(biz?.tables ?? (biz ? { customers: biz.counts.customers, orders: biz.counts.orders, charges: biz.counts.charges, tickets: biz.counts.tickets } : {})).slice(0, 4).map(([k, v]) => (
                 <div key={k} className="min-w-0">
-                  <div className={cn("truncate text-lg tabular", containment && containment.table === k && "text-foreground")}>{biz ? num(biz.counts[k]) : "—"}</div>
-                  <div className="text-[11px] text-muted-foreground">{k}</div>
+                  <div className={cn("truncate text-lg tabular", containment && containment.table === k && "text-foreground")}>{num(v ?? 0)}</div>
+                  <div className="truncate text-[11px] text-muted-foreground">{k}</div>
                 </div>
               ))}
             </div>
-            <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 border-t pt-3 font-mono text-[11px] text-muted-foreground">
-              <span>BeanPay refunds: {biz ? `${num(biz.beanpay.count)} · ${usd(biz.beanpay.total_cents)}` : "—"}</span>
-              <Link href="/ledger" className="underline-offset-4 hover:text-foreground hover:underline">View ledger →</Link>
-              <a href="/mail/" target="_blank" rel="noreferrer" className="underline-offset-4 hover:text-foreground hover:underline">Open inbox →</a>
+            <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 border-t pt-3 font-mono text-[11px] text-muted-foreground">
+              {ws === "demo" ? <>
+                <span>BeanPay refunds: {biz ? `${num(biz.beanpay.count)} · ${usd(biz.beanpay.total_cents)}` : "—"}</span>
+                <Link href="/ledger" className="underline-offset-4 hover:text-foreground hover:underline">Outbox →</Link>
+                <a href="/mail/" target="_blank" rel="noreferrer" className="underline-offset-4 hover:text-foreground hover:underline">Inbox →</a>
+              </> : <span>Your database · {Object.keys(biz?.tables ?? {}).length} tables · rehearsals never touch it until you approve</span>}
+              <label className={cn("ml-auto cursor-pointer underline-offset-4 hover:text-foreground hover:underline", uploading && "opacity-50")}>
+                {uploading ? "Uploading…" : "Use your own SQLite DB ↑"}
+                <input type="file" accept=".db,.sqlite,.sqlite3,application/octet-stream" className="sr-only" disabled={uploading} onChange={async (e) => {
+                  const f = e.target.files?.[0]; e.target.value = "";
+                  if (!f) return;
+                  setUploading(true);
+                  try {
+                    const w = await api.uploadWorkspace(f.name.replace(/\.(db|sqlite3?|sqlite)$/i, ""), f);
+                    setSpaces((cur) => [...cur, w]); setWs(w.id); setRun(null); setMode("break");
+                    toast.success(`${w.name}: ${w.description}. Rehearse any plan against it.`);
+                  } catch (err) { toast.error((err as Error).message); } finally { setUploading(false); }
+                }} />
+              </label>
             </div>
           </div>
 
@@ -287,7 +311,13 @@ export default function AppPage() {
               <TabsContent value="break" className="space-y-3 pt-3">
                 <p className="text-sm text-muted-foreground">Paste any plan, even a malicious one. It only ever runs on the double. Or try a correct one and approve it.</p>
                 <div className="flex flex-wrap gap-1.5">
-                  {BREAK_IT.map((b) => (
+                  {ws !== "demo" && biz?.tables ? (() => {
+                    const big = Object.entries(biz.tables).sort((a, b) => b[1] - a[1])[0]?.[0];
+                    if (!big) return null;
+                    const c = `def run(ctx):\n    ctx.db.execute('DELETE FROM "${big}"')\n`;
+                    return <button onClick={() => { setCode(c); setBreakTask(`Clean up ${big}`); }} className={cn("rounded-full border px-2.5 py-1 text-xs text-muted-foreground hover:text-foreground", code === c && "border-foreground text-foreground")}>Delete every row of {big}</button>;
+                  })() : null}
+                  {(ws === "demo" ? BREAK_IT : []).map((b) => (
                     <button key={b.label} onClick={() => { setCode(b.code); setBreakTask(b.task); }} className={cn("rounded-full border px-2.5 py-1 text-xs text-muted-foreground hover:text-foreground", code === b.code && "border-foreground text-foreground")}>{b.label}</button>
                   ))}
                 </div>

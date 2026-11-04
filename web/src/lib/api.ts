@@ -29,8 +29,9 @@ export type Run = {
   verdict: Verdict | null; flags: Flag[]; final_message: string | null; error: string | null; agent_model: string; verifier_model: string; approval?: Approval | null; version?: number;
   apply_result: null | { rows_written?: number; refunds?: number; refund_total_cents?: number; emails_sent?: number; emails_failed?: number; http_delivered?: number; http_failed?: number; drift_count?: number; drifted?: unknown[]; error?: string };
 };
+export type Workspace = { id: string; name: string; kind: "demo" | "upload"; description: string };
 export type Business = {
-  name: string; counts: { customers: number; orders: number; charges: number; tickets: number };
+  name: string; workspace?: string; tables?: Record<string, number>; counts: Record<string, number>;
   refunded: { count: number; total_cents: number }; recent_tickets: { id: number; customer: string; subject: string; created_at: string }[];
   beanpay: { count: number; total_cents: number };
 };
@@ -54,9 +55,16 @@ async function req<T>(path: string, body?: unknown): Promise<T> {
 
 export const api = {
   health: () => req<Health>("/health"),
-  business: () => req<Business>("/business"),
-  createRun: (task: string) => req<{ id: string }>("/runs", { task }),
-  createManualRun: (task: string, code: string) => req<{ id: string }>("/runs/manual", { task, code }),
+  business: (ws = "demo") => req<Business>(`/business?ws=${encodeURIComponent(ws)}`),
+  createRun: (task: string, workspace = "demo") => req<{ id: string }>("/runs", { task, workspace }),
+  createManualRun: (task: string, code: string, workspace = "demo") => req<{ id: string }>("/runs/manual", { task, code, workspace }),
+  workspaces: () => req<{ workspaces: Workspace[] }>("/workspaces"),
+  uploadWorkspace: async (name: string, file: File) => {
+    const res = await fetch(`/api/workspaces?name=${encodeURIComponent(name)}`, { method: "POST", body: file, headers: { "Content-Type": "application/octet-stream" } });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error((data as { detail?: string }).detail || "Upload failed");
+    return data as Workspace;
+  },
   run: (id: string) => req<Run>(`/runs/${id}`),
   runs: () => req<RunSummary[]>("/runs"),
   fix: (id: string, note?: string) => req<{ id: string }>(`/runs/${id}/fix`, { note }),

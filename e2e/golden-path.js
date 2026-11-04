@@ -1,6 +1,7 @@
 // End-to-end: drive the real UI like a judge would. Usage: BASE_URL=http://localhost:3000 node golden-path.js
 const { chromium } = require("playwright");
 const assert = require("assert");
+const path = require("path");
 const BASE = process.env.BASE_URL || "http://localhost:3000";
 const SHOTS = process.env.SHOTS_DIR;
 
@@ -83,6 +84,18 @@ async function step(name, fn) {
     assert.strictEqual(fromPlans.length, 1, "exactly the approved Slack post was delivered");
     assert.strictEqual(fromPlans[0].connector, "slack");
     assert.ok(out.deliveries.some((d) => d.path === "/stunt-double/notify"), "reviewers were pinged on Slack");
+  });
+
+  await step("workspaces: upload your own SQLite DB and contain a mass delete there", async () => {
+    await page.goto(`${BASE}/app`, { waitUntil: "networkidle" });
+    await page.locator('input[type="file"]').setInputFiles(path.join(__dirname, "fixtures", "acme-crm.db"));
+    await page.getByText(/acme-crm: 2 tables/).waitFor({ timeout: 30000 });
+    await page.getByRole("button", { name: "Delete every row of accounts", exact: true }).click();
+    await page.getByRole("button", { name: "Rehearse it", exact: true }).click();
+    await page.getByText(/containment: the damage happened only on the double/i).waitFor({ timeout: 60000 });
+    const ws = (await fetch(`${BASE}/api/workspaces`).then((r) => r.json())).workspaces.find((w) => w.name === "acme-crm");
+    const biz = await fetch(`${BASE}/api/business?ws=${ws.id}`).then((r) => r.json());
+    assert.strictEqual(biz.tables.accounts, 120, "your production data is untouched");
   });
 
   await step("audit trail: history shows the applied run with a plan fingerprint", async () => {
