@@ -93,7 +93,7 @@ export default function PolicyPage() {
         </>
       } />
       <main className="mx-auto max-w-3xl px-4 py-10 sm:px-6">
-        <div className="font-mono text-xs uppercase tracking-wider text-muted-foreground">Approval policy</div>
+        <div className="eyebrow">Approval policy</div>
         <h1 className="mt-2 font-display text-5xl">The rules every <em>rehearsal</em> must pass.</h1>
         <p className="mt-3 max-w-xl text-muted-foreground">These checks run on the measured outcome of every rehearsal, with no AI involved. Anything that <b className="font-medium text-foreground">blocks</b> locks the Approve button. Anything that <b className="font-medium text-foreground">warns</b> is shown to the approver.</p>
 

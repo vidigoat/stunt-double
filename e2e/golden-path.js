@@ -17,7 +17,8 @@ async function step(name, fn) {
   const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 }, ignoreHTTPSErrors: true });
   const page = await ctx.newPage();
   page.on("pageerror", (e) => errors.push(e.message));
-  await fetch(`${BASE}/api/demo/reset`, { method: "POST" });
+  const reset = await fetch(`${BASE}/api/demo/reset`, { method: "POST" });
+  assert.ok(reset.ok, `demo reset failed (${reset.status}): every later step would run on stale data`);
 
   await step("landing: value is visible in the first screen", async () => {
     await page.goto(BASE, { waitUntil: "networkidle" });

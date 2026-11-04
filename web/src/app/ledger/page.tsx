@@ -21,7 +21,7 @@ export default function LedgerPage() {
     <div className="min-h-dvh">
       <AppHeader right={<Button variant="outline" className="h-8 rounded-full px-3" onClick={load}><RotateCw className="size-3.5" /> Refresh</Button>} />
       <main className="mx-auto max-w-5xl px-4 py-10 sm:px-6">
-        <div className="font-mono text-xs uppercase tracking-wider text-muted-foreground">Outbox · what actually left the building</div>
+        <div className="eyebrow">Outbox · what actually left the building</div>
         <h1 className="mt-2 font-display text-5xl">Only after <em>approval.</em></h1>
         <p className="mt-2 max-w-xl text-muted-foreground">Every refund, API call and email here happened for real, and only after a human approved a rehearsal. Rehearsals never reach any of them. Emails land in the <a href="/mail/" target="_blank" rel="noreferrer" className="underline underline-offset-4">inbox</a>.</p>
         <h2 className="mt-10 font-display text-3xl">BeanPay refunds</h2>

@@ -3,12 +3,13 @@
 import { useEffect, useState } from "react";
 import { Database, FileCheck2, KeyRound, Mail, Scale, Undo2, Users, Webhook, CreditCard } from "lucide-react";
 import { num, usd } from "@/lib/api";
+import { BrandLogo, type LogoName } from "@/components/brand-logos";
 
-const CONNECTORS = [
-  { icon: Database, name: "Your database", line: "Every changed row is measured on a clone and replayed only if nobody touched it since. Upload your own SQLite to try it on your schema." },
+const CONNECTORS: { icon: typeof Database; name: string; line: string; logos?: LogoName[] }[] = [
+  { icon: Database, logos: ["sqlite"], name: "Your database", line: "Every changed row is measured on a clone and replayed only if nobody touched it since. Upload your own SQLite to try it on your schema." },
   { icon: CreditCard, name: "Payments", line: "Refunds are recorded, checked against the real charge and the ledger, and paid once per charge. Never twice." },
   { icon: Mail, name: "Email", line: "One real customer per message, no broken templates, no leaked data, and unsubscribes are respected." },
-  { icon: Webhook, name: "Any HTTP API", line: "Slack, your CRM, anything. Calls are recorded in the sandbox and delivered through a connector after approval." },
+  { icon: Webhook, logos: ["slack"], name: "Any HTTP API", line: "Slack, your CRM, anything. Calls are recorded in the sandbox and delivered through a connector after approval." },
 ];
 
 const CONTROLS = [
@@ -26,13 +27,16 @@ export function Platform() {
   return (
     <section id="platform" className="mx-auto max-w-6xl scroll-mt-20 px-4 pb-24 sm:px-6">
       <div className="max-w-2xl">
-        <div className="font-mono text-xs uppercase tracking-wider text-muted-foreground">The platform</div>
+        <div className="eyebrow">The platform</div>
         <h2 className="mt-3 font-display text-4xl sm:text-5xl">Everything your agent touches. <em>Rehearsed.</em></h2>
       </div>
       <div className="mt-10 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {CONNECTORS.map((c) => (
-          <div key={c.name} className="rounded-2xl border bg-card p-6">
-            <c.icon className="size-5" />
+          <div key={c.name} className="card-lift rounded-2xl border bg-card p-6">
+            <div className="flex items-center gap-2">
+              <span className="flex size-9 items-center justify-center rounded-xl bg-signal-soft text-signal"><c.icon className="size-[18px]" /></span>
+              {c.logos?.map((l) => <span key={l} className="flex size-9 items-center justify-center rounded-xl border bg-background"><BrandLogo name={l} tone="brand" className="size-[18px]" /></span>)}
+            </div>
             <div className="mt-5 font-display text-2xl">{c.name}</div>
             <p className="mt-1.5 text-[15px] leading-relaxed text-muted-foreground">{c.line}</p>
           </div>
@@ -44,13 +48,13 @@ export function Platform() {
       </div>
 
       <div className="mt-24 max-w-2xl">
-        <div className="font-mono text-xs uppercase tracking-wider text-muted-foreground">Controls</div>
+        <div className="eyebrow">Controls</div>
         <h2 className="mt-3 font-display text-4xl sm:text-5xl">Controls a bank <em>would sign off on.</em></h2>
       </div>
       <div className="mt-10 grid gap-3 sm:grid-cols-2">
         {CONTROLS.map((c) => (
-          <div key={c.name} className="flex gap-4 rounded-2xl border bg-card p-6">
-            <c.icon className="mt-1 size-5 shrink-0" />
+          <div key={c.name} className="card-lift flex gap-4 rounded-2xl border bg-card p-6">
+            <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-signal-soft text-signal"><c.icon className="size-[18px]" /></span>
             <div><div className="font-display text-2xl">{c.name}</div><p className="mt-1 text-[15px] leading-relaxed text-muted-foreground">{c.line}</p></div>
           </div>
         ))}
@@ -82,14 +86,17 @@ export function ForAgents() {
   return (
     <section id="mcp" className="mx-auto max-w-6xl scroll-mt-20 px-4 pb-24 sm:px-6">
       <div className="max-w-2xl">
-        <div className="font-mono text-xs uppercase tracking-wider text-muted-foreground">Built for agents</div>
+        <div className="eyebrow">Built for agents</div>
         <h2 className="mt-3 font-display text-4xl sm:text-5xl">One call <em>before it acts.</em></h2>
         <p className="mt-3 text-[15px] leading-relaxed text-muted-foreground">Claude Code, Cursor or your own agent rehearses through MCP or three lines of Python. There is no approve tool and no approve method: an agent can never approve its own plan.</p>
       </div>
       <div className="mt-10 grid gap-4 lg:grid-cols-2">
-        {[["MCP · any agent", MCP], ["Python SDK", SDK]].map(([t, code]) => (
+        {([["MCP · any agent", MCP, ["claude", "cursor", "mcp"]], ["Python SDK", SDK, ["python"]]] as [string, string, LogoName[]][]).map(([t, code, logos]) => (
           <div key={t} className="min-w-0 rounded-2xl border bg-card p-4">
-            <div className="px-1 pb-3 font-mono text-[11px] uppercase tracking-wider text-muted-foreground">{t}</div>
+            <div className="flex items-center justify-between px-1 pb-3">
+              <span className="font-mono text-[11px] uppercase tracking-wider text-muted-foreground">{t}</span>
+              <span className="flex items-center gap-2">{logos.map((l) => <BrandLogo key={l} name={l} tone="brand" className="size-4" />)}</span>
+            </div>
             <pre className="overflow-x-auto rounded-xl bg-foreground p-5 font-mono text-[13px] leading-relaxed text-background">{code}</pre>
           </div>
         ))}

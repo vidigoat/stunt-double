@@ -282,4 +282,4 @@ Postgres / MySQL copy-on-write branches · Stripe, HubSpot, Zendesk connectors �
 department · Vultr Managed Database forks for large datasets.
 
 ## License
-MIT. See [LICENSE](LICENSE). Threat model and reviews: [SECURITY.md](SECURITY.md).
+MIT. See [LICENSE](LICENSE). Brand logos from [Simple Icons](https://simpleicons.org) (CC0); trademarks belong to their owners. Threat model and reviews: [SECURITY.md](SECURITY.md).

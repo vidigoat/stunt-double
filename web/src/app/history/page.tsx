@@ -41,7 +41,7 @@ export default function HistoryPage() {
     <div className="min-h-dvh">
       <AppHeader right={<div className="flex gap-2"><a href="/api/runs.csv" className="inline-flex h-8 items-center rounded-full border px-3 text-sm hover:bg-accent">Export CSV ↓</a><Button variant="outline" className="h-8 rounded-full px-3" onClick={load}><RotateCw className="size-3.5" /> Refresh</Button></div>} />
       <main className="mx-auto max-w-7xl px-4 py-10 sm:px-6">
-        <div className="font-mono text-xs uppercase tracking-wider text-muted-foreground">Audit trail</div>
+        <div className="eyebrow">Audit trail</div>
         <h1 className="mt-2 font-display text-5xl">Every rehearsal, <em>on the record.</em></h1>
         <p className="mt-3 max-w-2xl text-muted-foreground">Each approval is bound to a fingerprint of the exact plan and the exact recorded effects. What was applied is provably what was approved.</p>
         <div className="mt-8 grid grid-cols-2 gap-3 sm:grid-cols-4">

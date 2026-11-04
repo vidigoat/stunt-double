@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
-  <style>.f{fill:#0A0A0A}.o{fill:#FAFAF8;stroke:#0A0A0A}@media (prefers-color-scheme:dark){.f{fill:#FAFAF8}.o{fill:#0A0A0A;stroke:#FAFAF8}}</style>
+  <style>.f{fill:#0A0A0A}.o{fill:#EAF1FF;stroke:#1463FF}@media (prefers-color-scheme:dark){.f{fill:#FAFAF8}.o{fill:#15203D;stroke:#5B8CFF}}</style>
   <g class="o" stroke-width="2"><circle cx="19" cy="9" r="4.5"/><path d="M12 29v-6a7 7 0 0 1 14 0v6z"/></g>
   <g class="f"><circle cx="12" cy="10" r="4.5"/><path d="M5 30v-6a7 7 0 0 1 14 0v6z"/></g>
 </svg>

@@ -378,7 +378,7 @@ export default function AppPage() {
                 ].map((s) => (
                   <li key={s.n}>
                     <button onClick={s.go} className="group flex w-full items-start gap-4 rounded-xl border bg-background p-4 text-left transition hover:border-foreground">
-                      <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-foreground font-mono text-xs text-background">{s.n}</span>
+                      <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-signal font-mono text-xs text-white">{s.n}</span>
                       <span className="min-w-0">
                         <span className="block font-medium">{s.t} <span className="text-muted-foreground transition group-hover:text-foreground">→</span></span>
                         <span className="mt-0.5 block text-sm text-muted-foreground">{s.d}</span>
@@ -453,7 +453,7 @@ export default function AppPage() {
 
               {run.status === "applied" && run.apply_result ? (
                 <div className="animate-rise rounded-2xl border bg-card p-5">
-                  <div className="flex flex-wrap items-center justify-between gap-2"><div className="flex items-center gap-2 font-medium"><Check className="size-4" /> Applied for real</div>
+                  <div className="flex flex-wrap items-center justify-between gap-2"><div className="flex items-center gap-2 font-medium"><span className="flex size-5 items-center justify-center rounded-full bg-safe text-white"><Check className="size-3.5" strokeWidth={3} /></span> Applied for real</div>
                     {run.approval ? <span className="font-mono text-[11px] text-muted-foreground">approved by {run.approval.approver} · plan {run.approval.plan_sha256.slice(0, 12)}</span> : null}</div>
                   <div className="mt-3 grid gap-2 font-mono text-[13px] sm:grid-cols-2">
                     {[["drift check", "passed"], ["database rows", num(run.apply_result.rows_written ?? 0)], ["BeanPay refunds", `${num(run.apply_result.refunds ?? 0)} · ${usd(run.apply_result.refund_total_cents ?? 0)}`], ["emails delivered", num(run.apply_result.emails_sent ?? 0)], ["API calls delivered", num(run.apply_result.http_delivered ?? 0)]].map(([k, v]) => (
@@ -513,7 +513,7 @@ function Checks({ attempt, events }: { attempt: NonNullable<Run["attempts"][numb
             const state = !f ? "pass" : f.severity === "critical" ? "block" : "warn";
             return (
               <li key={rule} title={f ? `${f.title}. ${f.detail}` : undefined} className={cn("flex items-center gap-2 rounded-lg border bg-background px-3 py-2 text-[13px]", state === "block" && "border-damage/40 text-damage")}>
-                <span className={cn("flex size-4 shrink-0 items-center justify-center rounded-full text-[10px]", state === "pass" ? "bg-foreground text-background" : state === "block" ? "bg-damage text-white" : "border border-foreground")}>{state === "pass" ? "✓" : state === "block" ? "✕" : "!"}</span>
+                <span className={cn("flex size-4 shrink-0 items-center justify-center rounded-full text-[10px]", state === "pass" ? "bg-safe text-white" : state === "block" ? "bg-damage text-white" : "border border-foreground")}>{state === "pass" ? "✓" : state === "block" ? "✕" : "!"}</span>
                 <span className="min-w-0 truncate">{label}</span>
               </li>
             );

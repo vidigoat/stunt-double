@@ -38,7 +38,10 @@ Screenshots taken Nov 3 at a 1440×900 viewport.
   --card: #FFFFFF;
   --primary: #0A0A0A;      /* black buttons */
   --primary-foreground: #FAFAF8;
-  --damage: #E5484D;       /* the ONLY colour, used only for damage numbers ($56,160) and "BLOCKED" */
+  --damage: #E5484D;       /* damage only: money at risk, "BLOCKED", deleted rows */
+  --safe:   #12924F;       /* only for things that passed or were applied: green check, verdict tile */
+  --signal: #1463FF;       /* the one pop of colour (Vultr-adjacent blue): eyebrows, the hero underline, the
+                              "double" in the logo, focus rings, step numbers. Never on money or damage. */
   --radius: 10px;          /* cards; buttons are full pills */
 }
 .dark { --background:#0A0A0A; --foreground:#FAFAF8; --muted:#161616; --border:#262626; --card:#111111; --primary:#FAFAF8; --primary-foreground:#0A0A0A; }
@@ -59,6 +62,15 @@ Screenshots taken Nov 3 at a 1440×900 viewport.
 **Motion:** subtle only. Counters tick up (framer-motion `animate`), the sandbox "shatters" on destroy (300ms scale and fade), and the split-screen row count drops to 0.
 
 ---
+
+**Colour roles (v2, Nov 4 evening):** black and white stays the base. Each colour has one job: red is damage, green
+is safe or applied, blue is the brand accent. Brand logos (Vultr, Claude, Cursor, MCP, Python, Slack, SQLite, Docker,
+FastAPI, GitHub) come from Simple Icons via `web/src/components/brand-logos.tsx`. They are monochrome at rest and show
+their brand colour on hover.
+
+**Type:** Instrument Serif for display (tight tracking, italic for the emphasis word), Geist for UI (`ss01`/`cv11`
+alternates, antialiased), Geist Mono for numbers and machine text (slashed zero, tabular figures). `text-wrap: balance`
+on headings, `pretty` on paragraphs.
 
 ## 3. Brand
 

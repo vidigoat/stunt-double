@@ -62,11 +62,11 @@ function tone(v: ApprovalView) {
   return "checked"; // passed every deterministic check; no AI verdict (yet)
 }
 
-function Stat({ label, value, hot, sub, small }: { label: string; value: React.ReactNode; hot?: boolean; sub?: string; small?: boolean }) {
+function Stat({ label, value, hot, good, sub, small }: { label: string; value: React.ReactNode; hot?: boolean; good?: boolean; sub?: string; small?: boolean }) {
   return (
-    <div className="min-w-0 rounded-xl border bg-background px-4 py-3">
+    <div className={cn("min-w-0 rounded-xl border px-4 py-3", hot && small ? "border-damage/25 bg-damage-soft/60" : good ? "border-safe/25 bg-safe-soft/70" : "bg-background")}>
       <div className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">{label}</div>
-      <div className={cn("mt-1 truncate tabular", small ? "pt-1 font-display text-[26px] leading-[1.15] sm:text-[30px]" : "font-mono text-2xl sm:text-[28px]", hot && "text-damage")}>{value}</div>
+      <div className={cn("mt-1 truncate tabular", small ? "pt-1 font-display text-[26px] leading-[1.15] sm:text-[30px]" : "font-mono text-2xl sm:text-[28px]", hot && "text-damage", good && "text-safe")}>{value}</div>
       {sub ? <div className="mt-0.5 truncate text-xs text-muted-foreground">{sub}</div> : null}
     </div>
   );
@@ -80,7 +80,7 @@ export function ApprovalCard({ view, children, className, label = "Approval requ
     <div className={cn("overflow-hidden rounded-2xl border bg-card text-left shadow-[0_1px_0_rgba(0,0,0,.04),0_24px_48px_-24px_rgba(0,0,0,.18)]", className)}>
       <div className="flex flex-wrap items-center justify-between gap-2 border-b bg-muted/60 px-5 py-2.5 font-mono text-[11px] text-muted-foreground">
         <span className="flex items-center gap-2 uppercase tracking-wider text-foreground">
-          <span className={cn("size-1.5 rounded-full", hot ? "bg-damage" : "bg-foreground")} />{label}
+          <span className={cn("size-1.5 rounded-full", hot ? "bg-damage" : applied || t === "ok" ? "bg-safe shadow-[0_0_0_3px_var(--safe-soft)]" : "bg-signal shadow-[0_0_0_3px_var(--signal-soft)]")} />{label}
         </span>
         {view.sandboxId ? <span className="truncate">rehearsed in {view.sandboxId} · {view.runtime === "runsc" ? "gVisor" : `${view.runtime} (dev host, no gVisor)`} · {view.sandboxMs} ms · destroyed</span> : null}
       </div>
@@ -93,7 +93,7 @@ export function ApprovalCard({ view, children, className, label = "Approval requ
           <Stat label="Money out" value={<CountUp value={view.moneyCents} format="usd" />} hot={hot && view.moneyCents > 0} sub={`${num(view.refunds)} refunds`} />
           <Stat label="Emails" value={<CountUp value={view.emails} />} sub={applied ? "approved" : "would be sent"} />
           <Stat label="Rows changed" value={<CountUp value={view.rowsChanged} />} hot={t === "danger" && view.rowsChanged > 0} sub={view.biggestChange} />
-          <Stat label="Verdict" value={t === "ok" ? "Looks right" : t === "danger" ? "Critical" : t === "warn" ? "Check this" : "Rules pass"} hot={hot} small sub={view.verdict ? "verified by Stunt Double" : "policy checks only"} />
+          <Stat label="Verdict" value={t === "ok" ? "Looks right" : t === "danger" ? "Critical" : t === "warn" ? "Check this" : "Rules pass"} hot={hot} good={!hot} small sub={view.verdict ? "verified by Stunt Double" : "policy checks only"} />
         </div>
         {view.verdict || issues.length ? (
           <div className={cn("rounded-xl border p-4", hot ? "border-damage/30 bg-damage/[0.04]" : "bg-background")}>

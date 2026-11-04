@@ -5,6 +5,7 @@ import { buttonVariants } from "@/components/ui/button";
 import { ApprovalCard, type ApprovalView } from "@/components/approval-card";
 import { GithubIcon, Mark, Wordmark } from "@/components/brand";
 import { cn } from "@/lib/utils";
+import { BrandLogo, LogoStrip } from "@/components/brand-logos";
 import { Business } from "@/components/landing-business";
 import { ForAgents, LiveStats, Platform } from "@/components/landing-platform";
 import { TryIt } from "@/components/try-it";
@@ -86,11 +87,11 @@ function Hero() {
       <div className="grid-paper pointer-events-none absolute inset-0 [mask-image:radial-gradient(ellipse_at_top,black_20%,transparent_70%)]" />
       <div className="relative mx-auto max-w-6xl px-4 pb-20 pt-16 text-center sm:px-6 sm:pt-24">
         <a href="#containment" className="animate-rise inline-flex items-center gap-2 rounded-full border bg-card py-1 pl-1 pr-3 text-[13px] text-muted-foreground hover:text-foreground">
-          <span className="rounded-full bg-foreground px-2 py-0.5 text-[11px] font-medium text-background">NEW</span>
+          <span className="rounded-full bg-signal px-2 py-0.5 text-[11px] font-medium text-white">NEW</span>
           Built for the Vultr Agent Rush · Blast Radius Zero
         </a>
         <h1 className="animate-rise mx-auto mt-7 max-w-4xl font-display text-[52px] leading-[0.95] sm:text-[88px] [animation-delay:60ms]">
-          Let the double<br /><em>take the hit.</em>
+          Let the double<br /><em className="mark-signal">take the hit.</em>
         </h1>
         <p className="animate-rise mx-auto mt-6 max-w-xl text-balance text-lg text-muted-foreground [animation-delay:120ms]">
           Every action your AI agent takes (database, payments, email, any API) is rehearsed on a throwaway copy of your business first. You approve <span className="text-foreground">consequences</span>, not code.
@@ -99,7 +100,9 @@ function Hero() {
           <Link href="/app" className={pill()}><Play className="size-4 fill-current" /> Try the live demo</Link>
           <a href="#how" className={pill("outline")}>See how it works</a>
         </div>
-        <p className="mt-4 text-[13px] text-muted-foreground">Runs on Vultr · sandboxed with gVisor · nothing real happens until you approve</p>
+        <p className="mt-4 inline-flex flex-wrap items-center justify-center gap-x-1.5 text-[13px] text-muted-foreground">
+          <BrandLogo name="vultr" tone="brand" className="size-3.5" /> Runs on Vultr · sandboxed with gVisor · nothing real happens until you approve
+        </p>
 
         <div className="animate-rise relative mx-auto mt-14 max-w-4xl [animation-delay:260ms]">
           <ApprovalCard view={HERO}>
@@ -108,6 +111,10 @@ function Hero() {
             <span className="ml-auto font-mono text-xs text-muted-foreground">Approve is locked until concerns are resolved</span>
           </ApprovalCard>
           <p className="mt-3 text-xs text-muted-foreground">Numbers from a real rehearsal of the demo business. The verdict text is an example of what the verifier reports.</p>
+        </div>
+        <div className="mx-auto mt-16 max-w-4xl">
+          <div className="font-mono text-[11px] uppercase tracking-wider text-muted-foreground">Works with the agents and tools you already use</div>
+          <LogoStrip className="mt-5" />
         </div>
       </div>
     </section>
@@ -131,7 +138,7 @@ function How() {
   return (
     <section id="how" className="mx-auto max-w-6xl scroll-mt-20 px-4 py-24 sm:px-6">
       <div className="max-w-2xl">
-        <div className="font-mono text-xs uppercase tracking-wider text-muted-foreground">How it works</div>
+        <div className="eyebrow">How it works</div>
         <h2 className="mt-3 font-display text-4xl sm:text-5xl">Plan. Dispatch. <em>Verify.</em></h2>
       </div>
       <div className="mt-12 grid gap-4 md:grid-cols-3">
@@ -151,13 +158,13 @@ function Traps() {
   return (
     <section className="mx-auto max-w-6xl px-4 pb-24 sm:px-6">
       <div className="max-w-2xl">
-        <div className="font-mono text-xs uppercase tracking-wider text-muted-foreground">Try the traps</div>
+        <div className="eyebrow">Try the traps</div>
         <h2 className="mt-3 font-display text-4xl sm:text-5xl">Three requests. <em>Three ways to get hurt.</em></h2>
       </div>
       <div className="mt-10 grid gap-4 md:grid-cols-3">
         {TRAPS.map((t) => (
           <div key={t.area} className="flex flex-col rounded-2xl border bg-card p-6">
-            <div className="font-mono text-xs uppercase tracking-wider text-muted-foreground">{t.area}</div>
+            <div className="eyebrow">{t.area}</div>
             <p className="mt-4 font-display text-2xl leading-snug">{t.ask}</p>
             <p className="mt-4 text-[15px] leading-relaxed"><span className="font-medium text-damage">Trap. </span><span className="text-muted-foreground">{t.trap}</span></p>
             <p className="mt-2 text-[15px] leading-relaxed"><span className="font-medium">Caught. </span><span className="text-muted-foreground">{t.catch}</span></p>
@@ -172,7 +179,7 @@ function Row({ eyebrow, title, body, children, flip }: { eyebrow: string; title:
   return (
     <div className="grid items-center gap-8 md:grid-cols-2 md:gap-14">
       <div className={cn(flip && "md:order-2")}>
-        <div className="font-mono text-xs uppercase tracking-wider text-muted-foreground">{eyebrow}</div>
+        <div className="eyebrow">{eyebrow}</div>
         <h3 className="mt-3 font-display text-4xl leading-tight">{title}</h3>
         <p className="mt-3 max-w-md text-[15px] leading-relaxed text-muted-foreground">{body}</p>
       </div>
