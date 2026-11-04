@@ -1,65 +1,64 @@
-"""Stunt Double rehearsal harness. Runs INSIDE the sandbox container (stdlib only).
+"""Stunt Double rehearsal harness. Runs INSIDE sandbox containers (stdlib only). Two phases, two containers:
 
-Contract:
-  /work/business.db   a throwaway copy of the business database (read-write)
-  /work/plan.py       the agent's plan, defining run(ctx)
-  /work/out/          results: consequences.json (summary) and effects.json (exact changes)
+  python runner.py run       PHASE 1 (untrusted). Executes the agent's plan.
+      /work/work.db             a throwaway copy of the business database (read-write)
+      /work/plan.py             the agent's plan, defining run(ctx)
+      /work/out/intents.json    what the plan ASKED to do: refunds, emails, logs, blocked attempts
 
-Payments and email are recorders: nothing leaves the sandbox. Any other attempt to reach the
-outside world is logged as a blocked side effect (the container has no network anyway).
+  python runner.py measure   PHASE 2 (trusted). A fresh container the plan never ran in.
+      /in/before.db  (ro)       the database before the plan ran
+      /in/after.db   (ro)       the database after the plan ran (copied out of phase 1)
+      /in/intents.json (ro)     phase 1's intents, treated as untrusted DATA and validated
+      /out/consequences.json    what we show the approver
+      /out/effects.json         exactly what is replayed on approval
+
+The plan shares a Python process with phase 1, so it could tamper with anything recorded there. That is why the
+row diff, the audit and both output files are produced by phase 2: the approver sees, and the apply step replays,
+only what trusted code measured. Payments and email are recorders; nothing leaves either sandbox.
 """
 import contextlib
 import io
 import json
-import re
-from collections import Counter
 import os
+import re
 import resource
 import socket
 import sqlite3
 import sys
 import time
 import traceback
+from collections import Counter
 
-WORK = "/work"
-OUT = os.path.join(WORK, "out")
+MAX_INTENTS = 20000
+
+# =============================================================================================
+# PHASE 1: run the plan
+# =============================================================================================
 BLOCKED: list[dict] = []
 PAYMENTS: list[dict] = []
 EMAILS: list[dict] = []
 LOGS: list[str] = []
 
-# ---- tripwires: log, then refuse, any attempt to reach the network ----------------------------
-_real_connect = socket.socket.connect
-
 
 def _tripwire_connect(self, address):  # noqa: ANN001
-    BLOCKED.append({"kind": "network", "target": str(address)})
+    BLOCKED.append({"kind": "network", "target": str(address)[:200]})
     raise PermissionError(f"Stunt Double sandbox: outbound connection to {address} blocked")
 
 
-socket.socket.connect = _tripwire_connect  # type: ignore[assignment]
-_real_getaddrinfo = socket.getaddrinfo
-
-
 def _tripwire_getaddrinfo(host, *a, **k):  # noqa: ANN001
-    BLOCKED.append({"kind": "dns", "target": str(host)})
+    BLOCKED.append({"kind": "dns", "target": str(host)[:200]})
     raise PermissionError(f"Stunt Double sandbox: DNS lookup for {host} blocked")
 
 
-socket.getaddrinfo = _tripwire_getaddrinfo  # type: ignore[assignment]
-
-
-# ---- the ctx object the agent's plan receives -------------------------------------------------
 class Payments:
     def refund(self, charge_id: int, amount_cents: int, reason: str = "") -> dict:
-        rec = {"op": "refund", "charge_id": int(charge_id), "amount_cents": int(amount_cents), "reason": str(reason)[:200]}
-        PAYMENTS.append(rec)
+        PAYMENTS.append({"op": "refund", "charge_id": int(charge_id), "amount_cents": int(amount_cents), "reason": str(reason)[:200]})
         return {"id": f"rehearsal_refund_{len(PAYMENTS)}", "status": "recorded"}
 
 
 class Email:
     def send(self, to: str, subject: str, body: str) -> dict:
-        EMAILS.append({"to": str(to), "subject": str(subject)[:300], "body": str(body)[:5000]})
+        EMAILS.append({"to": str(to)[:320], "subject": str(subject)[:300], "body": str(body)[:5000]})
         return {"id": f"rehearsal_email_{len(EMAILS)}", "status": "recorded"}
 
 
@@ -73,16 +72,59 @@ class Ctx:
         LOGS.append(" ".join(str(p) for p in parts)[:500])
 
 
-# ---- snapshot / diff --------------------------------------------------------------------------
-def snapshot(db: sqlite3.Connection) -> dict:
+def phase_run() -> None:
+    socket.socket.connect = _tripwire_connect  # type: ignore[assignment]
+    socket.getaddrinfo = _tripwire_getaddrinfo  # type: ignore[assignment]
+    os.makedirs("/work/out", exist_ok=True)
+    started = time.time()
+    guards = {"env_keys": sorted(os.environ.keys()), "uid": os.getuid(), "hostname": socket.gethostname(),
+              "root_writable": os.access("/", os.W_OK)}
+    mem_mb = int(os.environ.get("SD_PLAN_MEM_MB", "160"))
+    soft, hard = resource.getrlimit(resource.RLIMIT_AS)
+    resource.setrlimit(resource.RLIMIT_AS, (mem_mb * 1024 * 1024, hard))  # below the container cap: we survive to report
+    db = sqlite3.connect("/work/work.db", isolation_level=None)
+    db.execute("PRAGMA foreign_keys = OFF")
+    stdout = io.StringIO()
+    error = None
+    try:
+        db.execute("BEGIN")
+        ns: dict = {"__name__": "plan"}
+        with contextlib.redirect_stdout(stdout):
+            exec(compile(open("/work/plan.py").read(), "plan.py", "exec"), ns)  # noqa: S102 - this IS the sandbox
+            if "run" not in ns:
+                raise RuntimeError("plan.py must define run(ctx)")
+            ns["run"](Ctx(db))
+        if db.in_transaction:
+            db.execute("COMMIT")
+    except BaseException as e:  # noqa: BLE001
+        msg = "".join(traceback.format_exception_only(type(e), e)).strip()[:2000]
+        if isinstance(e, MemoryError):
+            msg = f"MemoryError: plan exceeded the sandbox memory ceiling ({mem_mb} MB) and was stopped"
+        error = {"message": msg, "traceback": traceback.format_exc()[-3000:]}
+        # Keep what it did before crashing so the approver can see it (a crashed plan is never applied).
+        with contextlib.suppress(Exception):
+            if db.in_transaction:
+                db.execute("COMMIT")
+    resource.setrlimit(resource.RLIMIT_AS, (soft, hard))
+    with contextlib.suppress(Exception):
+        db.close()
+    intents = {"ok": error is None, "error": error, "stdout": stdout.getvalue()[-4000:], "logs": LOGS[-100:],
+               "payments": PAYMENTS[:MAX_INTENTS], "emails": EMAILS[:MAX_INTENTS], "blocked": BLOCKED[:50], "guards": guards,
+               "duration_ms": int((time.time() - started) * 1000)}
+    with open("/work/out/intents.json", "w") as f:
+        json.dump(intents, f, default=str)
+
+
+# =============================================================================================
+# PHASE 2: measure (trusted code only)
+# =============================================================================================
+def snapshot(path: str) -> dict:
+    db = sqlite3.connect(f"file:{path}?mode=ro&immutable=1", uri=True)
     snap = {}
-    tables = [r[0] for r in db.execute("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'")]
-    for t in tables:
+    for (t,) in db.execute("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'"):
         cols = [r[1] for r in db.execute(f'PRAGMA table_info("{t}")')]
-        rows = {}
-        for row in db.execute(f'SELECT rowid, * FROM "{t}"'):
-            rows[row[0]] = dict(zip(cols, row[1:]))
-        snap[t] = {"cols": cols, "rows": rows}
+        snap[t] = {"cols": cols, "rows": {row[0]: dict(zip(cols, row[1:])) for row in db.execute(f'SELECT rowid, * FROM "{t}"')}}
+    db.close()
     return snap
 
 
@@ -92,19 +134,44 @@ def diff(before: dict, after: dict) -> dict:
         b = before.get(t, {"rows": {}})["rows"]
         a = after.get(t, {"rows": {}})["rows"]
         if t not in after:
-            out[t] = {"dropped": True, "deleted": [{"rowid": k, "before": v} for k, v in b.items()], "inserted": [], "updated": []}
+            out[t] = {"dropped": True, "created": False, "deleted": [{"rowid": k, "before": v} for k, v in sorted(b.items())], "inserted": [], "updated": []}
             continue
-        deleted = [{"rowid": k, "before": b[k]} for k in b.keys() - a.keys()]
-        inserted = [{"rowid": k, "after": a[k]} for k in a.keys() - b.keys()]
+        deleted = [{"rowid": k, "before": b[k]} for k in sorted(b.keys() - a.keys())]
+        inserted = [{"rowid": k, "after": a[k]} for k in sorted(a.keys() - b.keys())]
         updated = []
-        for k in b.keys() & a.keys():
+        for k in sorted(b.keys() & a.keys()):
             if b[k] != a[k]:
-                changed = [c for c in a[k] if b[k].get(c) != a[k].get(c)]
-                updated.append({"rowid": k, "before": b[k], "after": a[k], "changed": changed})
+                updated.append({"rowid": k, "before": b[k], "after": a[k], "changed": [c for c in a[k] if b[k].get(c) != a[k].get(c)]})
         if deleted or inserted or updated or t not in before:
-            out[t] = {"dropped": False, "created": t not in before, "deleted": sorted(deleted, key=lambda r: r["rowid"]),
-                      "inserted": sorted(inserted, key=lambda r: r["rowid"]), "updated": sorted(updated, key=lambda r: r["rowid"])}
+            out[t] = {"dropped": False, "created": t not in before, "deleted": deleted, "inserted": inserted, "updated": updated}
     return out
+
+
+def _int(x, lo=-(2**53), hi=2**53):
+    try:
+        v = int(x)
+    except (TypeError, ValueError):
+        return None
+    return v if lo <= v <= hi else None
+
+
+def validate_intents(raw: dict) -> dict:
+    """Phase 1 output is untrusted data: keep only well-formed, bounded records."""
+    raw = raw if isinstance(raw, dict) else {}
+    pays = []
+    for p in (raw.get("payments") or [])[:MAX_INTENTS]:
+        if isinstance(p, dict) and _int(p.get("charge_id")) is not None and _int(p.get("amount_cents"), 0) is not None:
+            pays.append({"op": "refund", "charge_id": _int(p["charge_id"]), "amount_cents": _int(p["amount_cents"], 0), "reason": str(p.get("reason", ""))[:200]})
+    mails = []
+    for e in (raw.get("emails") or [])[:MAX_INTENTS]:
+        if isinstance(e, dict):
+            mails.append({"to": str(e.get("to", ""))[:320], "subject": str(e.get("subject", ""))[:300], "body": str(e.get("body", ""))[:5000]})
+    err = raw.get("error")
+    return {"ok": bool(raw.get("ok")) and err is None, "error": err if isinstance(err, dict) else ({"message": str(err)[:2000]} if err else None),
+            "stdout": str(raw.get("stdout", ""))[-4000:], "logs": [str(x)[:500] for x in (raw.get("logs") or [])[:100]],
+            "payments": pays, "emails": mails,
+            "blocked": [{"kind": str(b.get("kind", ""))[:20], "target": str(b.get("target", ""))[:200]} for b in (raw.get("blocked") or [])[:50] if isinstance(b, dict)],
+            "guards": raw.get("guards") if isinstance(raw.get("guards"), dict) else {}, "duration_ms": _int(raw.get("duration_ms"), 0) or 0}
 
 
 PLACEHOLDER = re.compile(r"\{\{[^}]*\}\}|\{[a-z_]+\}|\[(?:NAME|FIRST_NAME|CUSTOMER)\]|<(?:name|first_name)>|%\(\w+\)s|%s", re.I)
@@ -112,14 +179,14 @@ CARD = re.compile(r"\b(?:\d[ -]?){13,16}\b")
 EMAIL = re.compile(r"[\w.+-]+@[\w-]+\.[\w.]+")
 
 
-def audit(before: dict) -> dict:
-    """Facts about the recorded side effects, checked against the data as it was BEFORE the plan ran."""
+def audit(before: dict, payments: list, emails: list) -> dict:
+    """Facts about the intended side effects, checked against the data as it was BEFORE the plan ran."""
     charges = before.get("charges", {}).get("rows", {})
     customers = before.get("customers", {}).get("rows", {})
     by_email = {r.get("email"): r for r in customers.values()}
-    per_charge = Counter(p["charge_id"] for p in PAYMENTS)
+    per_charge = Counter(p["charge_id"] for p in payments)
     over, already, unknown = [], [], []
-    for p in PAYMENTS:
+    for p in payments:
         ch = charges.get(p["charge_id"])
         if ch is None:
             unknown.append(p)
@@ -127,13 +194,14 @@ def audit(before: dict) -> dict:
             over.append({**p, "charged_cents": ch.get("amount_cents")})
         elif ch.get("status") == "refunded":
             already.append(p)
-    recipients = Counter(e["to"] for e in EMAILS)
+    recipients = Counter(e["to"] for e in emails)
     templated, leaks, vip, strangers = [], [], [], []
-    for e in EMAILS:
+    for e in emails:
         text = e["subject"] + "\n" + e["body"]
-        if PLACEHOLDER.search(text):
-            templated.append({"to": e["to"], "match": PLACEHOLDER.search(text).group(0)})
-        others = [m for m in EMAIL.findall(e["body"]) if m != e["to"] and m in by_email]
+        m = PLACEHOLDER.search(text)
+        if m:
+            templated.append({"to": e["to"], "match": m.group(0)})
+        others = [x for x in EMAIL.findall(e["body"]) if x != e["to"] and x in by_email]
         if others or CARD.search(e["body"]):
             leaks.append({"to": e["to"], "reason": "contains another customer's email" if others else "contains a card-like number"})
         c = by_email.get(e["to"])
@@ -150,74 +218,43 @@ def audit(before: dict) -> dict:
     }
 
 
-def main() -> None:
-    os.makedirs(OUT, exist_ok=True)
-    started = time.time()
-    guards = {
-        "env_keys": sorted(os.environ.keys()),
-        "uid": os.getuid(),
-        "hostname": socket.gethostname(),
-        "root_writable": os.access("/", os.W_OK),
-    }
-    # Soft memory ceiling below the container's hard cap, so the harness survives to report what happened.
-    mem_mb = int(os.environ.get("SD_PLAN_MEM_MB", "160"))
-    orig_soft, orig_hard = resource.getrlimit(resource.RLIMIT_AS)
-    resource.setrlimit(resource.RLIMIT_AS, (mem_mb * 1024 * 1024, orig_hard))
-    db = sqlite3.connect(os.path.join(WORK, "business.db"), isolation_level=None)
-    db.execute("PRAGMA foreign_keys = OFF")
-    before = snapshot(db)
-    stdout = io.StringIO()
-    ok, error = True, None
+def phase_measure() -> None:
+    os.makedirs("/out", exist_ok=True)
+    before = snapshot("/in/before.db")
     try:
-        db.execute("BEGIN")
-        src = open(os.path.join(WORK, "plan.py")).read()
-        ns: dict = {"__name__": "plan"}
-        with contextlib.redirect_stdout(stdout):
-            exec(compile(src, "plan.py", "exec"), ns)  # noqa: S102 - this IS the sandbox
-            if "run" not in ns:
-                raise RuntimeError("plan.py must define run(ctx)")
-            ns["run"](Ctx(db))
-        if db.in_transaction:
-            db.execute("COMMIT")
-    except BaseException as e:  # noqa: BLE001
-        ok = False
-        msg = "".join(traceback.format_exception_only(type(e), e)).strip()[:2000]
-        if isinstance(e, MemoryError):
-            msg = f"MemoryError: plan exceeded the sandbox memory ceiling ({mem_mb} MB) and was stopped"
-        error = {"message": msg, "traceback": traceback.format_exc()[-3000:]}
-    # Diff even on failure: shows what the plan did before it crashed (never applied - it failed).
-    resource.setrlimit(resource.RLIMIT_AS, (orig_soft, orig_hard))
-    after = snapshot(db)
+        intents = validate_intents(json.load(open("/in/intents.json")))
+    except (OSError, ValueError):
+        intents = validate_intents({"ok": False, "error": {"message": "The plan was killed before it could finish (time or memory cap)."}})
+    try:
+        after = snapshot("/in/after.db")
+    except sqlite3.DatabaseError as e:
+        after = before
+        intents["ok"] = False
+        intents["error"] = {"message": f"The plan corrupted its copy of the database: {e}"}
     changes = diff(before, after)
-    with contextlib.suppress(Exception):
-        if db.in_transaction:
-            db.execute("ROLLBACK")
-
     tables = {}
     for t, d in changes.items():
         tables[t] = {
-            "dropped": d["dropped"], "deleted": len(d["deleted"]), "inserted": len(d["inserted"]), "updated": len(d["updated"]),
+            "dropped": d["dropped"], "created": d.get("created", False), "deleted": len(d["deleted"]), "inserted": len(d["inserted"]), "updated": len(d["updated"]),
             "rows_before": len(before.get(t, {"rows": {}})["rows"]), "rows_after": len(after.get(t, {"rows": {}})["rows"]),
             "changed_columns": sorted({c for u in d["updated"] for c in u["changed"]}),
             "samples": {"deleted": d["deleted"][:8], "inserted": d["inserted"][:8], "updated": d["updated"][:8]},
         }
+    pays, mails = intents["payments"], intents["emails"]
     consequences = {
-        "ok": ok, "error": error, "stdout": stdout.getvalue()[-4000:], "logs": LOGS[-100:],
-        "duration_ms": int((time.time() - started) * 1000),
+        "ok": intents["ok"], "error": intents["error"], "stdout": intents["stdout"], "logs": intents["logs"], "duration_ms": intents["duration_ms"],
         "tables": tables,
         "row_counts": {t: {"before": len(before[t]["rows"]), "after": len(after.get(t, {"rows": {}})["rows"])} for t in before},
-        "payments": {"count": len(PAYMENTS), "total_cents": sum(p["amount_cents"] for p in PAYMENTS), "samples": PAYMENTS[:25]},
-        "emails": {"count": len(EMAILS), "samples": EMAILS[:25]},
-        "blocked": BLOCKED[:50],
-        "guards": guards,
-        "audit": audit(before),
+        "payments": {"count": len(pays), "total_cents": sum(p["amount_cents"] for p in pays), "samples": pays[:25]},
+        "emails": {"count": len(mails), "samples": mails[:25]},
+        "blocked": intents["blocked"], "guards": intents["guards"], "audit": audit(before, pays, mails), "measured_by": "trusted-phase-2",
     }
-    with open(os.path.join(OUT, "consequences.json"), "w") as f:
+    with open("/out/consequences.json", "w") as f:
         json.dump(consequences, f, default=str)
-    with open(os.path.join(OUT, "effects.json"), "w") as f:
-        json.dump({"changes": changes, "payments": PAYMENTS, "emails": EMAILS}, f, default=str)
+    with open("/out/effects.json", "w") as f:
+        json.dump({"changes": changes, "payments": pays, "emails": mails}, f, default=str)
 
 
 if __name__ == "__main__":
-    main()
+    {"run": phase_run, "measure": phase_measure}[sys.argv[1] if len(sys.argv) > 1 else "run"]()
     sys.exit(0)

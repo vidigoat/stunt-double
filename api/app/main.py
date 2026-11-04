@@ -53,6 +53,10 @@ def _load_history() -> None:
 
 
 _load_history()
+try:
+    sandbox.cleanup_orphans(keep={a["sandbox_id"] for r in RUNS.values() if r["status"] == "review" for a in r["attempts"]})
+except OSError:
+    pass
 
 
 # ---- helpers ---------------------------------------------------------------------------------------
