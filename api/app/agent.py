@@ -194,11 +194,13 @@ def _loop(models: str | list[str], messages: list, tools: list, handlers: dict[s
     nudged = False
     seen: dict[str, int] = {}  # identical tool calls, to stop a model that keeps re-running the same query
     for turn in range(max_turns):
-        last = stop_tool and turn >= max_turns - 2
+        # The tool that ends the job: the verifier's verdict, or the agent's plan if it hasn't submitted one yet.
+        decide = stop_tool or (required_tool if required_tool and required_tool not in called else None)
+        last = bool(decide) and turn >= max_turns - 2
         if last:  # out of steps: the model must decide now, with only the decision tool available
-            messages.append({"role": "user", "content": f"Your investigation budget is used up. Stop querying and call `{stop_tool}` now "
+            messages.append({"role": "user", "content": f"Your investigation budget is used up. Stop querying and call `{decide}` now "
                                                         "with your best judgment from what you have already seen."})
-        turn_tools = [t for t in tools if t.get("function", {}).get("name") == stop_tool] if last else tools
+        turn_tools = [t for t in tools if t.get("function", {}).get("name") == decide] if last else tools
         _, msg = _complete(ai, models, messages, turn_tools, emit, tool_choice="required" if last else None)
         native = [{"id": tc.id, "name": tc.function.name, "arguments": tc.function.arguments} for tc in (msg.tool_calls or [])]
         calls = native or _calls_from_text(msg.content or "")
@@ -228,9 +230,9 @@ def _loop(models: str | list[str], messages: list, tools: list, handlers: dict[s
                 result = handler(**args) if handler else {"error": f"unknown tool {name}"}
             except TypeError as e:  # wrong/missing arguments: tell the model instead of crashing
                 result = {"error": f"bad arguments for {name}: {e}"}
-            if seen[key] > 1 and stop_tool:
+            if seen[key] > 1 and (stop_tool or required_tool):
                 result = {"note": f"You already ran exactly this {seen[key] - 1} time(s); the result is the same. "
-                                  f"If you have enough evidence, call `{stop_tool}` now.", "result": result}
+                                  f"If you have enough evidence, call `{stop_tool or required_tool}` now.", "result": result}
             payload = json.dumps(result, default=str)[:12000]
             if native:
                 messages.append({"role": "tool", "tool_call_id": c["id"], "content": payload})

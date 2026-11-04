@@ -233,3 +233,37 @@ def test_a_verifier_that_never_stops_querying_is_made_to_decide(fresh_business, 
                     "http": {"count": 0, "samples": []}, "blocked": [], "audit": {}}
     v = agent.verify("Refund everyone who was double-charged", "def run(ctx): pass", consequences, lambda *a: events.append(a))
     assert fake.forced == 1 and v["headline"] == "Refunds 640 people who were never double-charged" and v["verdict"] == "concerns"
+
+
+class EndlessResearcher:
+    """An ops agent that would keep querying forever (the live support-ticket failure) unless made to submit."""
+    def __init__(self):
+        self.forced = 0
+        self.chat = NS(completions=NS(create=self.create))
+
+    def create(self, model, messages, tools, temperature, **kw):
+        n = len([m for m in messages if m["role"] == "tool"])
+        names = [t["function"]["name"] for t in tools]
+        if kw.get("tool_choice") == "required" and names == ["submit_plan"]:
+            self.forced += 1
+            msg = NS(content="", tool_calls=[_tool_call(n, "submit_plan", {"code": CORRECT, "summary": "refund duplicates"})])
+        elif "verdict" in names:
+            msg = NS(content="", tool_calls=[_tool_call(n, "verdict", {"verdict": "looks_right", "headline": "ok", "summary": "s", "concerns": []})])
+        else:
+            msg = NS(content="", tool_calls=[_tool_call(n, "run_query", {"sql": f"SELECT {n} AS step"})])
+        return NS(choices=[NS(message=msg)])
+
+
+@needs_docker
+def test_an_agent_that_never_stops_researching_still_submits_a_plan(fresh_business, monkeypatch):
+    fake = EndlessResearcher()
+    monkeypatch.setattr(agent, "client", lambda: fake)
+    monkeypatch.setattr(main.config, "INFERENCE_KEY", "test")
+    api = TestClient(main.app)
+    rid = api.post("/api/runs", json={"task": "Go through last week's support tickets"}).json()["id"]
+    for _ in range(120):
+        run = api.get(f"/api/runs/{rid}").json()
+        if run["status"] in ("review", "failed"):
+            break
+        time.sleep(0.25)
+    assert fake.forced == 1 and run["status"] == "review" and run["attempts"], run.get("error")
