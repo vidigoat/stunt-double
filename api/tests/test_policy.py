@@ -86,3 +86,22 @@ def test_policy_api_validates():
     assert api.put("/api/policy", json={"max_delete_pct": -1}).status_code == 422
     assert api.put("/api/policy", json={"nope": 1}).status_code == 422
     assert api.put("/api/policy", json={"protected_tables": ["x; DROP TABLE y"]}).status_code == 422
+
+
+@needs_docker
+def test_marketing_to_opted_out_is_blocked_but_transactional_is_fine(fresh_business):
+    _, flags = flags_for('''
+for email, name in ctx.db.execute("SELECT email, name FROM customers WHERE vip=1").fetchall():
+    ctx.email.send(email, "A thank-you from Bean There", f"Hi {name.split()[0]}, use code BEANS10 for 10% off your next box.")
+''')
+    assert "block_marketing_to_opted_out" in rules(flags, "critical")
+    _, flags = flags_for('''
+for email, name in ctx.db.execute("SELECT email, name FROM customers WHERE vip=1 AND marketing_opt_in=1").fetchall():
+    ctx.email.send(email, "A thank-you from Bean There", f"Hi {name.split()[0]}, use code BEANS10 for 10% off your next box.", kind="marketing")
+''')
+    assert "block_marketing_to_opted_out" not in rules(flags)
+    _, flags = flags_for('''
+for email, name in ctx.db.execute("SELECT email, name FROM customers WHERE marketing_opt_in=0 LIMIT 5").fetchall():
+    ctx.email.send(email, "Your refund", f"Hi {name.split()[0]}, we refunded your duplicate charge.", kind="transactional")
+''')
+    assert "block_marketing_to_opted_out" not in rules(flags)

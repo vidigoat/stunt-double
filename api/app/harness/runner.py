@@ -57,8 +57,8 @@ class Payments:
 
 
 class Email:
-    def send(self, to: str, subject: str, body: str) -> dict:
-        EMAILS.append({"to": str(to)[:320], "subject": str(subject)[:300], "body": str(body)[:5000]})
+    def send(self, to: str, subject: str, body: str, kind: str | None = None) -> dict:
+        EMAILS.append({"to": str(to)[:320], "subject": str(subject)[:300], "body": str(body)[:5000], "kind": kind if kind in ("marketing", "transactional") else None})
         return {"id": f"rehearsal_email_{len(EMAILS)}", "status": "recorded"}
 
 
@@ -165,7 +165,8 @@ def validate_intents(raw: dict) -> dict:
     mails = []
     for e in (raw.get("emails") or [])[:MAX_INTENTS]:
         if isinstance(e, dict):
-            mails.append({"to": str(e.get("to", ""))[:320], "subject": str(e.get("subject", ""))[:300], "body": str(e.get("body", ""))[:5000]})
+            mails.append({"to": str(e.get("to", ""))[:320], "subject": str(e.get("subject", ""))[:300], "body": str(e.get("body", ""))[:5000],
+                          "kind": e.get("kind") if e.get("kind") in ("marketing", "transactional") else None})
     err = raw.get("error")
     return {"ok": bool(raw.get("ok")) and err is None, "error": err if isinstance(err, dict) else ({"message": str(err)[:2000]} if err else None),
             "stdout": str(raw.get("stdout", ""))[-4000:], "logs": [str(x)[:500] for x in (raw.get("logs") or [])[:100]],
@@ -177,6 +178,7 @@ def validate_intents(raw: dict) -> dict:
 PLACEHOLDER = re.compile(r"\{\{[^}]*\}\}|\{[a-z_]+\}|\[(?:NAME|FIRST_NAME|CUSTOMER)\]|<(?:name|first_name)>|%\(\w+\)s|%s", re.I)
 CARD = re.compile(r"\b(?:\d[ -]?){13,16}\b")
 EMAIL = re.compile(r"[\w.+-]+@[\w-]+\.[\w.]+")
+PROMO = re.compile(r"\b\d{1,2}\s?% off\b|\bdiscount\b|\bpromo(?:tion)?\b|\bcoupon\b|\bsale\b|\buse (?:the )?code\b|\bspecial offer\b", re.I)
 
 
 def audit(before: dict, payments: list, emails: list) -> dict:
@@ -195,7 +197,7 @@ def audit(before: dict, payments: list, emails: list) -> dict:
         elif ch.get("status") == "refunded":
             already.append(p)
     recipients = Counter(e["to"] for e in emails)
-    templated, leaks, vip, strangers = [], [], [], []
+    templated, leaks, vip, strangers, opted_out = [], [], [], [], []
     for e in emails:
         text = e["subject"] + "\n" + e["body"]
         m = PLACEHOLDER.search(text)
@@ -207,13 +209,18 @@ def audit(before: dict, payments: list, emails: list) -> dict:
         c = by_email.get(e["to"])
         if c is None:
             strangers.append(e["to"])
-        elif c.get("vip"):
-            vip.append({"to": e["to"], "name": c.get("name")})
+        else:
+            if c.get("vip"):
+                vip.append({"to": e["to"], "name": c.get("name")})
+            marketing = e.get("kind") == "marketing" or (e.get("kind") is None and PROMO.search(text) is not None)
+            if marketing and c.get("marketing_opt_in") == 0:
+                opted_out.append({"to": e["to"], "name": c.get("name"), "vip": bool(c.get("vip"))})
     return {
         "refunds": {"over_refunded": over[:5], "over_refunded_count": len(over), "already_refunded": already[:5], "already_refunded_count": len(already),
                     "unknown_charge_count": len(unknown), "duplicate_refund_count": sum(1 for n in per_charge.values() if n > 1)},
         "emails": {"templated": templated[:5], "templated_count": len(templated), "leaks": leaks[:5], "leak_count": len(leaks),
                    "vip": vip[:10], "vip_count": len(vip), "not_a_customer_count": len(strangers),
+                   "opted_out_marketing": opted_out[:10], "opted_out_marketing_count": len(opted_out),
                    "duplicate_recipient_count": sum(1 for n in recipients.values() if n > 1)},
     }
 

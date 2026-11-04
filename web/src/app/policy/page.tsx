@@ -12,12 +12,13 @@ import { cn } from "@/lib/utils";
 type Policy = {
   max_refund_total_usd: number; max_emails_per_run: number; max_delete_pct: number; protected_tables: string[];
   block_schema_changes: boolean; block_network_attempts: boolean; block_over_refunds: boolean; block_broken_templates: boolean;
-  block_data_leaks: boolean; warn_vip_emails: boolean;
+  block_data_leaks: boolean; warn_vip_emails: boolean; block_marketing_to_opted_out: boolean;
 };
 
 const TOGGLES: { key: keyof Policy; title: string; body: string; kind: "block" | "warn" }[] = [
   { key: "block_over_refunds", title: "Block risky refunds", body: "Refunds larger than the original charge, of charges already refunded, refunded twice, or that don't exist.", kind: "block" },
   { key: "block_broken_templates", title: "Block broken emails", body: "Emails with unfilled placeholders like {{first_name}} never reach customers.", kind: "block" },
+  { key: "block_marketing_to_opted_out", title: "Respect unsubscribes", body: "Marketing emails to customers who opted out are blocked. Transactional emails (like refund notices) are fine.", kind: "block" },
   { key: "block_data_leaks", title: "Block data leaks", body: "Emails that contain another customer's email address or a card-like number.", kind: "block" },
   { key: "block_network_attempts", title: "Block plans that reach for the internet", body: "Any connection or DNS attempt from the sandbox locks approval.", kind: "block" },
   { key: "block_schema_changes", title: "Block schema changes", body: "DROP or CREATE TABLE are never applied automatically.", kind: "block" },

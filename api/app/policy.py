@@ -16,6 +16,7 @@ DEFAULTS: dict = {
     "block_broken_templates": True,       # block emails with unfilled placeholders like {{name}}
     "block_data_leaks": True,             # block emails containing another customer's email or card-like numbers
     "warn_vip_emails": True,              # warn when VIP customers would be emailed
+    "block_marketing_to_opted_out": True, # block marketing emails to customers who unsubscribed
 }
 
 SCHEMA = {k: type(v) for k, v in DEFAULTS.items()}

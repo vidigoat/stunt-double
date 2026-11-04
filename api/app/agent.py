@@ -21,7 +21,8 @@ CTX_DOC = """Your plan is a Python module that defines `def run(ctx):`.
 - ctx.db: sqlite3 connection to the business database. A transaction is already open; do NOT commit or rollback.
 - ctx.payments.refund(charge_id: int, amount_cents: int, reason: str): issue a refund through BeanPay.
   When you refund a charge also mark it in the DB: UPDATE charges SET status='refunded', refunded_at=<now> WHERE id=?
-- ctx.email.send(to: str, subject: str, body: str): email a customer. Write the real final text (no template placeholders).
+- ctx.email.send(to: str, subject: str, body: str, kind: str = None): email a customer, kind is "transactional" or "marketing".
+  Write the real final text (no template placeholders).
 - ctx.log(*values): leave a note for the reviewer.
 Standard library only. There is no network access."""
 
@@ -323,6 +324,11 @@ def red_flags(c: dict, pol: dict | None = None) -> list[dict]:
     n_emails = c.get("emails", {}).get("count", 0)
     if n_emails > p["max_emails_per_run"]:
         flag("max_emails_per_run", False, f"Sends {n_emails:,} emails", f"Above the {p['max_emails_per_run']:,}-email review threshold.", "medium")
+    if e.get("opted_out_marketing_count"):
+        x = e["opted_out_marketing"][0]
+        flag("block_marketing_to_opted_out", p["block_marketing_to_opted_out"],
+             f"{e['opted_out_marketing_count']} marketing emails go to people who unsubscribed",
+             f"e.g. {x['name']}{' (VIP)' if x.get('vip') else ''} opted out of marketing. Sending anyway breaks consent rules.")
     if p["warn_vip_emails"] and e.get("vip_count"):
         names = ", ".join(v["name"] for v in e.get("vip", [])[:3])
         flag("warn_vip_emails", False, f"Emails {e['vip_count']} VIP customers", f"Including {names}.", "medium")
