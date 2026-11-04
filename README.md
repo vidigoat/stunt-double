@@ -81,6 +81,10 @@ approvers) → **A correct refund plan** → approve → **Rehearse an undo** wi
 
 <table>
   <tr>
+    <td width="50%"><img src="docs/assets/ai-investigating.png" alt="The AI verifier investigating the double with read-only SQL, streamed live"><br><sub><b>The AI investigates</b>: the verifier's SQL streams in live while it checks the double</sub></td>
+    <td width="50%"><img src="docs/assets/ai-catch.png" alt="The AI verifier catches a refund plan that passes every rule"><br><sub><b>What rules can't see</b>: a plan that passes every rule, caught by the AI verifier on Vultr Inference</sub></td>
+  </tr>
+  <tr>
     <td width="50%"><img src="docs/assets/containment.png" alt="Containment: sandbox 0 customers, production 1,300, blocked by policy"><br><sub><b>Containment</b>: the damage happens only on the double</sub></td>
     <td width="50%"><img src="docs/assets/applied.png" alt="A correct plan approved and applied"><br><sub><b>Approve + apply</b>: drift-checked replay of the exact effects</sub></td>
   </tr>
