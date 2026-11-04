@@ -35,8 +35,10 @@ Criterion score (1–5) = `1 + 4 × (points earned / points possible)`, rounded 
 | gVisor runtime on Vultr | 0 | 2 | Pending VM |
 | Uses Vultr meaningfully (VM + Inference + API) | 0 | 2 | All pending keys |
 | Production-grade apply (drift check, idempotency, policy) | 2 | 2 | Tested |
-| Engineering quality (tests, CI, commits across the event) | 2 | 2 | 14+ commits, 9 tests, CI green |
-| **Total** | **10** | **16** | **→ 3.5 / 5** |
+| Engineering quality (tests, CI, commits across the event) | 2 | 2 | 30+ commits, 25 API tests + MCP client test + browser e2e, 4 CI jobs green |
+| Defence in depth beyond the brief | 2 | 2 | Two-phase measurement (the plan can't lie), O_NOFOLLOW copies, ulimits, integrity hash, policy engine, 6 adversarial tests |
+| Works with any agent | 2 | 2 | MCP server (stdio + HTTP), tested with a real MCP client in CI |
+| **Total** | **14** | **20** | **→ 3.8 / 5** |
 
 ## 2. Presentation
 
@@ -48,10 +50,10 @@ Criterion score (1–5) = `1 + 4 × (points earned / points possible)`, rounded 
 | Polished, coherent visual design | 2 | 2 | Landing + console + ledger, black-and-white system |
 | Public live URL judges can use | 0 | 2 | Pending VM |
 | Judges can trigger the wow moment themselves | 1 | 2 | "Break it yourself" exists; not public yet |
-| Demo video, 4–5 min, golden path rehearsed | 0 | 2 | Day 4 |
+| Demo video, 4–5 min, golden path rehearsed | 1 | 2 | 30 s recorded demo (GIF/MP4) in README; narrated 4-min video still Day 4 |
 | Slide deck (8–10 slides) | 2 | 2 | `presentation/stunt-double-deck.pdf`, 10 slides |
 | Cover image + lablab texts | 2 | 2 | `presentation/cover.png`, `docs/SUBMISSION.md` (lengths checked) |
-| **Total** | **9** | **14** | **→ 3.6 / 5** |
+| **Total** | **10** | **14** | **→ 3.9 / 5** |
 
 ## 3. Business Value
 
@@ -74,10 +76,10 @@ Criterion score (1–5) = `1 + 4 × (points earned / points possible)`, rounded 
 | Check | Pts now | Max | Notes |
 |---|---|---|---|
 | Distinct from the organizers' example list | 2 | 2 | Not in the list of 10 example directions |
-| Distinct from existing products | 1 | 2 | Upsun clones + dry-run proxies exist; our angle is consequences for non-technical approvers |
+| Distinct from existing products | 2 | 2 | Consequences for non-technical approvers + trusted two-phase measurement + replay of approved effects; no tool found doing this |
 | Memorable concept and name | 2 | 2 | "Let the double take the hit" |
 | Novel mechanism (approve recorded effects, replay with drift check) | 2 | 2 | Agent code never touches prod |
-| **Total** | **7** | **8** | **→ 4.5 / 5** |
+| **Total** | **8** | **8** | **→ 5.0 / 5** |
 
 ---
 
@@ -85,11 +87,11 @@ Criterion score (1–5) = `1 + 4 × (points earned / points possible)`, rounded 
 
 | Criterion | Now (Tue night) | Target (Sun) |
 |---|---|---|
-| Application of Technology | 3.5 | 5.0 |
-| Presentation | 2.4 → **3.6** | 5.0 |
+| Application of Technology | 3.5 → **3.8** | 5.0 |
+| Presentation | 2.4 → 3.6 → **3.9** | 5.0 |
 | Business Value | 2.7 → **4.7** | 4.5 |
-| Originality | 4.5 | 4.5 |
-| **Total (/20)** | 13.1 → **16.3** | 19.0 |
+| Originality | 4.5 → **5.0** | 5.0 |
+| **Total (/20)** | 13.1 → 16.3 → **17.4** | 19.0 |
 | Gate | ❌ (G1–G3, G7 open) | ✅ |
 
 **Biggest score movers, in order:**
@@ -105,6 +107,7 @@ Re-score after every milestone and log it below.
 |---|---|---|
 | Tue Nov 3, 22:45 | 13.1 | First rating. Engine, tests, CI, landing and console done; nothing on Vultr yet. |
 | Tue Nov 3, 23:30 | 16.3 | Pitch, pricing + buyer on landing, 10-slide deck, cover, submission texts, video script. Still blocked on Vultr keys (gate G1–G3). |
+| Wed Nov 4, 07:15 | 17.4 | Agent robustness, policy engine, two-phase sandbox + adversarial tests, audit trail + SSE, MCP server, browser e2e in CI, README media, 11-slide deck. Gate G1–G3 still needs keys. |
 
 ## Before submitting: claims to re-verify against live runs
 - [ ] Deck slide 4 and landing hero: verifier headline ("640 of these customers were never double-charged") matches a real verifier output

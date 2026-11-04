@@ -37,6 +37,7 @@
   .step.hot { border-color: var(--fg); }
   .guard { display: flex; justify-content: space-between; font-family: "Geist Mono", monospace; font-size: 24px; padding: 16px 22px; border: 1.5px solid var(--border); border-radius: 16px; background: var(--card); }
   .guard span:first-child { color: var(--muted); }
+  .tight .guard { padding: 11px 20px; font-size: 22px; }
 </style>
 </head>
 <body>
@@ -101,7 +102,7 @@
   <h2>A hijacked plan hits <em>only the double.</em></h2>
   <div style="display:grid;grid-template-columns:1fr 760px;gap:60px;margin-top:60px;align-items:start">
     <img class="shot" src="assets/console-containment.png" style="width:100%">
-    <div class="grid" style="gap:14px">
+    <div class="grid tight" style="gap:9px">
       <div class="guard"><span>sandbox customers</span><span class="red">1,300 → 0</span></div>
       <div class="guard"><span>production customers</span><span>1,300 untouched</span></div>
       <div class="guard"><span>network</span><span>none · DNS tripwire</span></div>
@@ -109,8 +110,30 @@
       <div class="guard"><span>filesystem</span><span>read-only, non-root</span></div>
       <div class="guard"><span>memory / pids / time</span><span>256 MB · 64 · 60 s</span></div>
       <div class="guard"><span>runtime</span><span>gVisor (runsc)</span></div>
+      <div class="guard"><span>measured by</span><span>a 2nd, fresh sandbox</span></div>
       <div class="guard"><span>after the run</span><span>clone destroyed</span></div>
       <div class="guard" style="border-color:var(--damage)"><span>approval</span><span class="red">blocked by policy</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- 5b. Can't lie -->
+<section class="slide">
+  <div class="eyebrow">Two-phase sandbox · tested in CI</div>
+  <h2>The plan <em>can't lie</em> about what it did.</h2>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:60px;margin-top:60px">
+    <div>
+      <p class="lead" style="margin-top:0;font-size:31px">The plan runs in one sandbox. A <b style="color:var(--fg);font-weight:500">second, fresh sandbox</b> running only our code measures what really changed. That measurement is what the approver sees and exactly what gets applied.</p>
+      <p class="lead" style="font-size:31px">Approval is bound to a SHA-256 of the plan and its effects. Tampered effects are refused.</p>
+    </div>
+    <div class="grid" style="gap:14px">
+      <div class="guard"><span class="red" style="color:var(--damage)">DELETE FROM customers</span><span>approval locked</span></div>
+      <div class="guard"><span class="red" style="color:var(--damage)">exfiltrate data</span><span>DNS blocked</span></div>
+      <div class="guard"><span class="red" style="color:var(--damage)">memory / fork bomb</span><span>capped</span></div>
+      <div class="guard"><span class="red" style="color:var(--damage)">infinite loop</span><span>killed at 60 s</span></div>
+      <div class="guard"><span class="red" style="color:var(--damage)">forge the report</span><span>ignored</span></div>
+      <div class="guard"><span class="red" style="color:var(--damage)">symlink to host file</span><span>refused</span></div>
+      <div class="guard"><span class="red" style="color:var(--damage)">tamper after review</span><span>refused</span></div>
     </div>
   </div>
 </section>
@@ -118,15 +141,9 @@
 <!-- 6. Architecture -->
 <section class="slide">
   <div class="eyebrow">Built on Vultr</div>
-  <h2>One VM. Many disposable <em>doubles.</em></h2>
-  <pre class="mono card" style="margin-top:56px;font-size:25px;line-height:1.55;white-space:pre">Browser ──HTTPS──► Caddy ─┬─► web   Next.js · React · shadcn/ui
-    Vultr Cloud Compute   ├─► api   FastAPI orchestrator
-                          │     ├─ ops agent ───────► Vultr Serverless Inference  (glm-5.3-flash, tool calling)
-                          │     ├─ verifier ────────► Vultr Serverless Inference  (glm-5.3) + read-only SQL
-                          │     ├─ rehearsal ───────► docker run --runtime=runsc --network none --read-only …
-                          │     └─ apply (drift-checked) ► business DB · BeanPay · SMTP
-                          └─► /mail  real delivered emails (Mailpit)</pre>
-  <div class="grid" style="grid-template-columns:repeat(3,1fr);margin-top:36px">
+  <h2 style="font-size:80px">One VM. Many disposable <em>doubles.</em></h2>
+  <img src="../docs/assets/architecture.svg" style="width:100%;margin-top:40px;border-radius:24px;border:1.5px solid var(--border)">
+  <div class="grid" style="grid-template-columns:repeat(3,1fr);margin-top:28px;display:none">
     <div class="card"><b style="font-size:28px;font-weight:500">Cloud Compute</b><p class="muted" style="font-size:23px;margin-top:8px">App host + sandbox host (Docker + gVisor)</p></div>
     <div class="card"><b style="font-size:28px;font-weight:500">Serverless Inference</b><p class="muted" style="font-size:23px;margin-top:8px">Every LLM call: agent and independent verifier</p></div>
     <div class="card"><b style="font-size:28px;font-weight:500">Vultr API</b><p class="muted" style="font-size:23px;margin-top:8px">Provisioning via cloud-init; pull-based deploys</p></div>
@@ -179,7 +196,7 @@
     <h2>Every agent action gets <em>a double.</em></h2>
     <div class="grid" style="grid-template-columns:repeat(4,1fr);margin-top:60px">
       <div class="card"><div class="n mono muted" style="font-size:20px">01</div><p style="font-size:27px;margin-top:14px">Connectors: Postgres, Stripe, HubSpot, Zendesk</p></div>
-      <div class="card"><div class="n mono muted" style="font-size:20px">02</div><p style="font-size:27px;margin-top:14px">MCP server: any agent calls <span class="mono">rehearse()</span> first</p></div>
+      <div class="card" style="border-color:var(--fg)"><div class="n mono muted" style="font-size:20px">✓ shipped</div><p style="font-size:27px;margin-top:14px">MCP server: any agent calls <span class="mono">rehearse()</span> first</p></div>
       <div class="card"><div class="n mono muted" style="font-size:20px">03</div><p style="font-size:27px;margin-top:14px">Policy packs per department</p></div>
       <div class="card"><div class="n mono muted" style="font-size:20px">04</div><p style="font-size:27px;margin-top:14px">Vultr Managed DB forks for big datasets</p></div>
     </div>
