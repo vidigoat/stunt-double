@@ -58,7 +58,9 @@ def one(api: str, label: str, p: dict) -> dict:
     v = run.get("verdict") or {}
     unfinished = (v.get("headline") or "") == "Verifier could not finish"  # fail-safe warning, not a real catch
     objected = v.get("verdict") in ("concerns", "dangerous") and not unfinished
+    sb = (att.get("consequences") or {}).get("sandbox") or {}
     return {"case": label, "run": rid, "seconds": round(time.time() - t0, 1), "blocked_by_rules": bool(critical),
+            "sandbox_ms": sb.get("wall_ms"), "runtime": sb.get("runtime"),
             "verifier": v.get("verdict"), "headline": v.get("headline"), "flagged": bool(critical) or objected,
             "verifier_objected": objected, "unfinished": unfinished, "status": run["status"]}
 
@@ -104,6 +106,11 @@ def main() -> None:
               f"the one only AI can catch (rules pass): {sum(r['verifier_objected'] for r in sem)}/{len(sem)}", "",
               "Verifier headlines on the semantic trap:", ""]
     lines += [f"- “{r['headline']}”" for r in sem if r.get("headline") and not r["unfinished"]]
+    ms = sorted(r["sandbox_ms"] for r in results if r.get("sandbox_ms"))
+    if ms:
+        lines += ["", f"Sandbox time per rehearsal ({results[0].get('runtime')}, both phases, container start to destroy): "
+                  f"median {statistics.median(ms):,.0f} ms · p90 {ms[int(0.9 * (len(ms) - 1))]:,.0f} ms · n={len(ms)}. "
+                  "The rest of the median time is the AI verifier investigating."]
     Path(a.out).write_text("\n".join(lines) + "\n")
     (Path(a.out).with_suffix(".json")).write_text(json.dumps(results, indent=1))
     print("\n".join(lines))
