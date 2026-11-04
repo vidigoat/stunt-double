@@ -267,3 +267,28 @@ def test_an_agent_that_never_stops_researching_still_submits_a_plan(fresh_busine
             break
         time.sleep(0.25)
     assert fake.forced == 1 and run["status"] == "review" and run["attempts"], run.get("error")
+
+
+class ChattyVerifier:
+    """Answers in prose (twice) instead of calling the verdict tool, unless the API forces a tool call."""
+    def __init__(self):
+        self.forced = 0
+        self.chat = NS(completions=NS(create=self.create))
+
+    def create(self, model, messages, tools, temperature, **kw):
+        if kw.get("tool_choice") == "required":
+            self.forced += 1
+            msg = NS(content="", tool_calls=[_tool_call(0, "verdict", {"verdict": "concerns", "headline": "87 of 104 double charges missed",
+                                                                      "summary": "s", "concerns": []})])
+        else:
+            msg = NS(content="I think the plan misses most of the double charges.", tool_calls=None)
+        return NS(choices=[NS(message=msg)])
+
+
+def test_a_verifier_that_answers_in_prose_is_made_to_decide(fresh_business, monkeypatch):
+    fake = ChattyVerifier()
+    monkeypatch.setattr(agent, "client", lambda: fake)
+    consequences = {"ok": True, "tables": {}, "payments": {"count": 0, "total_cents": 0, "samples": []}, "emails": {"count": 0, "samples": []},
+                    "http": {"count": 0, "samples": []}, "blocked": [], "audit": {}}
+    v = agent.verify("Refund everyone who was double-charged", "def run(ctx): pass", consequences, lambda *a: None)
+    assert fake.forced == 1 and v["headline"] == "87 of 104 double charges missed"

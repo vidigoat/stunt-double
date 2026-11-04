@@ -193,10 +193,11 @@ def _loop(models: str | list[str], messages: list, tools: list, handlers: dict[s
     called: set[str] = set()
     nudged = False
     seen: dict[str, int] = {}  # identical tool calls, to stop a model that keeps re-running the same query
+    force = False  # set when the model keeps answering in prose: its next turn may only call the decision tool
     for turn in range(max_turns):
         # The tool that ends the job: the verifier's verdict, or the agent's plan if it hasn't submitted one yet.
         decide = stop_tool or (required_tool if required_tool and required_tool not in called else None)
-        last = bool(decide) and turn >= max_turns - 2
+        last = bool(decide) and (force or turn >= max_turns - 2)
         if last:  # out of steps: the model must decide now, with only the decision tool available
             messages.append({"role": "user", "content": f"Your investigation budget is used up. Stop querying and call `{decide}` now "
                                                         "with your best judgment from what you have already seen."})
@@ -214,6 +215,9 @@ def _loop(models: str | list[str], messages: list, tools: list, handlers: dict[s
             if required_tool and required_tool not in called and not nudged:
                 nudged = True
                 messages.append({"role": "user", "content": f"You have not called `{required_tool}` yet. Call it now; do not reply with text."})
+                continue
+            if decide and not force and turn < max_turns - 1:  # prose again: one forced turn with only the decision tool
+                force = True
                 continue
             return msg.content or "", None
         for c in calls:
