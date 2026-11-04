@@ -104,6 +104,7 @@ function Hero() {
             <Link href="/app" className={cn(buttonVariants(), "h-10 rounded-full px-4")}>Ask the agent to fix it</Link>
             <span className="ml-auto font-mono text-xs text-muted-foreground">Approve is locked until concerns are resolved</span>
           </ApprovalCard>
+          <p className="mt-3 text-xs text-muted-foreground">Numbers from a real rehearsal of the demo business. The verdict text is an example of what the verifier reports.</p>
         </div>
       </div>
     </section>
