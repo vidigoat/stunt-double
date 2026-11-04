@@ -51,6 +51,32 @@ async function step(name, fn) {
     assert.strictEqual(ledger.total_cents, 513600);
   });
 
+  await step("undo: a rollback needs two different approvers and restores the data", async () => {
+    await page.getByRole("button", { name: /Rehearse an undo/ }).click();
+    await page.getByText(/This is the undo of/).waitFor({ timeout: 30000 });
+    const name = page.getByRole("textbox", { name: "Approver name" });
+    await name.fill("Priya");
+    await page.getByRole("button", { name: /First approval/ }).click();
+    await page.getByText(/approved by Priya/).waitFor({ timeout: 30000 });
+    await name.fill("Marco");
+    await page.getByRole("button", { name: /Second approval and apply/ }).click();
+    await page.getByText("Applied for real").waitFor({ timeout: 60000 });
+    const biz = await fetch(`${BASE}/api/business`).then((r) => r.json());
+    assert.strictEqual(biz.refunded.count, 0, "rollback restored every refunded charge in the database");
+  });
+
+  await step("connectors: a Slack post is recorded, approved, then delivered to the outbox", async () => {
+    await page.getByRole("button", { name: "New" }).click();
+    await page.getByRole("tab", { name: /Break it yourself/ }).click();
+    await page.getByRole("button", { name: "Post the refund summary to Slack", exact: true }).click();
+    await page.getByRole("button", { name: "Rehearse it", exact: true }).click();
+    await page.getByRole("button", { name: /Approve and apply/ }).click({ timeout: 60000 });
+    await page.getByText("Applied for real").waitFor({ timeout: 60000 });
+    const out = await fetch(`${BASE}/api/outbox`).then((r) => r.json());
+    assert.strictEqual(out.count, 1);
+    assert.strictEqual(out.deliveries[0].connector, "slack");
+  });
+
   await step("audit trail: history shows the applied run with a plan fingerprint", async () => {
     await page.goto(`${BASE}/history`, { waitUntil: "networkidle" });
     await page.getByText("applied", { exact: true }).first().waitFor();

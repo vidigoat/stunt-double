@@ -3,7 +3,7 @@ export type Flag = { severity: Severity; title: string; detail: string; rule?: s
 export type Concern = { severity: "high" | "medium" | "low"; title: string; detail: string; affected_count?: number };
 export type Verdict = { verdict: "looks_right" | "concerns" | "dangerous"; headline: string; summary: string; concerns: Concern[]; fix_instructions?: string };
 export type TableChange = {
-  dropped: boolean; deleted: number; inserted: number; updated: number; rows_before: number; rows_after: number; changed_columns: string[];
+  dropped: boolean; schema_changed?: boolean; deleted: number; inserted: number; updated: number; rows_before: number; rows_after: number; changed_columns: string[];
   samples: { deleted: { rowid: number; before: Record<string, unknown> }[]; inserted: { rowid: number; after: Record<string, unknown> }[];
     updated: { rowid: number; before: Record<string, unknown>; after: Record<string, unknown>; changed: string[] }[] };
 };
@@ -12,19 +12,22 @@ export type Consequences = {
   tables: Record<string, TableChange>; row_counts: Record<string, { before: number; after: number }>;
   payments: { count: number; total_cents: number; samples: { charge_id: number; amount_cents: number; reason: string }[] };
   emails: { count: number; samples: { to: string; subject: string; body: string }[] };
+  http?: { count: number; samples: { method: string; url: string; host: string; json: unknown; headers: Record<string, string> }[] };
+  irreversible?: { refunds: number; refund_total_cents: number; emails: number; http: number };
   blocked: { kind: string; target: string }[];
   guards: { env_keys?: string[]; uid?: number; hostname?: string; root_writable?: boolean };
   audit?: { emails?: { vip_count?: number; templated_count?: number }; refunds?: { over_refunded_count?: number } };
   sandbox: { id: string; runtime: string; network: string; memory: string; timeout_s: number; read_only_root: boolean; exit_code: number; killed: string | null; wall_ms: number; destroyed: boolean };
 };
-export type Attempt = { n: number; sandbox_id: string; code: string; summary: string; consequences: Consequences; flags: Flag[]; plan_sha256?: string; effects_sha256?: string | null; created_at?: number };
-export type Approval = { approved_at: number; approver: string; plan_sha256: string; effects_sha256: string; sandbox_id: string; warnings: string[] };
+export type Attempt = { n: number; sandbox_id: string; code: string; summary: string; consequences: Consequences; flags: Flag[]; plan_sha256?: string; effects_sha256?: string | null; created_at?: number;
+  approvals_required?: number; approval_reasons?: string[] };
+export type Approval = { approved_at: number; approver: string; approvers?: string[]; plan_sha256: string; effects_sha256: string; sandbox_id: string; warnings: string[] };
 export type RunEvent = { t: number; kind: string; title: string; detail: string };
 export type RunStatus = "queued" | "planning" | "rehearsing" | "verifying" | "review" | "applying" | "applied" | "drifted" | "rejected" | "failed";
 export type Run = {
-  id: string; task: string; mode: "agent" | "manual"; status: RunStatus; created_at: number; events: RunEvent[]; attempts: Attempt[];
+  id: string; task: string; mode: "agent" | "manual" | "rollback"; status: RunStatus; approvals?: { name: string; at: number }[]; rollback_of?: string; rolled_back_by?: string; rollback_run?: string; created_at: number; events: RunEvent[]; attempts: Attempt[];
   verdict: Verdict | null; flags: Flag[]; final_message: string | null; error: string | null; agent_model: string; verifier_model: string; approval?: Approval | null; version?: number;
-  apply_result: null | { rows_written?: number; refunds?: number; refund_total_cents?: number; emails_sent?: number; emails_failed?: number; drift_count?: number; drifted?: unknown[] };
+  apply_result: null | { rows_written?: number; refunds?: number; refund_total_cents?: number; emails_sent?: number; emails_failed?: number; http_delivered?: number; http_failed?: number; drift_count?: number; drifted?: unknown[]; error?: string };
 };
 export type Business = {
   name: string; counts: { customers: number; orders: number; charges: number; tickets: number };
@@ -32,7 +35,7 @@ export type Business = {
   beanpay: { count: number; total_cents: number };
 };
 export type RunSummary = {
-  id: string; task: string; mode: "agent" | "manual"; status: RunStatus; created_at: number; attempts: number; verdict: Verdict["verdict"] | null;
+  id: string; task: string; mode: "agent" | "manual" | "rollback"; status: RunStatus; approvals?: { name: string; at: number }[]; rollback_of?: string; rolled_back_by?: string; rollback_run?: string; created_at: number; attempts: number; verdict: Verdict["verdict"] | null;
   money_cents: number; emails: number; rows: number; blocked: boolean; plan_sha256: string | null; approval: Approval | null; apply_result: Run["apply_result"];
 };
 export type Health = { ok: boolean; inference_configured: boolean; sandbox_ready?: boolean; sandbox_status?: string; agent_model: string; verifier_model: string; sandbox_runtime: string; docker: string | null };
@@ -59,6 +62,7 @@ export const api = {
   fix: (id: string, note?: string) => req<{ id: string }>(`/runs/${id}/fix`, { note }),
   approve: (id: string, approver?: string) => req<Run>(`/runs/${id}/approve`, { approver }),
   reject: (id: string) => req<Run>(`/runs/${id}/reject`, {}),
+  rollback: (id: string) => req<{ id: string }>(`/runs/${id}/rollback`, {}),
   reset: () => req<Business>("/demo/reset", {}),
 };
 

