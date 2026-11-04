@@ -259,7 +259,7 @@ function Features() {
 
 const PROOF = [
   { n: "36/36", k: "bad plans caught on the live Vultr server, 0 of 18 false alarms on correct ones", href: `${GITHUB}/blob/main/docs/VERIFIER_EVAL.md` },
-  { n: "95", k: "API tests in CI, plus MCP and browser end-to-end", href: `${GITHUB}/tree/main/api/tests` },
+  { n: "101", k: "API tests in CI, plus MCP and browser end-to-end", href: `${GITHUB}/tree/main/api/tests` },
   { n: "3", k: "security reviews, from forged reports to lookalike approvers. Every finding fixed with a test", href: `${GITHUB}/blob/main/SECURITY.md` },
   { n: "0", k: "lines of agent code ever run against production", href: `${GITHUB}/blob/main/api/app/apply.py` },
 ];
