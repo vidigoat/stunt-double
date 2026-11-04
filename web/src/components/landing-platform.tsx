@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Database, FileCheck2, KeyRound, Mail, Scale, Undo2, Users, Webhook, CreditCard } from "lucide-react";
 import { num, usd } from "@/lib/api";
 import { BrandLogo, type LogoName } from "@/components/brand-logos";
+import { Code } from "@/components/code";
 
 const CONNECTORS: { icon: typeof Database; name: string; line: string; logos?: LogoName[] }[] = [
   { icon: Database, logos: ["sqlite"], name: "Your database", line: "Every changed row is measured on a clone and replayed only if nobody touched it since. Upload your own SQLite to try it on your schema." },
@@ -92,12 +93,12 @@ export function ForAgents() {
       </div>
       <div className="mt-10 grid gap-4 lg:grid-cols-2">
         {([["MCP · any agent", MCP, ["claude", "cursor", "mcp"]], ["Python SDK", SDK, ["python"]]] as [string, string, LogoName[]][]).map(([t, code, logos]) => (
-          <div key={t} className="min-w-0 rounded-2xl border bg-card p-4">
+          <div key={t} className="card-lift flex min-w-0 flex-col rounded-2xl border bg-card p-4">
             <div className="flex items-center justify-between px-1 pb-3">
               <span className="font-mono text-[11px] uppercase tracking-wider text-muted-foreground">{t}</span>
               <span className="flex items-center gap-2">{logos.map((l) => <BrandLogo key={l} name={l} tone="brand" className="size-4" />)}</span>
             </div>
-            <pre className="overflow-x-auto rounded-xl bg-foreground p-5 font-mono text-[13px] leading-relaxed text-background">{code}</pre>
+            <Code code={code} className="flex-1" />
           </div>
         ))}
       </div>
