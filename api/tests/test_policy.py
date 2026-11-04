@@ -117,3 +117,28 @@ def test_agent_runs_need_a_key_and_respect_the_daily_budget(monkeypatch):
     main.AGENT_DAY.update(day="", count=0)
     r = api.post("/api/runs", json={"task": "refund people"})
     assert r.status_code == 429 and "budget" in r.json()["detail"]
+
+
+def test_glossary_reaches_the_verifier_only(monkeypatch):
+    from types import SimpleNamespace as NS
+    seen = {}
+
+    class Capture:
+        chat = None
+
+        def __init__(self):
+            self.chat = NS(completions=NS(create=self.create))
+
+        def create(self, model, messages, tools, temperature, **kw):
+            seen.setdefault("system", messages[0]["content"])
+            call = NS(id="v1", type="function", function=NS(name="verdict", arguments='{"verdict":"looks_right","headline":"ok","summary":"s","concerns":[]}'))
+            return NS(choices=[NS(message=NS(content="", tool_calls=[call]))])
+
+    monkeypatch.setattr(agent, "client", lambda: Capture())
+    c = {"ok": True, "tables": {}, "payments": {"count": 0, "total_cents": 0, "samples": []}, "emails": {"count": 0, "samples": []}, "blocked": []}
+    agent.verify("refund double charges", "def run(ctx): pass", c, lambda *a: None)
+    assert "SAME order_id" in seen["system"]
+    assert "SAME order_id" not in agent.OPS_SYSTEM           # the ops agent is not told
+    api = TestClient(main.app)
+    assert api.put("/api/policy", json={"glossary": [{"term": "x" * 81, "definition": "d"}]}).status_code == 422
+    assert api.put("/api/policy", json={"glossary": [{"term": "churned", "definition": "no order in 90 days"}]}).json()["policy"]["glossary"][0]["term"] == "churned"

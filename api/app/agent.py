@@ -251,7 +251,12 @@ def ops_agent(task: str, rehearse: Callable[[str, str], dict], emit: Callable, f
 
 
 def verify(task: str, code: str, consequences: dict, emit: Callable) -> dict:
-    messages = [{"role": "system", "content": VERIFIER_SYSTEM},
+    from . import policy as _policy
+    glossary = _policy.load().get("glossary", [])
+    messages = [{"role": "system", "content": VERIFIER_SYSTEM + (
+                    "\n\nThe business defines its terms like this. Judge the plan against these definitions, "
+                    "and check the affected rows against them with run_query:\n" + "\n".join(f"- {g['term']}: {g['definition']}" for g in glossary)
+                    if glossary else "")},
                 {"role": "user", "content": json.dumps({"human_request": task, "plan_code": code,
                                                         "measured_consequences": compact_consequences(consequences)}, default=str)}]
 
