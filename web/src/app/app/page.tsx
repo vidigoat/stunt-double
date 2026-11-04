@@ -210,6 +210,9 @@ export default function AppPage() {
                 <TabsTrigger value="break" className="flex-1"><Ban className="size-3.5" /> Break it yourself</TabsTrigger>
               </TabsList>
               <TabsContent value="agent" className="space-y-3 pt-3">
+                {health && health.sandbox_ready === false ? (
+                  <div className="rounded-lg border border-damage/30 bg-damage/[0.04] px-3 py-2 text-sm">Sandbox unavailable: {health.sandbox_status}. Nothing can be rehearsed, so nothing can be applied.</div>
+                ) : null}
                 {health && !health.inference_configured ? (
                   <div className="rounded-lg border border-damage/30 bg-damage/[0.04] px-3 py-2 text-sm">The agent is offline: Vultr Serverless Inference isn&apos;t configured on this server yet. <button className="underline underline-offset-4" onClick={() => setMode("break")}>Break it yourself</button> still works.</div>
                 ) : null}

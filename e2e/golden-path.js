@@ -13,7 +13,8 @@ async function step(name, fn) {
 (async () => {
   const browser = await chromium.launch();
   const errors = [];
-  const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
+  const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 }, ignoreHTTPSErrors: true });
+  const page = await ctx.newPage();
   page.on("pageerror", (e) => errors.push(e.message));
   await fetch(`${BASE}/api/demo/reset`, { method: "POST" });
 
@@ -62,7 +63,7 @@ async function step(name, fn) {
   });
 
   await step("phone width: no horizontal scrolling", async () => {
-    const m = await browser.newPage({ viewport: { width: 390, height: 844 } });
+    const m = await browser.newPage({ viewport: { width: 390, height: 844 }, ignoreHTTPSErrors: true });
     for (const path of ["/", "/app", "/history", "/policy", "/ledger"]) {
       await m.goto(`${BASE}${path}`, { waitUntil: "networkidle" });
       const w = await m.evaluate(() => document.documentElement.scrollWidth);

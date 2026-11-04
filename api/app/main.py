@@ -195,12 +195,28 @@ class FixIn(BaseModel):
     note: str | None = Field(default=None, max_length=2000)
 
 
+def _sandbox_ready() -> tuple[bool, str]:
+    """Is the configured sandbox runtime actually available? Rehearsals fail closed if not."""
+    p = subprocess.run(["docker", "info", "--format", "{{json .Runtimes}}"], capture_output=True, text=True)
+    if p.returncode != 0:
+        return False, "Docker daemon unreachable"
+    want = config.SANDBOX_RUNTIME or "runc"
+    try:
+        runtimes = json.loads(p.stdout or "{}")
+    except ValueError:
+        runtimes = {}
+    if want not in runtimes and want != "runc":
+        return False, f"sandbox runtime '{want}' is not installed (rehearsals will refuse to run)"
+    return True, f"{want} ready"
+
+
 @app.get("/api/health")
 def health():
+    ready, why = _sandbox_ready()
     docker = subprocess.run(["docker", "version", "--format", "{{.Server.Version}}"], capture_output=True, text=True)
     return {"ok": True, "inference_configured": bool(config.INFERENCE_KEY), "agent_model": config.AGENT_MODEL.split(",")[0],
             "verifier_model": config.VERIFIER_MODEL.split(",")[0], "fallback_models": config.AGENT_MODEL.split(",")[1:], "sandbox_runtime": config.SANDBOX_RUNTIME or "runc",
-            "docker": docker.stdout.strip() or None}
+            "docker": docker.stdout.strip() or None, "sandbox_ready": ready, "sandbox_status": why}
 
 
 @app.get("/api/business")

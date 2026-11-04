@@ -31,6 +31,7 @@ docker build -t stunt-double-sandbox:latest -f sandbox/Dockerfile .
 cd infra
 [ -f .env ] || cp .env.example .env
 if [ -n "${VULTR_INFERENCE_KEY:-}" ]; then sed -i "s|^VULTR_INFERENCE_KEY=.*|VULTR_INFERENCE_KEY=${VULTR_INFERENCE_KEY}|" .env; fi
+grep -q '^SITE_HOST=' .env || echo "SITE_HOST=$SITE_HOST" >> .env   # compose reads it for ${SITE_HOST}
 chmod 600 .env
 echo "$SITE_HOST" > /opt/stunt-double/site_host
 SITE_HOST=$SITE_HOST docker compose up -d --build

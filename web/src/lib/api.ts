@@ -35,7 +35,7 @@ export type RunSummary = {
   id: string; task: string; mode: "agent" | "manual"; status: RunStatus; created_at: number; attempts: number; verdict: Verdict["verdict"] | null;
   money_cents: number; emails: number; rows: number; blocked: boolean; plan_sha256: string | null; approval: Approval | null; apply_result: Run["apply_result"];
 };
-export type Health = { ok: boolean; inference_configured: boolean; agent_model: string; verifier_model: string; sandbox_runtime: string; docker: string | null };
+export type Health = { ok: boolean; inference_configured: boolean; sandbox_ready?: boolean; sandbox_status?: string; agent_model: string; verifier_model: string; sandbox_runtime: string; docker: string | null };
 
 async function req<T>(path: string, body?: unknown): Promise<T> {
   const res = await fetch(`/api${path}`, {
