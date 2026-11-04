@@ -24,7 +24,7 @@ live=$(ffprobe -v error -show_entries format=duration -of csv=p=0 "$WORK/b.mp4")
 printf '{"live_seconds": %s}\n' "$live" > "$HERE/segments.json"
 
 m=0
-for spec in "05:8" "06:10" "07:10" "08:9" "09:10" "10:8" "11:7"; do m=$((m+1)); slide "$SLIDES/slide-${spec%%:*}.png" "${spec##*:}" "$WORK/c$m.mp4"; done
+for spec in "05:9" "06:8" "07:10" "08:10" "09:9" "10:10" "11:8" "12:7"; do m=$((m+1)); slide "$SLIDES/slide-${spec%%:*}.png" "${spec##*:}" "$WORK/c$m.mp4"; done
 
 echo "3/3 joining"
 : > "$WORK/list.txt"

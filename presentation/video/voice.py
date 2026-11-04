@@ -31,6 +31,7 @@ SCENES = [
            "Now a correct plan: refund the one hundred and four customers who were really charged twice. "
            "Five thousand one hundred dollars, in plain English. Approve, the drift check passes, and only the approved effects are replayed. "
            "Every rehearsal is on the record."),
+    (9, "Three requests, three ways to get hurt: refunds, a poisoned support ticket, and a promo to people who unsubscribed. Stunt Double catches all three."),
     (8, "The damage only ever happens on the double."),
     (10, "And the plan can't lie. A second, fresh sandbox measures what really changed. That measurement is what you see, and exactly what gets applied."),
     (10, "One Vultr VM, many disposable doubles. Every model call runs on Vultr Serverless Inference."),
