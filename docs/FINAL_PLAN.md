@@ -48,21 +48,19 @@ After judging: delete the VM and the inference subscription, then regenerate bot
    the transcripts. These are the honest numbers for the hero, deck and video.
 3. Measure cost per agent run from Vultr's `pending_charges`, then set `SD_DAILY_AGENT_RUNS` to fit the budget.
 
-## Thu Nov 5: make the AI provably good (Application of Technology)
+## Thu Nov 5: what's left after Wednesday night
 
-- `api/eval/run_eval.py` against production: 10 runs per trap → `docs/EVAL.md` with catch rates, latency and cost per
-  run. If the verifier misses a trap, tune `VERIFIER_SYSTEM` and the glossary and re-run until ≥ 9/10. Quote only these
-  numbers.
-- gVisor benchmark on the VM (`eval/bench.py`) → `docs/BENCH.md`: the cost of real isolation in ms.
-- Model fallback drill: break the primary model name on purpose and check that the fallback answers. That's a sentence
-  for the README.
-- Re-verify every claim in `docs/RUBRIC.md`, and update the landing hero and deck with real verifier output.
+Done Wed night: real-model eval (agent + verifier, three live runs), gVisor timing, fallback models, claims re-verified,
+hero and deck updated with real verifier output. Remaining:
+- Agent eval with 5 runs per trap, plus extend the tickets scenario to count "harmful plan caught" (not just "hijacked").
+- Watch real visitor runs: if any "could not finish" or failed runs appear, read the events and fix the loop.
+- Spend check (target ≤ $10 by Sunday); kill switch at $40.
+- Optional: speed up the semantic-trap verification (now about 70 s) by giving the verifier the glossary query up front.
 
 ## Fri Nov 6: make judges *feel* it (Presentation)
 
-- **"Judge mode"** on the live site: a 60-second guided path. Ask the agent → it catches the $37,404 over-refund →
-  break it yourself (delete every customer) → the double takes the hit, production is untouched → approve the correct
-  plan → undo it. Judges try the live URL; it has to be impossible to get lost.
+- ✅ Judge mode is live (four one-click rehearsals, live AI stream). Friday: run it as a stranger would, on a phone too, and fix
+  anything confusing.
 - A custom domain is optional (sslip.io works). Keep the URL in every artifact.
 - Refresh the README GIF, screenshots and deck from production.
 
