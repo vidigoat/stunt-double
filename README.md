@@ -35,6 +35,20 @@
 
 ---
 
+## Judge it in 2 minutes
+
+Open **[the live demo](https://149-28-206-186.sslip.io/app)**. Judge mode is four clicks; each one starts a real rehearsal in
+gVisor on the Vultr VM:
+
+| # | Click | What you should see |
+|---|---|---|
+| 1 | **Break it** | A plan deletes every customer. Sandbox: 1,300 → 0. Production: still 1,300. Approval locks. |
+| 2 | **Watch the AI catch what rules can't** | A refund plan passes every rule. The AI verifier (Vultr Serverless Inference) reads the data and objects: *"Plan refunds 640 customers who were never double-charged."* Caught on 4 of 4 live runs ([eval](docs/VERIFIER_EVAL.md)). |
+| 3 | **Approve a good one, then undo it** | 104 refunds ($5,136) and emails after a drift check. Then rehearse the undo, which needs two approvers. |
+| 4 | **Hand it to the agent** | The agent on Vultr Serverless Inference investigates the data, writes a plan and rehearses it. It fell for none of our traps on the live server ([eval](docs/EVAL.md)). |
+
+Agents can do the same over MCP: `claude mcp add --transport http stunt-double https://149-28-206-186.sslip.io/mcp`.
+
 ## Why
 
 AI agents now refund money, email customers and edit production data. When they get it wrong the damage is real
