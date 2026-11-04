@@ -32,6 +32,9 @@ cd infra
 [ -f .env ] || cp .env.example .env
 if [ -n "${VULTR_INFERENCE_KEY:-}" ]; then sed -i "s|^VULTR_INFERENCE_KEY=.*|VULTR_INFERENCE_KEY=${VULTR_INFERENCE_KEY}|" .env; fi
 grep -q '^SITE_HOST=' .env || echo "SITE_HOST=$SITE_HOST" >> .env   # compose reads it for ${SITE_HOST}
+for v in SD_S3_ENDPOINT SD_S3_ACCESS_KEY SD_S3_SECRET_KEY; do   # optional evidence archive on Vultr Object Storage
+  if [ -n "${!v:-}" ] && ! grep -q "^$v=" .env; then echo "$v=${!v}" >> .env; fi
+done
 chmod 600 .env
 echo "$SITE_HOST" > /opt/stunt-double/site_host
 SITE_HOST=$SITE_HOST docker compose up -d --build

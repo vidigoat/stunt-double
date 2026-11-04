@@ -14,7 +14,8 @@ from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
-from . import agent, apply as applier, beanpay, config, policy, sandbox, seed
+from . import agent, archive, beanpay, config, policy, sandbox, seed
+from . import apply as applier
 
 app = FastAPI(
     title="Stunt Double API",
@@ -223,7 +224,8 @@ def health():
             "verifier_model": config.VERIFIER_MODEL.split(",")[0], "fallback_models": config.AGENT_MODEL.split(",")[1:],
             "agent_runs_today": AGENT_DAY["count"] if AGENT_DAY["day"] == time.strftime("%Y-%m-%d", time.gmtime()) else 0,
             "agent_runs_daily_limit": config.DAILY_AGENT_RUNS, "sandbox_runtime": config.SANDBOX_RUNTIME or "runc",
-            "docker": docker.stdout.strip() or None, "sandbox_ready": ready, "sandbox_status": why}
+            "docker": docker.stdout.strip() or None, "sandbox_ready": ready, "sandbox_status": why,
+            "evidence_archive": f"vultr-object-storage:{archive.BUCKET}" if archive.enabled() else None}
 
 
 @app.get("/api/business")
@@ -333,6 +335,7 @@ def reject_run(rid: str):
     run = _get(rid)
     _status(run, "rejected")
     _emit(run, "human", "Rejected by approver. Nothing was changed.")
+    _archive_async(run)
     return _public(run)
 
 
@@ -364,12 +367,14 @@ def approve_run(rid: str, body: ApproveIn | None = None):
             run["apply_result"] = {"drifted": e.drifted[:20], "drift_count": len(e.drifted)}
         _emit(run, "drift", f"Drift detected: {len(e.drifted)} rows changed since the rehearsal. Nothing applied.")
         _status(run, "drifted")
+        _archive_async(run)
         return _public(run)
     with LOCK:
         run["apply_result"] = result
     _emit(run, "applied", f"Applied: {result['refunds']} refunds (${result['refund_total_cents'] / 100:,.2f}), "
                           f"{result['emails_sent']} emails, {result['rows_written']} rows")
     _status(run, "applied")
+    _archive_async(run)
     return _public(run)
 
 
@@ -379,14 +384,9 @@ def schema():
     return {"tables": agent.get_schema(), "plan_api": agent.CTX_DOC}
 
 
-@app.get("/api/runs/{rid}/evidence")
-def evidence(rid: str):
-    """Everything an auditor needs for one run: request, plan, fingerprints, measured consequences, checks, verdict,
-    approval (who, when, policy in force) and what was applied."""
-    run = _get(rid)
-    from fastapi.responses import JSONResponse
+def _evidence(run: dict) -> dict:
     with LOCK:
-        bundle = {
+        return {
             "evidence_version": 1, "generated_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
             "run": {k: run.get(k) for k in ("id", "task", "mode", "status", "created_at", "agent_model", "verifier_model", "error")},
             "attempts": [{"n": a["n"], "sandbox_id": a["sandbox_id"], "plan_sha256": a.get("plan_sha256"), "effects_sha256": a.get("effects_sha256"),
@@ -396,7 +396,27 @@ def evidence(rid: str):
             "verdict": run.get("verdict"), "approval": run.get("approval"), "apply_result": run.get("apply_result"),
             "timeline": run["events"],
         }
-    return JSONResponse(bundle, headers={"Content-Disposition": f'attachment; filename="stunt-double-evidence-{rid}.json"'})
+
+
+def _archive_async(run: dict) -> None:
+    """Archive the decided run to Vultr Object Storage in the background (no-op unless configured)."""
+    if not archive.enabled():
+        return
+
+    def job():
+        result = archive.archive(run["id"], _evidence(run))
+        with LOCK:
+            run["archive"] = result
+            _save(run)
+    threading.Thread(target=job, daemon=True).start()
+
+
+@app.get("/api/runs/{rid}/evidence")
+def evidence(rid: str):
+    """Everything an auditor needs for one run: request, plan, fingerprints, measured consequences, checks, verdict,
+    approval (who, when, policy in force) and what was applied."""
+    from fastapi.responses import JSONResponse
+    return JSONResponse(_evidence(_get(rid)), headers={"Content-Disposition": f'attachment; filename="stunt-double-evidence-{rid}.json"'})
 
 
 @app.get("/api/policy")

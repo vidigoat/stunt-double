@@ -3,3 +3,4 @@ uvicorn[standard]==0.34.0
 openai==1.59.7
 pydantic==2.10.5
 httpx==0.28.1
+boto3==1.43.123
