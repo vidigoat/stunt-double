@@ -18,7 +18,7 @@ GUARD_FLAGS = [
     "--cpus", "1", "--pids-limit", "64",
     "--cap-drop", "ALL", "--security-opt", "no-new-privileges",
     "--tmpfs", "/tmp:rw,size=16m",
-    "--ulimit", "fsize=268435456",   # no file over 256 MB: a plan can't fill the disk through its workspace
+    "--ulimit", "fsize=67108864",    # no file over 64 MB: a plan can't fill the disk through its workspace
     "--ulimit", "nofile=256:256",
     "--env", "PYTHONDONTWRITEBYTECODE=1",
 ]

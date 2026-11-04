@@ -49,7 +49,10 @@ with open("/work/huge.bin", "wb") as f:
     for _ in range(400):
         f.write(b"x" * (1024 * 1024))
 ''')
-    assert not c["ok"] and ("File too large" in c["error"]["message"] or "Errno 27" in c["error"]["message"])
+    msg = c["error"]["message"]
+    # Contained either by the 64 MB file-size cap or, where page cache counts against it, the memory cap.
+    assert not c["ok"] and ("File too large" in msg or "Errno 27" in msg or "memory cap" in msg), msg
+    assert not list(config.RUNS_DIR.glob(f"{c['sandbox']['id']}/work"))     # the workspace (and the file) is gone
 
 
 @needs_docker
