@@ -105,3 +105,15 @@ for email, name in ctx.db.execute("SELECT email, name FROM customers WHERE marke
     ctx.email.send(email, "Your refund", f"Hi {name.split()[0]}, we refunded your duplicate charge.", kind="transactional")
 ''')
     assert "block_marketing_to_opted_out" not in rules(flags)
+
+
+def test_agent_runs_need_a_key_and_respect_the_daily_budget(monkeypatch):
+    from app import config as cfg
+    api = TestClient(main.app)
+    monkeypatch.setattr(cfg, "INFERENCE_KEY", "")
+    assert api.post("/api/runs", json={"task": "refund people"}).status_code == 503
+    monkeypatch.setattr(cfg, "INFERENCE_KEY", "test")
+    monkeypatch.setattr(cfg, "DAILY_AGENT_RUNS", 0)
+    main.AGENT_DAY.update(day="", count=0)
+    r = api.post("/api/runs", json={"task": "refund people"})
+    assert r.status_code == 429 and "budget" in r.json()["detail"]

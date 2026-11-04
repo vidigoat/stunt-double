@@ -29,3 +29,6 @@ RUNS_DIR_HOST = os.environ.get("SD_RUNS_DIR_HOST", str(RUNS_DIR))
 # Real side effects (apply step only)
 SMTP_HOST = os.environ.get("SD_SMTP_HOST", "localhost")
 SMTP_PORT = int(os.environ.get("SD_SMTP_PORT", "1025"))
+
+# Spend protection for the public demo: max AI-agent runs per UTC day (rehearsing pasted plans is free and unlimited).
+DAILY_AGENT_RUNS = int(os.environ.get("SD_DAILY_AGENT_RUNS", "300"))

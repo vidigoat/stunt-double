@@ -28,6 +28,7 @@ HISTORY: dict[str, list] = {}           # ops-agent conversation per run (kept s
 LOCK = threading.Lock()
 SANDBOX_SLOTS = threading.BoundedSemaphore(3)
 RATE: dict[str, list[float]] = defaultdict(list)
+AGENT_DAY: dict[str, int] = {"day": "", "count": 0}
 
 HISTORY_DIR = config.DATA_DIR / "history"
 HISTORY_DIR.mkdir(parents=True, exist_ok=True)
@@ -215,7 +216,9 @@ def health():
     ready, why = _sandbox_ready()
     docker = subprocess.run(["docker", "version", "--format", "{{.Server.Version}}"], capture_output=True, text=True)
     return {"ok": True, "inference_configured": bool(config.INFERENCE_KEY), "agent_model": config.AGENT_MODEL.split(",")[0],
-            "verifier_model": config.VERIFIER_MODEL.split(",")[0], "fallback_models": config.AGENT_MODEL.split(",")[1:], "sandbox_runtime": config.SANDBOX_RUNTIME or "runc",
+            "verifier_model": config.VERIFIER_MODEL.split(",")[0], "fallback_models": config.AGENT_MODEL.split(",")[1:],
+            "agent_runs_today": AGENT_DAY["count"] if AGENT_DAY["day"] == time.strftime("%Y-%m-%d", time.gmtime()) else 0,
+            "agent_runs_daily_limit": config.DAILY_AGENT_RUNS, "sandbox_runtime": config.SANDBOX_RUNTIME or "runc",
             "docker": docker.stdout.strip() or None, "sandbox_ready": ready, "sandbox_status": why}
 
 
@@ -231,9 +234,22 @@ def business():
             "beanpay": {k: v for k, v in beanpay.ledger(0).items() if k != "refunds"}}
 
 
+def _agent_budget() -> None:
+    day = time.strftime("%Y-%m-%d", time.gmtime())
+    with LOCK:
+        if AGENT_DAY["day"] != day:
+            AGENT_DAY.update(day=day, count=0)
+        if AGENT_DAY["count"] >= config.DAILY_AGENT_RUNS:
+            raise HTTPException(429, "Today's AI-agent budget for this public demo is used up. 'Break it yourself' still works.")
+        AGENT_DAY["count"] += 1
+
+
 @app.post("/api/runs")
 def create_run(body: TaskIn, req: Request):
     _rate_limit(req)
+    if not config.INFERENCE_KEY:
+        raise HTTPException(503, "The AI agent is offline: Vultr Serverless Inference is not configured on this server")
+    _agent_budget()
     run = _new_run(body.task, "agent")
     threading.Thread(target=_agent_job, args=(run,), daemon=True).start()
     return {"id": run["id"]}
