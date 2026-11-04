@@ -121,3 +121,4 @@ Re-score after every milestone and log it below.
 - [ ] Object Storage archive: `/api/health` shows `evidence_archive` and an approved run has an `archive.key` (only then mention it)
 | Wed Nov 4, 07:55 | 17.8 | Three traps (finance/support/marketing), glossary-aware verifier, Checks tab, named approvals + evidence export, Connect page, guided tour, spend protection, Object Storage archive (untested), full compose stack verified over HTTPS. Gate G1–G3 still needs keys. |
 | Wed Nov 4, 08:15 | 17.9 | Independent security review: 1 critical + 3 high + 3 medium fixed with 10 regression tests (42 API tests total). Remaining points are all behind the Vultr keys: live URL, real AI runs, gVisor, narrated video. |
+| Wed Nov 4, 08:30 | 17.9 | Second security review round fixed (46 API tests), proof strip + honest hero caption, 12-slide deck, 2:34 video preview built. Next points need the keys (gate G1–G3). |
