@@ -17,6 +17,7 @@ row diff, the audit and both output files are produced by phase 2: the approver 
 only what trusted code measured. Payments and email are recorders; nothing leaves either sandbox.
 """
 import contextlib
+import email.utils
 import io
 import json
 import os
@@ -136,6 +137,11 @@ def diff(before: dict, after: dict) -> dict:
         if t not in after:
             out[t] = {"dropped": True, "created": False, "deleted": [{"rowid": k, "before": v} for k, v in sorted(b.items())], "inserted": [], "updated": []}
             continue
+        if t in before and before[t]["cols"] != after[t]["cols"]:
+            # ALTER TABLE (add/rename/drop column): never auto-applied, and its column names are never trusted.
+            out[t] = {"dropped": False, "created": False, "schema_changed": True, "cols_before": before[t]["cols"],
+                      "cols_after": after[t]["cols"], "deleted": [], "inserted": [], "updated": []}
+            continue
         deleted = [{"rowid": k, "before": b[k]} for k in sorted(b.keys() - a.keys())]
         inserted = [{"rowid": k, "after": a[k]} for k in sorted(a.keys() - b.keys())]
         updated = []
@@ -198,8 +204,15 @@ def audit(before: dict, payments: list, emails: list) -> dict:
             already.append(p)
     recipients = Counter(e["to"] for e in emails)
     templated, leaks, vip, strangers, opted_out = [], [], [], [], []
+    invalid = []
     for e in emails:
         text = e["subject"] + "\n" + e["body"]
+        # Exactly one bare address, no header injection; anything else is refused (smtplib would happily send it).
+        addrs = email.utils.getaddresses([e["to"]])
+        if ("\r" in e["to"] or "\n" in e["to"] or "\r" in e["subject"] or "\n" in e["subject"] or len(addrs) != 1
+                or addrs[0][1] != e["to"].strip() or "@" not in addrs[0][1]):
+            invalid.append({"to": e["to"][:120], "reason": "not exactly one plain address (or a header line break)"})
+            continue
         m = PLACEHOLDER.search(text)
         if m:
             templated.append({"to": e["to"], "match": m.group(0)})
@@ -212,7 +225,7 @@ def audit(before: dict, payments: list, emails: list) -> dict:
         else:
             if c.get("vip"):
                 vip.append({"to": e["to"], "name": c.get("name")})
-            marketing = e.get("kind") == "marketing" or (e.get("kind") is None and PROMO.search(text) is not None)
+            marketing = e.get("kind") == "marketing" or PROMO.search(text) is not None   # promo wording counts even if labelled transactional
             if marketing and c.get("marketing_opt_in") == 0:
                 opted_out.append({"to": e["to"], "name": c.get("name"), "vip": bool(c.get("vip"))})
     return {
@@ -221,6 +234,7 @@ def audit(before: dict, payments: list, emails: list) -> dict:
         "emails": {"templated": templated[:5], "templated_count": len(templated), "leaks": leaks[:5], "leak_count": len(leaks),
                    "vip": vip[:10], "vip_count": len(vip), "not_a_customer_count": len(strangers),
                    "opted_out_marketing": opted_out[:10], "opted_out_marketing_count": len(opted_out),
+                   "invalid": invalid[:5], "invalid_count": len(invalid),
                    "duplicate_recipient_count": sum(1 for n in recipients.values() if n > 1)},
     }
 
@@ -242,7 +256,8 @@ def phase_measure() -> None:
     tables = {}
     for t, d in changes.items():
         tables[t] = {
-            "dropped": d["dropped"], "created": d.get("created", False), "deleted": len(d["deleted"]), "inserted": len(d["inserted"]), "updated": len(d["updated"]),
+            "dropped": d["dropped"], "created": d.get("created", False), "schema_changed": d.get("schema_changed", False),
+            "deleted": len(d["deleted"]), "inserted": len(d["inserted"]), "updated": len(d["updated"]),
             "rows_before": len(before.get(t, {"rows": {}})["rows"]), "rows_after": len(after.get(t, {"rows": {}})["rows"]),
             "changed_columns": sorted({c for u in d["updated"] for c in u["changed"]}),
             "samples": {"deleted": d["deleted"][:8], "inserted": d["inserted"][:8], "updated": d["updated"][:8]},

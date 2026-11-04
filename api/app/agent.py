@@ -81,9 +81,11 @@ def client() -> OpenAI:
 
 
 # ---- read-only data access for both roles ----------------------------------------------------
-def _ro() -> sqlite3.Connection:
+def _ro(deadline_s: float = 5.0) -> sqlite3.Connection:
     db = sqlite3.connect(f"file:{config.PROD_DB}?mode=ro", uri=True)
     db.execute("PRAGMA query_only = ON")
+    stop = time.time() + deadline_s
+    db.set_progress_handler(lambda: 1 if time.time() > stop else 0, 10000)   # abort runaway queries (e.g. recursive CTEs)
     return db
 
 
@@ -100,13 +102,17 @@ def run_query(sql: str) -> dict:
     s = sql.strip().rstrip(";")
     if not s.lower().startswith(("select", "with")) or ";" in s:
         return {"error": "Only a single read-only SELECT is allowed."}
+    db = _ro()
     try:
-        cur = _ro().execute(s)
+        cur = db.execute(s)
         cols = [d[0] for d in cur.description or []]
         rows = cur.fetchmany(51)
         return {"columns": cols, "rows": rows[:50], "truncated": len(rows) > 50}
     except Exception as e:  # noqa: BLE001
-        return {"error": str(e)[:300]}
+        msg = str(e)
+        return {"error": "query took too long (5 s limit)" if "interrupted" in msg else msg[:300]}
+    finally:
+        db.close()
 
 
 def compact_consequences(c: dict) -> dict:
@@ -288,10 +294,15 @@ def red_flags(c: dict, pol: dict | None = None) -> list[dict]:
         flags.append({"rule": rule, "severity": "critical" if block else warn_severity, "title": title, "detail": detail})
 
     for t, v in c.get("tables", {}).items():
-        if v.get("dropped") or v.get("created"):
-            flag("block_schema_changes", p["block_schema_changes"], f"{'Drops' if v.get('dropped') else 'Creates'} the {t} table",
+        if v.get("dropped") or v.get("created") or v.get("schema_changed"):
+            verb = "Drops" if v.get("dropped") else "Creates" if v.get("created") else "Alters the columns of"
+            # Schema changes are never applied, so this always blocks (the policy switch only affects the wording).
+            flag("block_schema_changes", True, f"{verb} the {t} table",
                  f"{v['rows_before']:,} rows would be lost." if v.get("dropped") else "Schema changes are never auto-applied.")
             continue
+        if v["updated"] and t in p["protected_tables"] and v["rows_before"] and v["updated"] / v["rows_before"] * 100 > p["max_update_pct_protected"]:
+            flag("max_update_pct_protected", True, f"Rewrites {v['updated']:,} of {v['rows_before']:,} rows in protected table '{t}'",
+                 f"Columns: {', '.join(v.get('changed_columns', [])[:5])}. Policy allows {p['max_update_pct_protected']}%.")
         if v["deleted"] and t in p["protected_tables"]:
             flag("protected_tables", True, f"Deletes {v['deleted']:,} rows from protected table '{t}'", f"'{t}' is protected by policy.")
         elif v["deleted"] and v["rows_before"] and v["deleted"] / v["rows_before"] * 100 > p["max_delete_pct"]:
@@ -322,6 +333,9 @@ def red_flags(c: dict, pol: dict | None = None) -> list[dict]:
              f"e.g. '{e['templated'][0]['match']}' in the email to {e['templated'][0]['to']}.")
     if e.get("leak_count"):
         flag("block_data_leaks", p["block_data_leaks"], f"{e['leak_count']} emails would leak private data", f"e.g. to {e['leaks'][0]['to']}: {e['leaks'][0]['reason']}.")
+    if e.get("invalid_count"):
+        flag("invalid_recipients", True, f"{e['invalid_count']} emails have an invalid or multi-recipient address",
+             f"e.g. {e['invalid'][0]['to']!r}: {e['invalid'][0]['reason']}.")
     if e.get("duplicate_recipient_count"):
         flag("duplicate_emails", False, f"{e['duplicate_recipient_count']} customers would get the same email more than once", "Usually a join or loop bug.", "medium")
     if e.get("not_a_customer_count"):

@@ -30,6 +30,19 @@ def refund(charge_id: int, amount_cents: int, reason: str, run_id: str, idempote
     return {"id": rid, "status": "succeeded"}
 
 
+def refunded_charges(charge_ids: list[int]) -> list[int]:
+    """Charges that already have a refund in the ledger (from ANY run)."""
+    if not charge_ids:
+        return []
+    db = _db()
+    found = set()
+    ids = list(dict.fromkeys(int(c) for c in charge_ids))
+    for i in range(0, len(ids), 500):
+        chunk = ids[i:i + 500]
+        found |= {r[0] for r in db.execute(f"SELECT DISTINCT charge_id FROM refunds WHERE charge_id IN ({','.join('?' * len(chunk))})", chunk)}  # noqa: S608
+    return sorted(found)
+
+
 def ledger(limit: int = 200) -> dict:
     db = _db()
     rows = db.execute("SELECT id, charge_id, amount_cents, reason, run_id, created_at FROM refunds ORDER BY created_at DESC LIMIT ?", (limit,)).fetchall()

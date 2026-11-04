@@ -10,6 +10,7 @@ DEFAULTS: dict = {
     "max_emails_per_run": 500,            # warn above this
     "max_delete_pct": 5,                  # block deleting more than this % of any table
     "protected_tables": ["customers"],    # block ANY delete in these tables
+    "max_update_pct_protected": 20,       # block rewriting more than this % of a protected table
     "block_schema_changes": True,         # block DROP/CREATE TABLE
     "block_network_attempts": True,       # block plans that tried to reach the internet
     "block_over_refunds": True,           # block refunds larger than the original charge, or of unknown/already-refunded charges

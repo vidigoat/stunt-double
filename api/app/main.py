@@ -176,7 +176,8 @@ def _public(run: dict) -> dict:
 
 
 def _rate_limit(req: Request, per_hour: int = 30) -> None:
-    ip = req.headers.get("x-forwarded-for", req.client.host if req.client else "?").split(",")[0].strip()
+    # The right-most X-Forwarded-For entry is the one our own proxy (Caddy) added; left-most entries are client-controlled.
+    ip = (req.headers.get("x-forwarded-for") or (req.client.host if req.client else "?")).split(",")[-1].strip()
     now = time.time()
     RATE[ip] = [t for t in RATE[ip] if now - t < 3600]
     if len(RATE[ip]) >= per_hour:
@@ -333,7 +334,11 @@ def fix_run(rid: str, body: FixIn):
 @app.post("/api/runs/{rid}/reject")
 def reject_run(rid: str):
     run = _get(rid)
-    _status(run, "rejected")
+    with LOCK:
+        if run["status"] != "review":
+            raise HTTPException(409, f"Run is {run['status']}, not awaiting review")
+        run["status"] = "rejected"
+        _save(run)
     _emit(run, "human", "Rejected by approver. Nothing was changed.")
     _archive_async(run)
     return _public(run)
@@ -342,22 +347,26 @@ def reject_run(rid: str):
 @app.post("/api/runs/{rid}/approve")
 def approve_run(rid: str, body: ApproveIn | None = None):
     run = _get(rid)
-    if run["status"] != "review":
-        raise HTTPException(409, f"Run is {run['status']}, not awaiting review")
-    att = run["attempts"][-1]
-    if not att["consequences"].get("ok"):
-        raise HTTPException(409, "A plan that crashed in rehearsal cannot be applied")
-    if any(f["severity"] == "critical" for f in att["flags"]):
-        raise HTTPException(409, "Blocked by policy: critical blast radius. Ask the agent to fix it or reject.")
-    effects = open(att["effects_path"], "rb").read()
-    if hashlib.sha256(effects).hexdigest() != att.get("effects_sha256"):
-        raise HTTPException(409, "Integrity check failed: the recorded effects changed after the rehearsal")
-    with LOCK:
+    with LOCK:  # check-and-claim atomically: two approvals can never both apply
+        if run["status"] != "review":
+            raise HTTPException(409, f"Run is {run['status']}, not awaiting review")
+        att = run["attempts"][-1]
+        if not att["consequences"].get("ok"):
+            raise HTTPException(409, "A plan that crashed in rehearsal cannot be applied")
+        if any(f["severity"] == "critical" for f in att["flags"]):
+            raise HTTPException(409, "Blocked by policy: critical blast radius. Ask the agent to fix it or reject.")
+        effects = open(att["effects_path"], "rb").read()
+        if hashlib.sha256(effects).hexdigest() != att.get("effects_sha256"):
+            raise HTTPException(409, "Integrity check failed: the recorded effects changed after the rehearsal")
+        already = beanpay.refunded_charges([p["charge_id"] for p in json.loads(effects).get("payments", [])])
+        if already:
+            raise HTTPException(409, f"{len(already)} of these charges were already refunded through BeanPay (e.g. #{already[0]}). Rehearse again.")
         name = " ".join(((body.approver if body else None) or "").split())[:80] or "Demo approver"
         run["approval"] = {"approved_at": time.time(), "approver": name, "plan_sha256": att["plan_sha256"],
                            "effects_sha256": att["effects_sha256"], "sandbox_id": att["sandbox_id"], "policy": policy.load(),
                            "warnings": [f["title"] for f in att["flags"]]}
-    _status(run, "applying")
+        run["status"] = "applying"
+        _save(run)
     _emit(run, "human", "Approved. Running the drift check, then applying the approved changes for real",
           f"plan {att['plan_sha256'][:12]} · effects {att['effects_sha256'][:12]}")
     try:
@@ -367,6 +376,14 @@ def approve_run(rid: str, body: ApproveIn | None = None):
             run["apply_result"] = {"drifted": e.drifted[:20], "drift_count": len(e.drifted)}
         _emit(run, "drift", f"Drift detected: {len(e.drifted)} rows changed since the rehearsal. Nothing applied.")
         _status(run, "drifted")
+        _archive_async(run)
+        return _public(run)
+    except Exception as e:  # noqa: BLE001 - never leave a run stuck in "applying"
+        with LOCK:
+            run["apply_result"] = {"error": str(e)[:500]}
+            run["error"] = f"Apply failed: {str(e)[:300]}"
+        _emit(run, "error", "Apply failed", str(e))
+        _status(run, "failed")
         _archive_async(run)
         return _public(run)
     with LOCK:

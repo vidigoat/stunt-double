@@ -35,11 +35,21 @@ def clone_db(dest: Path) -> None:
 
 
 def _copy_regular_file(src: Path, dst: Path, max_bytes: int = 512 * 1024 * 1024) -> bool:
-    """Copy a file the PLAN controlled, refusing symlinks/devices (no host file can be smuggled in)."""
+    """Copy a file the PLAN controlled. The parent directory is opened without following symlinks and the file is
+    opened relative to it, non-blocking: symlinks, FIFOs, devices and symlinked folders are all refused."""
     try:
-        fd = os.open(src, os.O_RDONLY | os.O_NOFOLLOW)
+        dfd = os.open(src.parent, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
     except OSError:
         return False
+    try:
+        st = os.lstat(src.name, dir_fd=dfd)
+        if not stat.S_ISREG(st.st_mode) or st.st_size > max_bytes:
+            return False
+        fd = os.open(src.name, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK, dir_fd=dfd)
+    except OSError:
+        return False
+    finally:
+        os.close(dfd)
     with os.fdopen(fd, "rb") as f:
         st = os.fstat(f.fileno())
         if not stat.S_ISREG(st.st_mode) or st.st_size > max_bytes:

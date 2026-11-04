@@ -18,8 +18,31 @@ class DriftError(Exception):
         self.drifted = drifted
 
 
+def q(name: str) -> str:
+    """Quote an SQL identifier."""
+    return '"' + str(name).replace('"', '""') + '"'
+
+
+def _schema(db: sqlite3.Connection) -> dict[str, list[str]]:
+    tables = [r[0] for r in db.execute("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'")]
+    return {t: [r[1] for r in db.execute(f"PRAGMA table_info({q(t)})")] for t in tables}
+
+
+def _check_identifiers(schema: dict[str, list[str]], changes: dict) -> None:
+    """Every table and column we are about to touch must already exist in PRODUCTION."""
+    for table, d in changes.items():
+        if table not in schema:
+            raise ValueError(f"Refusing to apply: table {table!r} does not exist in production")
+        allowed = set(schema[table])
+        for item in d["updated"] + d["deleted"] + d["inserted"]:
+            row = item.get("after") or item.get("before") or {}
+            bad = [c for c in list(row) + item.get("changed", []) if c not in allowed]
+            if bad:
+                raise ValueError(f"Refusing to apply: unknown columns {bad!r} in {table!r}")
+
+
 def _row(db: sqlite3.Connection, table: str, rowid: int, cols: list[str]) -> dict | None:
-    r = db.execute(f'SELECT {", ".join(f"{chr(34)}{c}{chr(34)}" for c in cols)} FROM "{table}" WHERE rowid=?', (rowid,)).fetchone()
+    r = db.execute(f'SELECT {", ".join(q(c) for c in cols)} FROM {q(table)} WHERE rowid=?', (rowid,)).fetchone()
     return dict(zip(cols, r, strict=False)) if r else None
 
 
@@ -40,26 +63,29 @@ def drift_check(db: sqlite3.Connection, changes: dict) -> list[dict]:
 def apply(run_id: str, effects_path: str) -> dict:
     effects = json.loads(open(effects_path).read())
     changes = effects["changes"]
-    if any(d.get("dropped") or d.get("created") for d in changes.values()):
-        raise ValueError("Schema changes (DROP/CREATE TABLE) are never auto-applied")
+    if any(d.get("dropped") or d.get("created") or d.get("schema_changed") for d in changes.values()):
+        raise ValueError("Schema changes (CREATE/DROP/ALTER TABLE) are never auto-applied")
 
     db = sqlite3.connect(config.PROD_DB, isolation_level=None)
     db.execute("BEGIN IMMEDIATE")  # lock: nothing can change between the drift check and the write
     try:
+        _check_identifiers(_schema(db), changes)
         drifted = drift_check(db, changes)
         if drifted:
             raise DriftError(drifted)
         n = 0
         for table, d in changes.items():
             for item in d["deleted"]:
-                db.execute(f'DELETE FROM "{table}" WHERE rowid=?', (item["rowid"],)); n += 1
+                db.execute(f"DELETE FROM {q(table)} WHERE rowid=?", (item["rowid"],)); n += 1
             for item in d["updated"]:
                 cols = item["changed"]
-                db.execute(f'UPDATE "{table}" SET {", ".join(f"{chr(34)}{c}{chr(34)}=?" for c in cols)} WHERE rowid=?',
+                if not cols:
+                    continue
+                db.execute(f'UPDATE {q(table)} SET {", ".join(f"{q(c)}=?" for c in cols)} WHERE rowid=?',
                            [item["after"][c] for c in cols] + [item["rowid"]]); n += 1
             for item in d["inserted"]:
                 cols = list(item["after"].keys())
-                db.execute(f'INSERT INTO "{table}" (rowid, {", ".join(f"{chr(34)}{c}{chr(34)}" for c in cols)}) VALUES (?, {", ".join("?" * len(cols))})',
+                db.execute(f'INSERT INTO {q(table)} (rowid, {", ".join(q(c) for c in cols)}) VALUES (?, {", ".join("?" * len(cols))})',
                            [item["rowid"]] + [item["after"][c] for c in cols]); n += 1
         db.execute("COMMIT")
     except BaseException:
