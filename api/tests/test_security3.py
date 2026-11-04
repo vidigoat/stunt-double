@@ -275,3 +275,18 @@ def test_ai_check_budget_is_global_and_daily(monkeypatch):
     assert not main._verify_budget()
     main.VERIFY_DAY.update(day="1999-01-01", count=99)  # a new day resets it
     assert main._verify_budget()
+
+
+# ---- a verifier that couldn't finish can be re-checked (and only then) --------------------------------
+def test_recheck_only_when_the_verifier_could_not_finish(monkeypatch):
+    api = TestClient(main.app)
+    run = main._new_run("refund double charges", "manual")
+    run["attempts"].append({"n": 1, "code": "x", "consequences": {"ok": True}, "flags": []})
+    run["status"], run["verdict"] = "review", {"verdict": "looks_right", "headline": "fine"}
+    assert api.post(f"/api/runs/{run['id']}/recheck").status_code == 409
+    called = []
+    monkeypatch.setattr(main, "_verify", lambda r: called.append(r["id"]))
+    run["verdict"] = {"verdict": "concerns", "headline": "Verifier could not finish"}
+    assert api.post(f"/api/runs/{run['id']}/recheck").status_code == 200
+    time.sleep(0.2)
+    assert called == [run["id"]] and run["status"] == "verifying"

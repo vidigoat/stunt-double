@@ -451,7 +451,12 @@ export default function AppPage() {
                 {run.status === "review" ? (
                   <>
                     <Button variant="outline" className="h-10 rounded-full px-4" onClick={() => act("reject")} disabled={busy}><X className="size-4" /> Reject</Button>
-                    {run.mode === "agent" ? <Button variant="outline" className="h-10 rounded-full px-4" onClick={() => act("fix")} disabled={busy}><Wrench className="size-4" /> Ask the agent to fix it</Button> : null}
+                    {run.verdict?.headline === "Verifier could not finish" ? (
+                      <Button variant="outline" className="h-10 rounded-full px-4" disabled={busy} onClick={async () => {
+                        setBusy(true);
+                        try { await api.recheck(run.id); setRun({ ...run, status: "verifying", verdict: null }); } catch (e) { toast.error((e as Error).message); } finally { setBusy(false); }
+                      }}><RotateCcw className="size-4" /> Check again</Button>
+                    ) : run.mode === "agent" ? <Button variant="outline" className="h-10 rounded-full px-4" onClick={() => act("fix")} disabled={busy}><Wrench className="size-4" /> Ask the agent to fix it</Button> : null}
                     {!critical ? <input value={approver} onChange={(e) => setApprover(e.target.value)} placeholder="Your name (for the audit trail)" maxLength={80}
                       aria-label="Approver name" className="h-10 min-w-0 flex-1 rounded-full border bg-background px-4 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring/50 sm:ml-auto sm:max-w-[240px]" /> : <span className="sm:ml-auto" />}
                     <Button className="h-10 rounded-full px-4" onClick={() => act("approve")} disabled={busy || critical || !attempt?.consequences.ok}>

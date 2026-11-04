@@ -165,14 +165,15 @@ def _calls_from_text(content: str) -> list[dict]:
     return calls
 
 
-def _complete(ai, models: list[str], messages: list, tools: list, emit: Callable):
+def _complete(ai, models: list[str], messages: list, tools: list, emit: Callable, tool_choice: str | None = None):
     """One completion with retries and model fallback. Returns (model_used, message)."""
     last = None
+    extra = {"tool_choice": tool_choice} if tool_choice else {}
     for model in models:
         for attempt in range(3):
             try:
                 resp = ai.chat.completions.create(model=model, messages=messages, tools=tools, temperature=0.2,
-                                                  max_tokens=config.MAX_TOKENS)
+                                                  max_tokens=config.MAX_TOKENS, **extra)
                 return model, resp.choices[0].message
             except Exception as e:  # noqa: BLE001
                 last = e
@@ -198,7 +199,7 @@ def _loop(models: str | list[str], messages: list, tools: list, handlers: dict[s
             messages.append({"role": "user", "content": f"Your investigation budget is used up. Stop querying and call `{stop_tool}` now "
                                                         "with your best judgment from what you have already seen."})
         turn_tools = [t for t in tools if t.get("function", {}).get("name") == stop_tool] if last else tools
-        _, msg = _complete(ai, models, messages, turn_tools, emit)
+        _, msg = _complete(ai, models, messages, turn_tools, emit, tool_choice="required" if last else None)
         native = [{"id": tc.id, "name": tc.function.name, "arguments": tc.function.arguments} for tc in (msg.tool_calls or [])]
         calls = native or _calls_from_text(msg.content or "")
         if native:

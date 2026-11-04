@@ -205,3 +205,31 @@ def test_named_approval_and_evidence_bundle(fresh_business, monkeypatch):
     assert a["plan"] == CORRECT and len(a["plan_sha256"]) == 64 and ev["approval"]["plan_sha256"] == a["plan_sha256"]
     assert ev["apply_result"]["refunds"] == 104
     assert a["consequences"]["payments"]["count"] == 104 and a["consequences"]["measured_by"] == "trusted-phase-2"
+
+
+class ObsessiveVerifier:
+    """Keeps re-running the same query forever unless the API forces a tool call (what glm-5.3 did on the live server)."""
+    def __init__(self):
+        self.forced = 0
+        self.chat = NS(completions=NS(create=self.create))
+
+    def create(self, model, messages, tools, temperature, **kw):
+        n = len([m for m in messages if m["role"] == "tool"])
+        if kw.get("tool_choice") == "required":
+            self.forced += 1
+            assert [t["function"]["name"] for t in tools] == ["verdict"], "only the decision tool is offered on the last turn"
+            msg = NS(content="", tool_calls=[_tool_call(n, "verdict", {"verdict": "concerns", "headline": "Refunds 640 people who were never double-charged",
+                                                                      "summary": "s", "concerns": []})])
+        else:
+            msg = NS(content="", tool_calls=[_tool_call(n, "run_query", {"sql": "SELECT COUNT(*) FROM charges"})])
+        return NS(choices=[NS(message=msg)])
+
+
+def test_a_verifier_that_never_stops_querying_is_made_to_decide(fresh_business, monkeypatch):
+    fake = ObsessiveVerifier()
+    monkeypatch.setattr(agent, "client", lambda: fake)
+    events = []
+    consequences = {"ok": True, "tables": {}, "payments": {"count": 0, "total_cents": 0, "samples": []}, "emails": {"count": 0, "samples": []},
+                    "http": {"count": 0, "samples": []}, "blocked": [], "audit": {}}
+    v = agent.verify("Refund everyone who was double-charged", "def run(ctx): pass", consequences, lambda *a: events.append(a))
+    assert fake.forced == 1 and v["headline"] == "Refunds 640 people who were never double-charged" and v["verdict"] == "concerns"

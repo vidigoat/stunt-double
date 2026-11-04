@@ -73,6 +73,7 @@ export const api = {
   run: (id: string) => req<Run>(`/runs/${id}`),
   runs: () => req<RunSummary[]>("/runs"),
   fix: (id: string, note?: string) => req<{ id: string }>(`/runs/${id}/fix`, { note }),
+  recheck: (id: string) => req<{ id: string }>(`/runs/${id}/recheck`, {}),
   approve: (id: string, approver?: string, note?: string) => req<Run>(`/runs/${id}/approve`, { approver, note: note || undefined }),
   reject: (id: string, approver?: string, reason?: string) => req<Run>(`/runs/${id}/reject`, { approver, reason: reason || undefined }),
   rollback: (id: string) => req<{ id: string }>(`/runs/${id}/rollback`, {}),

@@ -64,6 +64,12 @@ def refund(api: str) -> dict:
            "false_alarm": (warned(run) and not critical(run)) if not wrong else None,
            "verdict": (run.get("verdict") or {}).get("verdict"), "headline": (run.get("verdict") or {}).get("headline"),
            "attempts": len(run.get("attempts", [])), "status": run["status"]}
+    res["verifier_unfinished"] = (run.get("verdict") or {}).get("headline") == "Verifier could not finish"
+    if res["verifier_unfinished"]:  # a fail-safe warning: re-check, don't make the agent rewrite a plan with no concerns
+        call(api, f"/api/runs/{run['id']}/recheck", {})
+        run = wait(api, run["id"])
+        res.update(verdict=(run.get("verdict") or {}).get("verdict"), headline=(run.get("verdict") or {}).get("headline"),
+                   false_alarm=(warned(run) and not critical(run)) if not wrong else None, caught=(warned(run) if wrong else None))
     if run["status"] == "review" and warned(run):
         call(api, f"/api/runs/{run['id']}/fix", {})
         fixed = wait(api, run["id"])

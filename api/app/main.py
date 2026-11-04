@@ -491,6 +491,26 @@ def fix_run(rid: str, body: FixIn):
     return {"id": rid}
 
 
+@app.post("/api/runs/{rid}/recheck")
+def recheck_run(rid: str, req: Request):
+    """Run the AI verifier again when it couldn't finish (it never changes the plan or its effects)."""
+    _rate_limit(req, per_hour=30, kind="re-check")
+    run = _get(rid)
+    with LOCK:
+        if run["status"] != "review" or (run.get("verdict") or {}).get("headline") != "Verifier could not finish":
+            raise HTTPException(409, "Only a run whose verifier couldn't finish can be checked again")
+    if not _verify_budget():
+        raise HTTPException(429, "Today's AI-check budget for this public demo is used up")
+    with LOCK:
+        if run["status"] != "review":
+            raise HTTPException(409, f"Run is {run['status']}")
+        run["status"] = "verifying"
+        run["verdict"] = None
+        _save(run)
+    threading.Thread(target=_verify, args=(run,), daemon=True).start()
+    return {"id": rid}
+
+
 @app.post("/api/runs/{rid}/reject")
 def reject_run(rid: str, body: RejectIn | None = None):
     run = _get(rid)
