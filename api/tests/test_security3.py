@@ -233,3 +233,15 @@ def test_repeated_delivery_with_the_same_key_posts_once():
     assert first["ok"] and not first.get("duplicate") and again.get("duplicate") and other["ok"]
     assert connectors.deliveries()["count"] == 2
     connectors.reset()
+
+
+# ---- policy edits are on the record ---------------------------------------------------------------------
+def test_policy_changes_are_recorded_with_who_and_what(fresh_business):
+    policy.reset()
+    api = TestClient(main.app)
+    api.put("/api/policy?by=Priya", json={"max_delete_pct": 2})
+    api.put("/api/policy?by=Marco", json={"max_delete_pct": 2})  # no change, no entry
+    h = api.get("/api/policy/history").json()["history"]
+    assert len(h) == 1 and h[0]["by"] == "Priya" and h[0]["changes"]["max_delete_pct"][1] == 2
+    api.post("/api/demo/reset")
+    assert api.get("/api/policy/history").json()["history"] == []

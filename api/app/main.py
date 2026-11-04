@@ -687,12 +687,18 @@ def simulate_policy(body: dict):
 
 
 @app.put("/api/policy")
-def put_policy(body: dict, req: Request):
+def put_policy(body: dict, req: Request, by: str = ""):
     _rate_limit(req, per_hour=60)
     try:
-        return {"policy": policy.save(body), "defaults": policy.DEFAULTS}
+        return {"policy": policy.save(body, by), "defaults": policy.DEFAULTS}
     except ValueError as e:
         raise HTTPException(422, str(e)) from e
+
+
+@app.get("/api/policy/history")
+def policy_history():
+    """Every rule change: who, when, old -> new. Policy edits are part of the audit trail too."""
+    return {"history": policy.history()}
 
 
 @app.post("/api/runs/{rid}/rollback")

@@ -93,7 +93,7 @@ VULTR_API_KEY=... VULTR_INFERENCE_KEY=... python3 infra/provision.py --region sj
 | **Landing** `/` | run a real `DELETE FROM customers` on the double from the page itself, and watch production survive |
 | **Console** `/app` | ask the agent, or paste any plan ("Break it yourself"); see consequences, blast radius, checks, every changed row, emails, refunds, API calls; approve (one or two people) or reject, with a note that goes into the audit trail, ask for a fix, rehearse an undo; switch workspace or **upload your own SQLite DB** |
 | **History** `/history` | the audit trail as an inbox: awaiting approval, applied, stopped, undos; search; evidence download per run; **CSV export** for auditors (approvers, notes, rejection reasons, plan and effects fingerprints) |
-| **Policy** `/policy` | blocking vs warning rules, two-person thresholds, protected tables, glossary, plus a **simulator** that previews the impact of a change before you save |
+| **Policy** `/policy` | blocking vs warning rules, two-person thresholds, protected tables, glossary, plus a **simulator** that previews the impact of a change before you save, and a **change history** (who changed which rule, old → new) |
 | **Outbox** `/ledger` | everything that actually left the building after approval: BeanPay refunds and API deliveries (Slack, CRM); emails land in the inbox at `/mail` |
 | **Connect** `/connect` | copy-paste setup for Claude Code, Cursor and other MCP clients, the SDK and REST |
 
@@ -254,7 +254,7 @@ python api/eval/run_eval.py --api https://<host> --runs 10      # real models: h
 
 | Suite | What it proves |
 |---|---|
-| `api/tests/` (91 tests) | engine, containment, adversarial attacks, policy + simulator, connectors + notifications, rollback, two-person rule, workspaces, diff explorer, SDK + CLI, agent loop, archive, security reviews |
+| `api/tests/` (92 tests) | engine, containment, adversarial attacks, policy + simulator, connectors + notifications, rollback, two-person rule, workspaces, diff explorer, SDK + CLI, agent loop, archive, security reviews |
 | `mcp/tests/test_mcp.py` | a real MCP client over stdio against the live API |
 | `e2e/golden-path.js` | a real browser: containment, approve + apply, two-person undo, Slack delivery, audit trail, phone layout |
 

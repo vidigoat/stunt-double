@@ -54,6 +54,10 @@ export default function PolicyPage() {
   const [busy, setBusy] = useState(false);
 
   useEffect(() => { fetch("/api/policy").then((r) => r.json()).then((d) => { setSaved(d.policy); setDraft(d.policy); }).catch(() => toast.error("Couldn't load the policy")); }, []);
+  type Change = { at: number; by: string; changes: Record<string, [unknown, unknown]> };
+  const [history, setHistory] = useState<Change[]>([]);
+  const loadHistory = () => fetch("/api/policy/history").then((r) => r.json()).then((d) => setHistory(d.history ?? [])).catch(() => {});
+  useEffect(() => { loadHistory(); }, []);
   const dirty = useMemo(() => JSON.stringify(saved) !== JSON.stringify(draft), [saved, draft]);
   type Sim = { considered: number; newly_blocked: number; unblocked: number; now_two_person: number;
     changed: { id: string; task: string; blocked_before: boolean; blocked_after: boolean; approvers_before: number; approvers_after: number; new_reasons: string[] }[] };
@@ -71,11 +75,13 @@ export default function PolicyPage() {
   async function save() {
     if (!draft) return;
     setBusy(true);
-    const r = await fetch("/api/policy", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(draft) });
+    let by = "";
+    try { by = localStorage.getItem("sd-approver") || ""; } catch { /* storage unavailable */ }
+    const r = await fetch(`/api/policy?by=${encodeURIComponent(by)}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(draft) });
     const d = await r.json().catch(() => ({}));
     setBusy(false);
     if (!r.ok) return toast.error(d.detail || "Couldn't save");
-    setSaved(d.policy); setDraft(d.policy); toast.success("Policy saved. It applies to the next rehearsal.");
+    setSaved(d.policy); setDraft(d.policy); loadHistory(); toast.success("Policy saved. It also applies to rehearsals still waiting for approval.");
   }
 
   return (
@@ -176,6 +182,22 @@ export default function PolicyPage() {
               </section>
             ) : null}
             <p className={cn("text-sm", dirty ? "text-foreground" : "text-muted-foreground")}>{dirty ? "You have unsaved changes." : "Saved. The demo's Reset button restores the defaults."}</p>
+            <section className="rounded-2xl border bg-card p-6">
+              <div className="font-mono text-[11px] uppercase tracking-wider text-muted-foreground">Change history · policy edits are on the record too</div>
+              {history.length ? (
+                <ul className="mt-3 divide-y text-sm">
+                  {history.map((h) => (
+                    <li key={h.at} className="flex flex-wrap items-baseline gap-x-3 gap-y-1 py-2">
+                      <span className="font-mono text-xs text-muted-foreground">{new Date(h.at * 1000).toLocaleString()}</span>
+                      <span className="font-medium">{h.by}</span>
+                      <span className="min-w-0 break-words font-mono text-xs">
+                        {Object.entries(h.changes).map(([k, [a, b]]) => `${k}: ${JSON.stringify(a)} → ${JSON.stringify(b)}`).join(" · ").slice(0, 400)}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              ) : <p className="mt-3 text-sm text-muted-foreground">No changes since the last reset. These are the defaults.</p>}
+            </section>
           </div>
         )}
       </main>

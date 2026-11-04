@@ -89,12 +89,36 @@ def validate(update: dict) -> dict:
     return clean
 
 
-def save(update: dict) -> dict:
-    merged = {**load(), **validate(update)}
+HISTORY = config.DATA_DIR / "policy-history.jsonl"
+
+
+def save(update: dict, editor: str = "") -> dict:
+    before = load()
+    merged = {**before, **validate(update)}
     PATH.write_text(json.dumps(merged, indent=2))
+    changes = {k: [before.get(k), v] for k, v in merged.items() if before.get(k) != v}
+    if changes:  # every rule change is on the record: who, when, old -> new
+        import time
+        with open(HISTORY, "a") as f:
+            f.write(json.dumps({"at": time.time(), "by": " ".join(editor.split())[:80] or "Unnamed editor", "changes": changes}, default=str) + "\n")
     return merged
+
+
+def history(limit: int = 50) -> list[dict]:
+    try:
+        lines = HISTORY.read_text().splitlines()
+    except OSError:
+        return []
+    out = []
+    for line in reversed(lines[-limit:]):
+        try:
+            out.append(json.loads(line))
+        except ValueError:
+            continue
+    return out
 
 
 def reset() -> dict:
     PATH.unlink(missing_ok=True)
+    HISTORY.unlink(missing_ok=True)
     return load()

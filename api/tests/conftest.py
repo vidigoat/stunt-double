@@ -29,9 +29,10 @@ def sandbox_image():
 
 @pytest.fixture()
 def fresh_business():
-    from app import beanpay, config, seed
+    from app import beanpay, config, policy, seed
     seed.seed(config.PROD_DB)
     beanpay.reset()
+    policy.reset()  # a policy saved by one test must never change another
     return config.PROD_DB
 
 
