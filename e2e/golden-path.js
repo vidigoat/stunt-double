@@ -64,7 +64,7 @@ async function step(name, fn) {
 
   await step("phone width: no horizontal scrolling", async () => {
     const m = await browser.newPage({ viewport: { width: 390, height: 844 }, ignoreHTTPSErrors: true });
-    for (const path of ["/", "/app", "/history", "/policy", "/ledger"]) {
+    for (const path of ["/", "/app", "/history", "/policy", "/ledger", "/connect"]) {
       await m.goto(`${BASE}${path}`, { waitUntil: "networkidle" });
       const w = await m.evaluate(() => document.documentElement.scrollWidth);
       assert.ok(w <= 391, `${path} scrolls sideways (${w}px)`);

@@ -10,6 +10,7 @@ const NAV = [
   { href: "/history", label: "History" },
   { href: "/policy", label: "Policy" },
   { href: "/ledger", label: "Ledger" },
+  { href: "/connect", label: "Connect" },
 ];
 
 export function AppHeader({ right }: { right?: React.ReactNode }) {
