@@ -123,7 +123,7 @@ def snapshot(path: str) -> dict:
     snap = {}
     for (t,) in db.execute("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'"):
         cols = [r[1] for r in db.execute(f'PRAGMA table_info("{t}")')]
-        snap[t] = {"cols": cols, "rows": {row[0]: dict(zip(cols, row[1:])) for row in db.execute(f'SELECT rowid, * FROM "{t}"')}}
+        snap[t] = {"cols": cols, "rows": {row[0]: dict(zip(cols, row[1:], strict=False)) for row in db.execute(f'SELECT rowid, * FROM "{t}"')}}
     db.close()
     return snap
 

@@ -42,9 +42,8 @@ def validate(update: dict) -> dict:
             if isinstance(v, bool) or not isinstance(v, (int, float)) or v < 0:
                 raise ValueError(f"'{k}' must be a non-negative number")
             v = int(v)
-        if want is list:
-            if not isinstance(v, list) or not all(isinstance(x, str) and x.isidentifier() for x in v):
-                raise ValueError(f"'{k}' must be a list of table names")
+        if want is list and (not isinstance(v, list) or not all(isinstance(x, str) and x.isidentifier() for x in v)):
+            raise ValueError(f"'{k}' must be a list of table names")
         clean[k] = v
     return clean
 

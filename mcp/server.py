@@ -124,7 +124,7 @@ def get_run_status(run_id: str) -> dict:
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
     ap.add_argument("--http", action="store_true", help="serve streamable HTTP at /mcp instead of stdio")
-    ap.add_argument("--host", default="0.0.0.0")
+    ap.add_argument("--host", default="127.0.0.1", help="use 0.0.0.0 only inside a container behind a proxy")
     ap.add_argument("--port", type=int, default=8001)
     a = ap.parse_args()
     if a.http:

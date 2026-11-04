@@ -6,7 +6,7 @@ from tests.conftest import needs_docker
 
 
 def rehearse(body: str) -> dict:
-    code = "def run(ctx):\n" + "\n".join("    " + l for l in body.strip().splitlines()) + "\n"
+    code = "def run(ctx):\n" + "\n".join("    " + line for line in body.strip().splitlines()) + "\n"
     return sandbox.rehearse(code)["consequences"]
 
 

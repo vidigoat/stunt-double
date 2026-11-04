@@ -1,0 +1,21 @@
+line-length = 200
+target-version = "py312"
+
+[lint]
+select = ["E", "F", "W", "B", "UP", "S", "SIM"]
+ignore = [
+  "E701", "E702",      # compact one-liners are used deliberately in a few places
+  "S101",              # asserts are fine in tests
+  "S603", "S607",      # we intentionally run `docker` via subprocess
+  "S608",              # table names come from sqlite_master / diff output, not user input
+  "B008", "SIM105", "SIM108", "UP038",
+  "SIM115",            # short-lived file handles in the sandbox harness
+  "S108",              # "/tmp" is the sandbox tmpfs mount, not a host temp file
+]
+
+[lint.per-file-ignores]
+"app/harness/runner.py" = ["S102"]   # exec of the plan is the point of the sandbox
+"app/seed.py" = ["S311"]             # deterministic fake data, not cryptography
+"app/sandbox.py" = ["S103"]          # work dirs must be writable by the unprivileged sandbox user
+"tests/*" = ["S", "B", "SIM"]
+"eval/*" = ["S310"]

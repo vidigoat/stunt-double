@@ -16,7 +16,11 @@ from pydantic import BaseModel, Field
 
 from . import agent, apply as applier, beanpay, config, policy, sandbox, seed
 
-app = FastAPI(title="Stunt Double API")
+app = FastAPI(
+    title="Stunt Double API",
+    description="Rehearse AI agent actions on a throwaway copy of the business, verify the consequences, approve, then apply.",
+    version="1.0.0", docs_url="/api/docs", redoc_url=None, openapi_url="/api/openapi.json",
+)
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 
 RUNS: dict[str, dict] = {}
@@ -207,7 +211,7 @@ def business():
     tickets = db.execute("SELECT t.id, c.name, t.subject, t.created_at FROM tickets t JOIN customers c ON c.id=t.customer_id "
                          "ORDER BY t.created_at DESC LIMIT 8").fetchall()
     return {"name": "Bean There Coffee Co.", "counts": counts, "refunded": {"count": refunded[0], "total_cents": refunded[1]},
-            "recent_tickets": [dict(zip(["id", "customer", "subject", "created_at"], r)) for r in tickets],
+            "recent_tickets": [dict(zip(["id", "customer", "subject", "created_at"], r, strict=False)) for r in tickets],
             "beanpay": {k: v for k, v in beanpay.ledger(0).items() if k != "refunds"}}
 
 

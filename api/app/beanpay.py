@@ -4,7 +4,7 @@ Only the APPLY step talks to BeanPay. Rehearsals get a recorder instead and can 
 """
 import sqlite3
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, UTC
 
 from . import config
 
@@ -26,7 +26,7 @@ def refund(charge_id: int, amount_cents: int, reason: str, run_id: str, idempote
             return {"id": row[0], "status": "duplicate_ignored"}
         rid = "re_" + uuid.uuid4().hex[:14]
         db.execute("INSERT INTO refunds VALUES (?,?,?,?,?,?,?)", (rid, charge_id, amount_cents, reason, run_id,
-                   idempotency_key, datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")))
+                   idempotency_key, datetime.now(UTC).strftime("%Y-%m-%d %H:%M:%S")))
     return {"id": rid, "status": "succeeded"}
 
 
@@ -35,7 +35,7 @@ def ledger(limit: int = 200) -> dict:
     rows = db.execute("SELECT id, charge_id, amount_cents, reason, run_id, created_at FROM refunds ORDER BY created_at DESC LIMIT ?", (limit,)).fetchall()
     total = db.execute("SELECT COUNT(*), COALESCE(SUM(amount_cents),0) FROM refunds").fetchone()
     return {"count": total[0], "total_cents": total[1],
-            "refunds": [dict(zip(["id", "charge_id", "amount_cents", "reason", "run_id", "created_at"], r)) for r in rows]}
+            "refunds": [dict(zip(["id", "charge_id", "amount_cents", "reason", "run_id", "created_at"], r, strict=False)) for r in rows]}
 
 
 def reset() -> None:

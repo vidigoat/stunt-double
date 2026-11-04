@@ -60,7 +60,8 @@ def test_full_agent_flow(fresh_business, monkeypatch):
     assert "effects_path" not in run["attempts"][-1]                      # internal paths never leak to the browser
     kinds = [e["kind"] for e in run["events"]]
     assert kinds.index("agent") < kinds.index("sandbox") < kinds.index("verify")
-    first = lambda m: m.split(",")[0].strip()
+    def first(m):
+        return m.split(",")[0].strip()
     assert set(model.calls) == {first(agent.config.AGENT_MODEL), first(agent.config.VERIFIER_MODEL)}
     applied = api.post(f"/api/runs/{rid}/approve").json()
     assert applied["status"] == "applied" and applied["apply_result"]["refunds"] == 104

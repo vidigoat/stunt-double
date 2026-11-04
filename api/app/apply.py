@@ -20,7 +20,7 @@ class DriftError(Exception):
 
 def _row(db: sqlite3.Connection, table: str, rowid: int, cols: list[str]) -> dict | None:
     r = db.execute(f'SELECT {", ".join(f"{chr(34)}{c}{chr(34)}" for c in cols)} FROM "{table}" WHERE rowid=?', (rowid,)).fetchone()
-    return dict(zip(cols, r)) if r else None
+    return dict(zip(cols, r, strict=False)) if r else None
 
 
 def drift_check(db: sqlite3.Connection, changes: dict) -> list[dict]:
