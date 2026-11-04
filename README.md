@@ -112,7 +112,7 @@ When a run needs a human, Stunt Double posts "approval needed" (with a review li
 | **Approval** | One or two named people, bound to `plan_sha256` + `effects_sha256`. |
 | **Replay** | Applying approved effects after an integrity check and a locked drift check. Agent code never runs against production. |
 | **Rollback** | A new run containing the inverse of an applied run's data changes, approved by two people. |
-| **Workspace** | Which database a run targets: the demo business, or a SQLite database you uploaded (up to 20 MB; no WITHOUT ROWID or virtual tables yet). |
+| **Workspace** | Which database a run targets: the demo business, or a SQLite database you uploaded (up to 20 MB; no triggers, generated columns, WITHOUT ROWID or virtual tables yet). Uploaded workspaces can change rows and call connectors; refunds and email exist only for the demo business. |
 | **Evidence** | A downloadable JSON bundle per run (and optionally archived to Vultr Object Storage). |
 
 ## Connectors: everything an agent touches
@@ -163,18 +163,30 @@ sd rehearse refund.py --task "Refund everyone who was double-charged"   # exit 0
 sd wait <run_id>                                                         # exit 0 only if a human approved and it applied
 ```
 
-**REST**: `POST /api/runs/manual {task, code}` → poll `GET /api/runs/{id}` · OpenAPI at `/api/docs`.
+**REST** (OpenAPI at `/api/docs`):
+
+| Call | What it does |
+|---|---|
+| `POST /api/runs/manual {task, code, workspace?}` | rehearse a plan; poll `GET /api/runs/{id}` |
+| `POST /api/runs/{id}/approve {approver, note?}` / `reject {approver, reason?}` | a human decision, with a note for the audit trail |
+| `POST /api/runs/{id}/rollback` | rehearse an undo of an applied run |
+| `GET /api/runs/{id}/changes?table=&q=&page=` | page through every changed row |
+| `GET /api/runs/{id}/evidence` · `GET /api/runs.csv` | evidence bundle for one run · the whole audit trail as CSV |
+| `POST /api/policy/simulate` | what a policy change would do to recent rehearsals, before you save it |
+| `POST /api/workspaces?name=` (raw SQLite body) · `DELETE /api/workspaces/{id}` | bring your own database · remove it |
 
 ## Controls
 
 | Control | Default |
 |---|---|
-| Two-person rule | payout > $10,000, more than 1,000 rows, and every rollback |
+| Two-person rule | payout > $10,000, more than 1,000 rows, and every rollback (names compared after Unicode normalisation, so "Alice" and "Ａlice" are one person) |
+| Rehearsal expiry | a rehearsal older than 24 h can't be approved; rehearse again |
+| Current policy at approval | rules are re-checked when someone clicks Approve; a policy tightened after the rehearsal still applies |
 | Protected tables | `customers`: any delete, or rewriting > 20% of rows, blocks |
 | Delete limit | > 5% of any table blocks |
 | Refund safety | over-refunds, already-refunded, double or unknown charges block |
 | Email safety | one valid customer address, no placeholders, no leaked data, consent for marketing |
-| API safety | approved connectors only, https only, allowed methods only, no bulk customer data |
+| API safety | approved connectors only, https only, allowed methods only, no path escapes (`..`), no bulk customer data (counted across all calls), payloads ≤ 64 KB, only content headers forwarded |
 | Review thresholds | payouts > $10,000, > 500 emails, > 200 API calls warn |
 | Spend protection | per-visitor rate limits and a daily cap on AI-agent runs |
 

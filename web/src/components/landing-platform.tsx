@@ -16,7 +16,9 @@ const CONTROLS = [
   { icon: FileCheck2, name: "Every row, inspectable", line: "Search and page through every changed row of the recorded effects. Not a sample: exactly what approval replays." },
   { icon: Users, name: "Two-person rule", line: "Big payouts, large changes and every undo need two different people. One click can't move $37,404." },
   { icon: Undo2, name: "Rehearsed undo", line: "Regret an approval? Roll the data back. The undo is rehearsed, drift-checked and approved like any change." },
-  { icon: FileCheck2, name: "Evidence, not vibes", line: "Each approval is bound to a SHA-256 of the plan and its effects. Download the evidence bundle for any run." },
+  { icon: FileCheck2, name: "Evidence, not vibes", line: "Each approval is bound to a SHA-256 of the plan and its effects, with who decided and why. Download any run's evidence, or the whole trail as CSV." },
+  { icon: KeyRound, name: "Approvals that can't go stale", line: "Rules are re-checked at the moment of approval, rehearsals expire after 24 hours, and every row is drift-checked before it's written." },
+  { icon: Webhook, name: "Asks the right people", line: "When a decision is needed, Stunt Double posts to Slack with a review link and what's at stake. Blocked plans don't page anyone." },
   { icon: Scale, name: "Policy + glossary", line: "Blocking rules you control, plus your company's definitions, so the verifier judges plans the way you would." },
 ];
 

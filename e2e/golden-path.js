@@ -51,8 +51,10 @@ async function step(name, fn) {
     await page.getByRole("button", { name: "Rehearse it", exact: true }).click();
     const approve = page.getByRole("button", { name: /Approve and apply/ });
     await approve.waitFor({ timeout: 60000 });
+    await page.getByLabel("Decision note").fill("Matches the 104 duplicate charges in ticket #88");
     await approve.click();
     await page.getByText("Applied for real").waitFor({ timeout: 60000 });
+    await page.getByText(/Matches the 104 duplicate charges/).first().waitFor();
     const ledger = await fetch(`${BASE}/api/beanpay/ledger`).then((r) => r.json());
     assert.strictEqual(ledger.count, 104);
     assert.strictEqual(ledger.total_cents, 513600);
@@ -105,6 +107,8 @@ async function step(name, fn) {
     await page.getByRole("button", { name: /Awaiting approval/ }).click();
     await page.getByRole("button", { name: /Undos/ }).click();
     await page.getByText("undo", { exact: true }).first().waitFor();
+    const csv = await fetch(`${BASE}/api/runs.csv`).then((r) => r.text());
+    assert.ok(csv.startsWith("run_id,") && csv.includes("Matches the 104 duplicate charges"), "CSV export carries the decision note");
   });
 
   await step("policy page loads the rules", async () => {
