@@ -33,7 +33,7 @@ After judging: delete the VM and the inference subscription, then regenerate bot
 
 ## Done Wed night (23:00–00:00)
 - Live with the AI: https://149-28-206-186.sslip.io · e2e 10/10 on production with the real verifier in the loop.
-- **docs/VERIFIER_EVAL.md** (live server, gVisor): 28/28 bad plans caught, 0/14 false alarms, 7/7 on the semantic trap (two runs).
+- **docs/VERIFIER_EVAL.md** (live server, gVisor): 36/36 bad plans caught, 0/18 false alarms, 9/9 on the semantic trap (three runs); gVisor rehearsal median 1.8 s.
 - **docs/EVAL.md**: the agent fell for none of the traps; once, its plan missed 87 of 104 customers, and the verifier caught it.
 - Fixed on the live server: a verifier that never answered (glm-5.3), a verifier/agent that ran out of steps or kept replying in prose
   (now forced to decide with `tool_choice=required`), and Caddy compressing (and so buffering) the live event stream.

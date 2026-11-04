@@ -12,3 +12,12 @@ copy out safely → phase 2 container measures the diff and audits side effects 
 Measured Nov 4 in the development container (Docker `runc`, 1,300 customers / 5,290 charges).
 To re-measure on the Vultr VM with gVisor: `SD_SANDBOX_RUNTIME=runsc python api/eval/bench.py --runs 30`
 (gVisor adds some start-up overhead; update this table with those numbers before submitting).
+
+## On the live Vultr VM with gVisor (Wed Nov 4, 18:55 UTC)
+
+Measured from 12 real rehearsals on the production server (vc2-2c-4gb, San Jose, `runsc`), recorded by
+`api/eval/verifier_eval.py`: **median 1,810 ms, p90 3,020 ms** per rehearsal, covering both sandbox phases from container
+start to destroy. That's the price of a user-space kernel plus a fresh, trusted measuring container per run. In the
+end-to-end time an approver waits, the AI verifier's investigation dominates (median 8–70 s depending on the plan; see
+`docs/VERIFIER_EVAL.md`).
+

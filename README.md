@@ -16,7 +16,7 @@
   <sub>Real agent on Vultr Serverless Inference · every rehearsal in gVisor on a Vultr VM · MCP at <code>/mcp</code> · try "Break it yourself"</sub>
 </p>
 
-<p align="center"><b>Measured on the live server (gVisor + Vultr Serverless Inference): 28/28 bad plans caught · 0/14 false alarms · 7/7 on the trap rules can't see.</b> <a href="docs/VERIFIER_EVAL.md">Eval →</a></p>
+<p align="center"><b>Measured on the live server (gVisor + Vultr Serverless Inference): 36/36 bad plans caught · 0/18 false alarms · 9/9 on the trap rules can't see · 1.8 s median per gVisor rehearsal.</b> <a href="docs/VERIFIER_EVAL.md">Eval →</a></p>
 
 <p align="center">
   <b>The safety layer between AI agents and your business.</b><br>
@@ -43,7 +43,7 @@ gVisor on the Vultr VM:
 | # | Click | What you should see |
 |---|---|---|
 | 1 | **Break it** | A plan deletes every customer. Sandbox: 1,300 → 0. Production: still 1,300. Approval locks. |
-| 2 | **Watch the AI catch what rules can't** | A refund plan passes every rule. The AI verifier (Vultr Serverless Inference) reads the data and objects: *"Plan refunds 640 customers who were never double-charged."* Caught on 7 of 7 live runs ([eval](docs/VERIFIER_EVAL.md)). |
+| 2 | **Watch the AI catch what rules can't** | A refund plan passes every rule. The AI verifier (Vultr Serverless Inference) reads the data and objects: *"Plan refunds 640 customers who were never double-charged."* Caught on 9 of 9 live runs ([eval](docs/VERIFIER_EVAL.md)). |
 | 3 | **Approve a good one, then undo it** | 104 refunds ($5,136) and emails after a drift check. Then rehearse the undo, which needs two approvers. |
 | 4 | **Hand it to the agent** | The agent on Vultr Serverless Inference investigates the data, writes a plan and rehearses it. It fell for none of our traps on the live server ([eval](docs/EVAL.md)). |
 
