@@ -1,0 +1,98 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 600" font-family="ui-monospace, SFMono-Regular, Menlo, monospace">
+  <style>
+    .bg { fill: #FAFAF8 } .box { fill: #FFFFFF; stroke: #0A0A0A; stroke-width: 1.5 } .soft { fill: #F2F2EF; stroke: #E4E4E0; stroke-width: 1.5 }
+    .hot { fill: #FFF5F5; stroke: #E5484D; stroke-width: 1.5 } .ink { fill: #0A0A0A } .muted { fill: #6B6B66 } .red { fill: #E5484D }
+    .line { stroke: #0A0A0A; stroke-width: 1.5; fill: none } .dash { stroke: #A3A3A0; stroke-width: 1.5; fill: none; stroke-dasharray: 5 5 }
+    .t { font-size: 15px; font-weight: 600 } .s { font-size: 12px } .h { font-family: Georgia, 'Times New Roman', serif; font-size: 26px; font-style: italic }
+    @media (prefers-color-scheme: dark) {
+      .bg { fill: #0A0A0A } .box { fill: #111111; stroke: #FAFAF8 } .soft { fill: #161616; stroke: #262626 } .hot { fill: #1F1112; stroke: #FF6369 }
+      .ink { fill: #FAFAF8 } .muted { fill: #A3A3A0 } .red { fill: #FF6369 } .line { stroke: #FAFAF8 } .dash { stroke: #6B6B66 }
+    }
+  </style>
+  <defs><marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 10 5 0 10z" class="ink"/></marker></defs>
+  <rect class="bg" width="1200" height="600" rx="18"/>
+
+  <text x="40" y="52" class="h ink">plan → dispatch → verify → approve → apply</text>
+  <text x="40" y="78" class="s muted">everything below the dashed line runs on one Vultr Cloud Compute VM · every LLM call goes to Vultr Serverless Inference</text>
+  <path class="dash" d="M30 100 H1170"/>
+
+  <!-- row 1 -->
+  <rect class="soft" x="40" y="130" width="170" height="92" rx="12"/>
+  <text x="58" y="160" class="t ink">Human request</text>
+  <text x="58" y="182" class="s muted">"Refund everyone who</text>
+  <text x="58" y="198" class="s muted">was double-charged"</text>
+
+  <rect class="box" x="250" y="130" width="200" height="92" rx="12"/>
+  <text x="268" y="160" class="t ink">Ops agent</text>
+  <text x="268" y="182" class="s muted">glm-5.3-flash · tools</text>
+  <text x="268" y="198" class="s muted">writes plan.py</text>
+
+  <rect class="hot" x="490" y="130" width="210" height="92" rx="12"/>
+  <text x="508" y="160" class="t red">Phase 1 · run</text>
+  <text x="508" y="182" class="s muted">UNTRUSTED plan on a clone</text>
+  <text x="508" y="198" class="s muted">gVisor · no net · no secrets</text>
+
+  <rect class="box" x="740" y="130" width="200" height="92" rx="12"/>
+  <text x="758" y="160" class="t ink">Phase 2 · measure</text>
+  <text x="758" y="182" class="s muted">fresh container, trusted</text>
+  <text x="758" y="198" class="s muted">diff + audit + effects</text>
+
+  <rect class="soft" x="980" y="130" width="180" height="92" rx="12"/>
+  <text x="998" y="160" class="t ink">Consequences</text>
+  <text x="998" y="182" class="s muted">money, people, emails</text>
+  <text x="998" y="198" class="s muted">rows, blocked tries</text>
+
+  <path class="line" marker-end="url(#a)" d="M210 176 H246"/>
+  <path class="line" marker-end="url(#a)" d="M450 176 H486"/>
+  <path class="line" marker-end="url(#a)" d="M700 176 H736"/>
+  <path class="line" marker-end="url(#a)" d="M940 176 H976"/>
+  
+  
+
+  <!-- feedback loop -->
+  <path class="dash" marker-end="url(#a)" d="M1070 222 V262 H350 V226"/>
+  <text x="560" y="282" class="s muted">rehearsal results go back to the agent: it fixes its own plan on the double</text>
+
+  <!-- row 2 -->
+  <rect class="box" x="40" y="330" width="230" height="100" rx="12"/>
+  <text x="58" y="362" class="t ink">Verifier</text>
+  <text x="58" y="384" class="s muted">glm-5.3 · read-only SQL</text>
+  <text x="58" y="400" class="s muted">does the outcome match</text>
+  <text x="58" y="416" class="s muted">what the human asked?</text>
+
+  <rect class="box" x="310" y="330" width="230" height="100" rx="12"/>
+  <text x="328" y="362" class="t ink">Policy rules</text>
+  <text x="328" y="384" class="s muted">protected tables, refunds</text>
+  <text x="328" y="400" class="s muted">templates, data leaks</text>
+  <text x="328" y="416" class="s muted">critical → approval locked</text>
+
+  <rect class="soft" x="580" y="330" width="200" height="100" rx="12"/>
+  <text x="598" y="362" class="t ink">Approver</text>
+  <text x="598" y="384" class="s muted">sees consequences,</text>
+  <text x="598" y="400" class="s muted">not code · approves the</text>
+  <text x="598" y="416" class="s muted">plan + effects sha256</text>
+
+  <rect class="box" x="820" y="330" width="160" height="100" rx="12"/>
+  <text x="838" y="362" class="t ink">Apply</text>
+  <text x="838" y="384" class="s muted">integrity check</text>
+  <text x="838" y="400" class="s muted">locked drift check</text>
+  <text x="838" y="416" class="s muted">replay effects only</text>
+
+  <rect class="box" x="1010" y="330" width="150" height="100" rx="12"/>
+  <text x="1028" y="362" class="t ink">Production</text>
+  <text x="1028" y="384" class="s muted">business DB</text>
+  <text x="1028" y="400" class="s muted">BeanPay refunds</text>
+  <text x="1028" y="416" class="s muted">SMTP email</text>
+
+  <path class="line" marker-end="url(#a)" d="M1070 222 V300 H155 V326"/>
+  <path class="line" marker-end="url(#a)" d="M270 380 H306"/>
+  <path class="line" marker-end="url(#a)" d="M540 380 H576"/>
+  <path class="line" marker-end="url(#a)" d="M780 380 H816"/>
+  <path class="line" marker-end="url(#a)" d="M980 380 H1006"/>
+
+  <!-- footer -->
+  <rect class="soft" x="40" y="470" width="1120" height="92" rx="12"/>
+  <text x="62" y="502" class="t ink">The agent's code never touches production.</text>
+  <text x="62" y="526" class="s muted">Phase 1 output is treated as untrusted data · phase 2 alone writes what is shown and what is replayed · files from phase 1 are copied with O_NOFOLLOW</text>
+  <text x="62" y="546" class="s muted">sandbox caps: 256 MB memory · 1 CPU · 64 PIDs · 64 MB files · 60 s · read-only root · non-root · cap-drop ALL · destroyed after every run</text>
+</svg>
