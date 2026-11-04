@@ -253,3 +253,15 @@ def test_snapshot_keeps_values_in_their_columns_with_generated_columns(tmp_path)
     make_db(p, "CREATE TABLE t (a INTEGER, g INTEGER GENERATED ALWAYS AS (a * 100) VIRTUAL, c TEXT); INSERT INTO t (a, c) VALUES (3, 'zzz');")
     row = runner.snapshot(str(p))["t"]["rows"][1]
     assert row == {"a": 3, "c": "zzz"}
+
+
+# ---- rate limits are per kind of action -----------------------------------------------------------------
+def test_rehearsals_do_not_use_up_uploads_or_resets(monkeypatch):
+    from types import SimpleNamespace
+    req = SimpleNamespace(headers={}, client=SimpleNamespace(host="9.9.9.9"))
+    for _ in range(30):
+        main._rate_limit(req)                      # a busy visitor uses up their rehearsals...
+    with pytest.raises(main.HTTPException):
+        main._rate_limit(req)
+    main._rate_limit(req, per_hour=10, kind="upload")       # ...but can still upload a database
+    main._rate_limit(req, per_hour=20, kind="demo reset")   # ...and reset the demo

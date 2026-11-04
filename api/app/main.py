@@ -220,14 +220,15 @@ def _public(run: dict) -> dict:
     return out
 
 
-def _rate_limit(req: Request, per_hour: int = 30) -> None:
+def _rate_limit(req: Request, per_hour: int = 30, kind: str = "rehearsal") -> None:
+    """Per visitor AND per kind of action: ten rehearsals must not use up a visitor's uploads or demo resets."""
     # The right-most X-Forwarded-For entry is the one our own proxy (Caddy) added; left-most entries are client-controlled.
     ip = (req.headers.get("x-forwarded-for") or (req.client.host if req.client else "?")).split(",")[-1].strip()
-    now = time.time()
-    RATE[ip] = [t for t in RATE[ip] if now - t < 3600]
-    if len(RATE[ip]) >= per_hour:
-        raise HTTPException(429, "Too many rehearsals from this address, try again later")
-    RATE[ip].append(now)
+    key, now = f"{kind}:{ip}", time.time()
+    RATE[key] = [t for t in RATE[key] if now - t < 3600]
+    if len(RATE[key]) >= per_hour:
+        raise HTTPException(429, f"Too many {kind}s from this address in the last hour, try again later")
+    RATE[key].append(now)
 
 
 # ---- API ----------------------------------------------------------------------------------------------
@@ -289,7 +290,7 @@ def list_workspaces():
 @app.post("/api/workspaces")
 async def upload_workspace(request: Request, name: str = ""):
     """Upload a SQLite database (raw body, up to 20 MB) to rehearse plans against your own schema."""
-    _rate_limit(request, per_hour=10)
+    _rate_limit(request, per_hour=10, kind="upload")
     if int(request.headers.get("content-length") or 0) > workspaces.MAX_BYTES:
         raise HTTPException(413, "Databases up to 20 MB, please")
     chunks, size = [], 0
@@ -696,7 +697,7 @@ def simulate_policy(body: dict):
 
 @app.put("/api/policy")
 def put_policy(body: dict, req: Request, by: str = ""):
-    _rate_limit(req, per_hour=60)
+    _rate_limit(req, per_hour=60, kind="policy edit")
     try:
         return {"policy": policy.save(body, by), "defaults": policy.DEFAULTS}
     except ValueError as e:
@@ -775,7 +776,7 @@ def ledger():
 
 @app.post("/api/demo/reset")
 def reset(req: Request):
-    _rate_limit(req, per_hour=20)
+    _rate_limit(req, per_hour=20, kind="demo reset")
     if any(r["status"] in ACTIVE for r in RUNS.values()):
         raise HTTPException(409, "A rehearsal is still running; try again in a moment")
     seed.seed(config.PROD_DB)
