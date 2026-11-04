@@ -27,7 +27,7 @@ async def main() -> None:
     async with stdio_client(params) as (r, w), ClientSession(r, w) as s:
         await s.initialize()
         tools = {t.name for t in (await s.list_tools()).tools}
-        assert tools == {"describe_business", "rehearse", "get_run_status", "list_connectors", "request_undo"}, tools   # no approve tool
+        assert tools == {"describe_business", "rehearse", "get_run_status", "list_connectors", "request_undo", "list_workspaces"}, tools   # no approve tool
         conns = json.loads((await s.call_tool("list_connectors", {})).content[0].text)["connectors"]
         assert any(c["name"] == "slack" for c in conns)
         schema = json.loads((await s.call_tool("describe_business", {})).content[0].text)

@@ -87,24 +87,32 @@ def _summarise(run: dict) -> dict:
 
 
 @mcp.tool()
-def describe_business() -> dict:
-    """Tables, columns, row counts and the plan API (ctx.db / ctx.payments.refund / ctx.email.send) of the business."""
+def describe_business(workspace: str = "demo") -> dict:
+    """Tables, columns, row counts and the plan API (ctx.db / ctx.payments / ctx.email / ctx.http) of a workspace."""
     with _client() as c:
-        return c.get("/api/schema").raise_for_status().json()
+        return c.get("/api/schema", params={"ws": workspace}).raise_for_status().json()
 
 
 @mcp.tool()
-def rehearse(task: str, plan_code: str, wait_seconds: int = 120) -> dict:
+def list_workspaces() -> dict:
+    """Databases you can rehearse against: the demo business and any uploaded SQLite databases."""
+    with _client() as c:
+        return c.get("/api/workspaces").raise_for_status().json()
+
+
+@mcp.tool()
+def rehearse(task: str, plan_code: str, wait_seconds: int = 120, workspace: str = "demo") -> dict:
     """Rehearse a plan on a throwaway copy of the business in an isolated sandbox (no network, no secrets).
 
     Args:
         task: the human's request in plain English (used to check the outcome matches the intent).
         plan_code: a Python module defining `def run(ctx):` (see describe_business for the ctx API).
         wait_seconds: how long to wait for the rehearsal and verification.
+        workspace: which database to rehearse against (see list_workspaces).
     Returns the measured consequences, policy flags, verdict and an approval_url for a human.
     """
     with _client() as c:
-        r = c.post("/api/runs/manual", json={"task": task, "code": plan_code})
+        r = c.post("/api/runs/manual", json={"task": task, "code": plan_code, "workspace": workspace})
         if r.status_code >= 400:
             return {"error": r.json().get("detail", r.text)}
         rid = r.json()["id"]

@@ -59,14 +59,18 @@ class Plan:
 
 
 class StuntDouble:
-    def __init__(self, base_url: str, http: httpx.Client | None = None, timeout: float = 30):
+    def __init__(self, base_url: str, http: httpx.Client | None = None, timeout: float = 30, workspace: str = "demo"):
         self.base_url = base_url.rstrip("/")
+        self.workspace = workspace
         self.http = http or httpx.Client(base_url=self.base_url, timeout=timeout)
 
     # -- discovery ----------------------------------------------------------------------------------------
     def describe(self) -> dict:
         """Tables, columns and the plan API (ctx.db, ctx.payments, ctx.email, ctx.http)."""
-        return self._get("/api/schema")
+        return self.http.get("/api/schema", params={"ws": self.workspace}).raise_for_status().json()
+
+    def workspaces(self) -> list[dict]:
+        return self._get("/api/workspaces")["workspaces"]
 
     def connectors(self) -> list[dict]:
         return self._get("/api/connectors")["connectors"]
@@ -76,7 +80,7 @@ class StuntDouble:
         return lambda fn: Plan(self, task, fn)
 
     def rehearse(self, task: str, code: str, wait_seconds: float = 120) -> Rehearsal:
-        r = self.http.post("/api/runs/manual", json={"task": task, "code": code})
+        r = self.http.post("/api/runs/manual", json={"task": task, "code": code, "workspace": self.workspace})
         if r.status_code >= 400:
             raise RuntimeError(r.json().get("detail", r.text))
         run_id = r.json()["id"]
