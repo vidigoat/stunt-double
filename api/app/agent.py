@@ -7,7 +7,10 @@
    matches what they asked for, in plain English.
 """
 import json
+import re
 import sqlite3
+import time
+import uuid
 from typing import Callable
 
 from openai import OpenAI
@@ -73,7 +76,7 @@ VERDICT_TOOL = {"type": "function", "function": {
 def client() -> OpenAI:
     if not config.INFERENCE_KEY:
         raise RuntimeError("VULTR_INFERENCE_KEY is not set: Vultr Serverless Inference is required for the agent")
-    return OpenAI(base_url=config.INFERENCE_BASE_URL, api_key=config.INFERENCE_KEY, timeout=120)
+    return OpenAI(base_url=config.INFERENCE_BASE_URL, api_key=config.INFERENCE_KEY, timeout=config.LLM_TIMEOUT_S, max_retries=0)
 
 
 # ---- read-only data access for both roles ----------------------------------------------------
@@ -120,28 +123,103 @@ def compact_consequences(c: dict) -> dict:
 
 
 # ---- tool-calling loop -------------------------------------------------------------------------
-def _loop(model: str, messages: list, tools: list, handlers: dict[str, Callable], emit: Callable, max_turns: int, stop_tool: str | None = None):
-    ai = client()
-    for _ in range(max_turns):
-        resp = ai.chat.completions.create(model=model, messages=messages, tools=tools, temperature=0.2)
-        msg = resp.choices[0].message
-        messages.append({"role": "assistant", "content": msg.content or "",
-                         **({"tool_calls": [tc.model_dump() for tc in msg.tool_calls]} if msg.tool_calls else {})})
-        if not msg.tool_calls:
-            return msg.content or "", None
-        for tc in msg.tool_calls:
-            name = tc.function.name
+_TEXT_CALL = re.compile(r"<tool_call>\s*(\{.*?\})\s*</tool_call>|```(?:json)?\s*(\{\s*\"name\".*?\})\s*```", re.S)
+
+
+def _parse_args(raw) -> dict:
+    """Arguments as a dict, tolerating double-encoded JSON and trailing junk from some open models."""
+    if isinstance(raw, dict):
+        return raw
+    if not raw:
+        return {}
+    for candidate in (raw, raw.strip().rstrip(",")):
+        try:
+            val = json.loads(candidate)
+            return json.loads(val) if isinstance(val, str) else (val if isinstance(val, dict) else {})
+        except (json.JSONDecodeError, TypeError):
+            continue
+    return {}
+
+
+def _calls_from_text(content: str) -> list[dict]:
+    """Some models emit tool calls as text (<tool_call>{...}</tool_call> or a ```json block). Recover them."""
+    calls = []
+    for m in _TEXT_CALL.finditer(content or ""):
+        try:
+            obj = json.loads(m.group(1) or m.group(2))
+        except json.JSONDecodeError:
+            continue
+        if isinstance(obj, dict) and obj.get("name"):
+            calls.append({"id": f"text_{uuid.uuid4().hex[:8]}", "name": obj["name"], "arguments": obj.get("arguments", obj.get("parameters", {}))})
+    return calls
+
+
+def _complete(ai, models: list[str], messages: list, tools: list, emit: Callable):
+    """One completion with retries and model fallback. Returns (model_used, message)."""
+    last = None
+    for model in models:
+        for attempt in range(3):
             try:
-                args = json.loads(tc.function.arguments or "{}")
-            except json.JSONDecodeError:
-                args = {}
+                resp = ai.chat.completions.create(model=model, messages=messages, tools=tools, temperature=0.2,
+                                                  max_tokens=config.MAX_TOKENS)
+                return model, resp.choices[0].message
+            except Exception as e:  # noqa: BLE001
+                last = e
+                status = getattr(e, "status_code", None)
+                if status in (400, 401, 403, 404, 422):  # not transient: bad request / auth / unknown model -> next model
+                    break
+                time.sleep(min(8, 1.5 * 2 ** attempt))
+        emit("system", f"Model {model} unavailable, trying the next one", str(last)[:200])
+    raise RuntimeError(f"All models failed: {last}")
+
+
+def _loop(models: str | list[str], messages: list, tools: list, handlers: dict[str, Callable], emit: Callable, max_turns: int,
+          stop_tool: str | None = None, required_tool: str | None = None):
+    """Tool-calling loop. `required_tool`: nudge the model (once) if it tries to stop without calling it."""
+    ai = client()
+    models = [m.strip() for m in (models.split(",") if isinstance(models, str) else models) if m.strip()]
+    called: set[str] = set()
+    nudged = False
+    for _ in range(max_turns):
+        _, msg = _complete(ai, models, messages, tools, emit)
+        native = [{"id": tc.id, "name": tc.function.name, "arguments": tc.function.arguments} for tc in (msg.tool_calls or [])]
+        calls = native or _calls_from_text(msg.content or "")
+        if native:
+            messages.append({"role": "assistant", "content": msg.content or None, "tool_calls": [
+                {"id": c["id"], "type": "function", "function": {"name": c["name"], "arguments": c["arguments"] if isinstance(c["arguments"], str) else json.dumps(c["arguments"])}}
+                for c in calls]})
+        else:
+            messages.append({"role": "assistant", "content": msg.content or ""})
+        if not calls:
+            if required_tool and required_tool not in called and not nudged:
+                nudged = True
+                messages.append({"role": "user", "content": f"You have not called `{required_tool}` yet. Call it now; do not reply with text."})
+                continue
+            return msg.content or "", None
+        for c in calls:
+            name, args = c["name"], _parse_args(c["arguments"])
+            called.add(name)
             if name == stop_tool:
-                messages.append({"role": "tool", "tool_call_id": tc.id, "content": "recorded"})
+                if native:
+                    messages.append({"role": "tool", "tool_call_id": c["id"], "content": "recorded"})
                 return None, args
             handler = handlers.get(name)
-            result = handler(**args) if handler else {"error": f"unknown tool {name}"}
-            messages.append({"role": "tool", "tool_call_id": tc.id, "content": json.dumps(result, default=str)[:12000]})
+            try:
+                result = handler(**args) if handler else {"error": f"unknown tool {name}"}
+            except TypeError as e:  # wrong/missing arguments: tell the model instead of crashing
+                result = {"error": f"bad arguments for {name}: {e}"}
+            payload = json.dumps(result, default=str)[:12000]
+            if native:
+                messages.append({"role": "tool", "tool_call_id": c["id"], "content": payload})
+            else:
+                messages.append({"role": "user", "content": f"Result of {name}:\n{payload}"})
     return "Stopped: too many steps.", None
+
+
+def clean_code(code: str) -> str:
+    """Strip markdown fences models sometimes wrap code in."""
+    m = re.search(r"```(?:python|py)?\s*\n(.*?)```", code or "", re.S)
+    return (m.group(1) if m else code or "").strip() + "\n"
 
 
 def ops_agent(task: str, rehearse: Callable[[str, str], dict], emit: Callable, feedback: str | None = None,
@@ -160,10 +238,14 @@ def ops_agent(task: str, rehearse: Callable[[str, str], dict], emit: Callable, f
         return run_query(sql)
 
     def _submit(code: str, summary: str = ""):
+        code = clean_code(code)
+        if "def run(" not in code:
+            return {"error": "Your plan must define `def run(ctx):`. Submit the full module."}
         return compact_consequences(rehearse(code, summary))
 
     final, _ = _loop(config.AGENT_MODEL, messages, SCHEMA_TOOLS + [SUBMIT_TOOL],
-                     {"get_schema": _schema, "run_query": _query, "submit_plan": _submit}, emit, max_turns=14)
+                     {"get_schema": _schema, "run_query": _query, "submit_plan": _submit}, emit,
+                     max_turns=config.AGENT_MAX_TURNS, required_tool="submit_plan")
     return final or "", messages
 
 
@@ -177,8 +259,16 @@ def verify(task: str, code: str, consequences: dict, emit: Callable) -> dict:
         return run_query(sql)
 
     _, verdict = _loop(config.VERIFIER_MODEL, messages, [SCHEMA_TOOLS[1], VERDICT_TOOL], {"run_query": _query}, emit,
-                       max_turns=10, stop_tool="verdict")
-    return verdict or {"verdict": "concerns", "headline": "Verifier could not finish", "summary": "Review manually.", "concerns": []}
+                       max_turns=10, stop_tool="verdict", required_tool="verdict")
+    if not verdict:
+        return {"verdict": "concerns", "headline": "Verifier could not finish", "summary": "Review the details manually before approving.", "concerns": []}
+    verdict.setdefault("concerns", [])
+    if verdict.get("verdict") not in ("looks_right", "concerns", "dangerous"):
+        verdict["verdict"] = "concerns"
+    verdict["concerns"] = [c for c in verdict["concerns"] if isinstance(c, dict) and c.get("title")]
+    for c in verdict["concerns"]:
+        c.setdefault("detail", ""); c["severity"] = c.get("severity") if c.get("severity") in ("high", "medium", "low") else "medium"
+    return verdict
 
 
 # ---- deterministic red flags (no AI needed) -----------------------------------------------------

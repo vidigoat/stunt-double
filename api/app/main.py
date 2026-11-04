@@ -31,7 +31,7 @@ def _new_run(task: str, mode: str) -> dict:
     rid = "run_" + uuid.uuid4().hex[:10]
     run = {"id": rid, "task": task, "mode": mode, "status": "queued", "created_at": time.time(), "events": [],
            "attempts": [], "verdict": None, "flags": [], "final_message": None, "apply_result": None, "error": None,
-           "agent_model": config.AGENT_MODEL, "verifier_model": config.VERIFIER_MODEL}
+           "agent_model": config.AGENT_MODEL.split(",")[0], "verifier_model": config.VERIFIER_MODEL.split(",")[0]}
     with LOCK:
         RUNS[rid] = run
     return run
@@ -154,8 +154,8 @@ class FixIn(BaseModel):
 @app.get("/api/health")
 def health():
     docker = subprocess.run(["docker", "version", "--format", "{{.Server.Version}}"], capture_output=True, text=True)
-    return {"ok": True, "inference_configured": bool(config.INFERENCE_KEY), "agent_model": config.AGENT_MODEL,
-            "verifier_model": config.VERIFIER_MODEL, "sandbox_runtime": config.SANDBOX_RUNTIME or "runc",
+    return {"ok": True, "inference_configured": bool(config.INFERENCE_KEY), "agent_model": config.AGENT_MODEL.split(",")[0],
+            "verifier_model": config.VERIFIER_MODEL.split(",")[0], "fallback_models": config.AGENT_MODEL.split(",")[1:], "sandbox_runtime": config.SANDBOX_RUNTIME or "runc",
             "docker": docker.stdout.strip() or None}
 
 

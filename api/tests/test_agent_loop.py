@@ -25,7 +25,7 @@ class ScriptedModel:
         self.calls = []
         self.chat = NS(completions=NS(create=self.create))
 
-    def create(self, model, messages, tools, temperature):
+    def create(self, model, messages, tools, temperature, **kw):
         self.calls.append(model)
         names = {t["function"]["name"] for t in tools}
         tool_msgs = [m for m in messages if m["role"] == "tool"]
@@ -60,7 +60,8 @@ def test_full_agent_flow(fresh_business, monkeypatch):
     assert "effects_path" not in run["attempts"][-1]                      # internal paths never leak to the browser
     kinds = [e["kind"] for e in run["events"]]
     assert kinds.index("agent") < kinds.index("sandbox") < kinds.index("verify")
-    assert set(model.calls) == {agent.config.AGENT_MODEL, agent.config.VERIFIER_MODEL}
+    first = lambda m: m.split(",")[0].strip()
+    assert set(model.calls) == {first(agent.config.AGENT_MODEL), first(agent.config.VERIFIER_MODEL)}
     applied = api.post(f"/api/runs/{rid}/approve").json()
     assert applied["status"] == "applied" and applied["apply_result"]["refunds"] == 104
 
@@ -77,3 +78,73 @@ def test_policy_blocks_critical_approval(fresh_business, monkeypatch):
         time.sleep(0.25)
     r = api.post(f"/api/runs/{rid}/approve")
     assert r.status_code == 409 and "policy" in r.json()["detail"]
+
+
+# ---- robustness: odd model behaviour must not break the run -------------------------------------------
+class NotFound(Exception):
+    status_code = 404
+
+
+class QuirkyModel:
+    """First model 'does not exist'. The fallback model: chats instead of calling a tool (needs a nudge), then emits
+    a tool call as TEXT with fenced code, then finishes. The verifier forgets the verdict once."""
+    def __init__(self):
+        self.models = []
+        self.chat = NS(completions=NS(create=self.create))
+
+    def create(self, model, messages, tools, temperature, **kw):
+        self.models.append(model)
+        if model == "missing-model":
+            raise NotFound("model not found")
+        names = {t["function"]["name"] for t in tools}
+        last = messages[-1]
+        if "verdict" in names:
+            if "not called `verdict`" in str(last.get("content")):
+                return NS(choices=[NS(message=NS(content="", tool_calls=[_tool_call(9, "verdict", {"verdict": "weird", "headline": "ok", "summary": "s",
+                                                                                                    "concerns": [{"title": "t"}, "junk"]})]))])
+            return NS(choices=[NS(message=NS(content="Looks fine to me.", tool_calls=None))])
+        if last["role"] == "user" and "not called `submit_plan`" in last["content"]:
+            fenced = "```python\n" + CORRECT + "\n```"
+            text = "<tool_call>" + json.dumps({"name": "submit_plan", "arguments": {"code": fenced, "summary": "refund dupes"}}) + "</tool_call>"
+            return NS(choices=[NS(message=NS(content=text, tool_calls=None))])
+        if last["role"] == "user" and last["content"].startswith("Result of submit_plan"):
+            return NS(choices=[NS(message=NS(content="Done.", tool_calls=None))])
+        return NS(choices=[NS(message=NS(content="I think we should refund people.", tool_calls=None))])
+
+
+@needs_docker
+def test_agent_survives_quirky_models(fresh_business, monkeypatch):
+    model = QuirkyModel()
+    monkeypatch.setattr(agent, "client", lambda: model)
+    monkeypatch.setattr(agent.time, "sleep", lambda s: None)
+    events = []
+    rehearsals = []
+
+    def rehearse(code, summary):
+        rehearsals.append(code)
+        from app import sandbox
+        return sandbox.rehearse(code)["consequences"]
+
+    monkeypatch.setattr(agent.config, "AGENT_MODEL", "missing-model,fallback-model")
+    final, _ = agent.ops_agent("Refund double charges", rehearse, lambda *a: events.append(a))
+    assert final == "Done." and len(rehearsals) == 1
+    assert rehearsals[0].startswith("\ndef run(ctx):") or rehearsals[0].lstrip().startswith("def run(ctx):")
+    assert "```" not in rehearsals[0]
+    assert "missing-model" in model.models and "fallback-model" in model.models
+    assert any("unavailable" in e[1] for e in events)
+
+    from app import sandbox
+    c = sandbox.rehearse(rehearsals[0])["consequences"]
+    monkeypatch.setattr(agent.config, "VERIFIER_MODEL", "fallback-model")
+    v = agent.verify("Refund double charges", rehearsals[0], c, lambda *a: None)
+    assert v["verdict"] == "concerns"                      # invalid enum is normalised, never trusted
+    assert v["concerns"] == [{"title": "t", "detail": "", "severity": "medium"}]
+
+
+def test_parse_helpers():
+    assert agent._parse_args('{"a": 1}') == {"a": 1}
+    assert agent._parse_args(json.dumps(json.dumps({"a": 1}))) == {"a": 1}   # double-encoded
+    assert agent._parse_args("not json") == {}
+    assert agent.clean_code("```py\ndef run(ctx):\n    pass\n```").startswith("def run(ctx):")
+    calls = agent._calls_from_text('sure ```json\n{"name": "run_query", "arguments": {"sql": "SELECT 1"}}\n```')
+    assert calls and calls[0]["name"] == "run_query" and calls[0]["arguments"] == {"sql": "SELECT 1"}
