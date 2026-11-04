@@ -6,6 +6,7 @@ import { ApprovalCard, type ApprovalView } from "@/components/approval-card";
 import { GithubIcon, Mark, Wordmark } from "@/components/brand";
 import { cn } from "@/lib/utils";
 import { BrandLogo, LogoStrip } from "@/components/brand-logos";
+import { LiveStatus } from "@/components/live-status";
 import { Business } from "@/components/landing-business";
 import { ForAgents, LiveStats, Platform } from "@/components/landing-platform";
 import { TryIt } from "@/components/try-it";
@@ -97,12 +98,13 @@ function Hero() {
           Every action your AI agent takes (database, payments, email, any API) is rehearsed on a throwaway copy of your business first. You approve <span className="text-foreground">consequences</span>, not code.
         </p>
         <div className="animate-rise mt-8 flex flex-wrap items-center justify-center gap-3 [animation-delay:180ms]">
-          <Link href="/app" className={pill()}><Play className="size-4 fill-current" /> Try the live demo</Link>
+          <Link href="/app" className={pill()}><Play className="size-4 fill-current" /> Try it: judge mode, 2 min</Link>
           <a href="#how" className={pill("outline")}>See how it works</a>
         </div>
         <p className="mt-4 text-[13px] text-muted-foreground">
           <span className="inline-flex items-center gap-1.5 whitespace-nowrap align-middle"><BrandLogo name="vultr" tone="brand" className="size-3.5" />Runs on Vultr</span> · sandboxed with gVisor · nothing real happens until you approve
         </p>
+        <div><LiveStatus /></div>
 
         <div className="animate-rise relative mx-auto mt-14 max-w-4xl [animation-delay:260ms]">
           <ApprovalCard view={HERO}>
