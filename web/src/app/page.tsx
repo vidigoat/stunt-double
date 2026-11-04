@@ -268,6 +268,28 @@ function Mcp() {
   );
 }
 
+const PROOF = [
+  { n: "46", k: "safety & behaviour tests in CI", href: `${GITHUB}/tree/main/api/tests` },
+  { n: "15", k: "attacks blocked, from forged reports to SQL in column names", href: `${GITHUB}/blob/main/SECURITY.md` },
+  { n: "0.8 s", k: "median per two-phase rehearsal", href: `${GITHUB}/blob/main/docs/BENCH.md` },
+  { n: "0", k: "lines of agent code ever run against production", href: `${GITHUB}/blob/main/api/app/apply.py` },
+];
+
+function Proof() {
+  return (
+    <section className="mx-auto max-w-6xl px-4 pb-24 sm:px-6">
+      <div className="grid gap-px overflow-hidden rounded-2xl border bg-border sm:grid-cols-2 lg:grid-cols-4">
+        {PROOF.map((p) => (
+          <a key={p.k} href={p.href} target="_blank" rel="noreferrer" className="group bg-card p-6 hover:bg-background">
+            <div className="font-mono text-4xl tabular">{p.n}</div>
+            <div className="mt-2 text-sm text-muted-foreground">{p.k} <span className="opacity-0 transition group-hover:opacity-100">↗</span></div>
+          </a>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 function Stack() {
   return (
     <section className="border-y bg-card">
@@ -328,6 +350,7 @@ export default function Home() {
       <Traps />
       <Features />
       <Mcp />
+      <Proof />
       <Stack />
       <Business />
       <Faq />
