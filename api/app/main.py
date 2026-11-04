@@ -559,6 +559,9 @@ def approve_run(rid: str, body: ApproveIn | None = None):
         if any(_person(x["name"]) == _person(name) for x in approvals):
             raise HTTPException(409, f"{name} already approved. The second approval must come from a different person.")
         note = " ".join(((body.note if body else None) or "").split())[:500]
+        v = run.get("verdict") or {}
+        if v.get("verdict") in ("concerns", "dangerous") and v.get("headline") != "Verifier could not finish" and len(note) < 10:
+            raise HTTPException(422, f"The AI verifier objected (“{v.get('headline', 'concerns')}”). To approve anyway, write a note saying why. It goes in the audit trail.")
         approvals.append({"name": name, "at": time.time(), "effects_sha256": att["effects_sha256"], **({"note": note} if note else {})})
         run["approvals"] = approvals
         if len(approvals) < needed:

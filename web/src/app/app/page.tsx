@@ -179,6 +179,7 @@ export default function AppPage() {
   const attempt = run?.attempts.at(-1);
   const view = useMemo(() => (run && attempt ? viewFromAttempt(run.task, attempt, run.verdict, run.flags.length ? run.flags : attempt.flags) : null), [run, attempt]);
   const critical = !!attempt?.flags.some((f) => f.severity === "critical");
+  const aiObjected = !!run?.verdict && ["concerns", "dangerous"].includes(run.verdict.verdict) && run.verdict.headline !== "Verifier could not finish";
   const needed = attempt?.approvals_required ?? 1;
   const approvalsSoFar = (run?.approvals ?? []);
   const containment = useMemo(() => {
@@ -459,12 +460,13 @@ export default function AppPage() {
                     ) : run.mode === "agent" ? <Button variant="outline" className="h-10 rounded-full px-4" onClick={() => act("fix")} disabled={busy}><Wrench className="size-4" /> Ask the agent to fix it</Button> : null}
                     {!critical ? <input value={approver} onChange={(e) => setApprover(e.target.value)} placeholder="Your name (for the audit trail)" maxLength={80}
                       aria-label="Approver name" className="h-10 min-w-0 flex-1 rounded-full border bg-background px-4 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring/50 sm:ml-auto sm:max-w-[240px]" /> : <span className="sm:ml-auto" />}
-                    <Button className="h-10 rounded-full px-4" onClick={() => act("approve")} disabled={busy || critical || !attempt?.consequences.ok}>
+                    <Button className="h-10 rounded-full px-4" onClick={() => act("approve")} disabled={busy || critical || !attempt?.consequences.ok || (aiObjected && note.trim().length < 10)}>
                       {critical ? <><Lock className="size-4" /> Blocked by policy</> : needed > 1 && approvalsSoFar.length === 0 ? <><Users className="size-4" /> First approval (1 of 2)</>
+                        : aiObjected ? <><Check className="size-4" /> {needed > 1 && approvalsSoFar.length ? "Second approval anyway" : "Approve anyway"}</>
                         : needed > 1 ? <><Check className="size-4" /> Second approval and apply</> : <><Check className="size-4" /> Approve and apply</>}
                     </Button>
                     <input value={note} onChange={(e) => setNote(e.target.value)} maxLength={500} aria-label="Decision note"
-                      placeholder={critical ? "Why are you rejecting it? (optional, goes in the audit trail)" : "Note for the audit trail (optional): why approve or reject"}
+                      placeholder={critical ? "Why are you rejecting it? (optional, goes in the audit trail)" : aiObjected ? "The AI verifier objected. To approve anyway, say why (required, goes in the audit trail)" : "Note for the audit trail (optional): why approve or reject"}
                       className="h-10 w-full rounded-full border bg-background px-4 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring/50" />
                     {needed > 1 && !critical ? (
                       <div className="flex w-full flex-wrap items-center gap-2 rounded-lg border bg-background px-3 py-2 text-sm">

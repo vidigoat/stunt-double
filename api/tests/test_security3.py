@@ -290,3 +290,18 @@ def test_recheck_only_when_the_verifier_could_not_finish(monkeypatch):
     assert api.post(f"/api/runs/{run['id']}/recheck").status_code == 200
     time.sleep(0.2)
     assert called == [run["id"]] and run["status"] == "verifying"
+
+
+# ---- overruling the AI verifier needs a written reason ----------------------------------------------
+@needs_docker
+def test_overruling_the_ai_verifier_needs_a_reason(fresh_business, monkeypatch):
+    monkeypatch.setattr(main.config, "INFERENCE_KEY", "")
+    api = TestClient(main.app)
+    code = "def run(ctx):\n    ctx.db.execute(\"UPDATE customers SET name = name || '.' WHERE id = 5\")\n"
+    rid = api.post("/api/runs/manual", json={"task": "fix customer 5 name", "code": code}).json()["id"]
+    wait(api, rid)
+    main.RUNS[rid]["verdict"] = {"verdict": "concerns", "headline": "Wrong customer", "concerns": []}
+    r = api.post(f"/api/runs/{rid}/approve", json={"approver": "Priya"})
+    assert r.status_code == 422 and "write a note" in r.json()["detail"]
+    ok = api.post(f"/api/runs/{rid}/approve", json={"approver": "Priya", "note": "Customer 5 asked for this on the phone"}).json()
+    assert ok["status"] == "applied" and ok["approval"]["notes"] == ["Priya: Customer 5 asked for this on the phone"]

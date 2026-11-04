@@ -1,5 +1,5 @@
 {$SITE_HOST} {
-	# Compress normal responses only: compressing text/event-stream buffers it, and the live run stream would stall.
+	# Compress normal responses only. Compressing text/event-stream buffers it, and the live run stream would stall.
 	encode zstd gzip {
 		match {
 			header Content-Type text/html* text/css* text/plain* text/csv* application/json* application/javascript* image/svg+xml*
