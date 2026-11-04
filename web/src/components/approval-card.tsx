@@ -31,11 +31,14 @@ export function plainEnglish(c: Attempt["consequences"]): string {
   for (const [t, d] of Object.entries(c.tables)) {
     if (d.dropped) parts.push(`drops the entire ${t} table (${num(d.rows_before)} rows)`);
     else {
-      if (d.deleted) parts.push(`deletes ${num(d.deleted)} of ${num(d.rows_before)} ${t}`);
-      if (d.updated) parts.push(`changes ${num(d.updated)} ${t} (${d.changed_columns.join(", ")})`);
-      if (d.inserted) parts.push(`adds ${num(d.inserted)} ${t}`);
+      const rows = (n: number) => (n === 1 ? `1 row in ${t}` : `${num(n)} ${t}`);
+      if (d.deleted) parts.push(d.deleted === 1 ? `deletes 1 row in ${t}` : `deletes ${num(d.deleted)} of ${num(d.rows_before)} ${t}`);
+      if (d.updated) parts.push(`changes ${rows(d.updated)} (${d.changed_columns.join(", ")})`);
+      if (d.inserted) parts.push(`adds ${rows(d.inserted)}`);
     }
   }
+  const calls = c.http?.count ?? 0;
+  if (calls) parts.push(`makes ${num(calls)} API call${calls === 1 ? "" : "s"}`);
   if (!parts.length) return "If approved, nothing would change: no rows, no money, no emails.";
   const blocked = c.blocked.length ? ` It also tried to reach ${c.blocked[0].target}, which was blocked.` : "";
   const list = parts.length > 1 ? `${parts.slice(0, -1).join(", ")} and ${parts.at(-1)}` : parts[0];

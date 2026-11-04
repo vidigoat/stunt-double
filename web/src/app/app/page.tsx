@@ -272,7 +272,14 @@ export default function AppPage() {
                 <span>BeanPay refunds: {biz ? `${num(biz.beanpay.count)} · ${usd(biz.beanpay.total_cents)}` : "—"}</span>
                 <Link href="/ledger" className="underline-offset-4 hover:text-foreground hover:underline">Outbox →</Link>
                 <a href="/mail/" target="_blank" rel="noreferrer" className="underline-offset-4 hover:text-foreground hover:underline">Inbox →</a>
-              </> : <span>Your database · {Object.keys(biz?.tables ?? {}).length} tables · rehearsals never touch it until you approve</span>}
+              </> : <>
+                <span>Your database · {Object.keys(biz?.tables ?? {}).length} tables · rehearsals never touch it until you approve</span>
+                <button disabled={running} className="underline-offset-4 hover:text-foreground hover:underline" onClick={async () => {
+                  if (!window.confirm("Delete this uploaded database from the server? The demo business isn't affected.")) return;
+                  try { await api.deleteWorkspace(ws); setSpaces((cur) => cur.filter((w) => w.id !== ws)); setWs("demo"); setRun(null); toast.success("Deleted your database from the server."); }
+                  catch (err) { toast.error((err as Error).message); }
+                }}>Delete it</button>
+              </>}
               <label className={cn("ml-auto cursor-pointer underline-offset-4 hover:text-foreground hover:underline", uploading && "opacity-50")}>
                 {uploading ? "Uploading…" : "Use your own SQLite DB ↑"}
                 <input type="file" accept=".db,.sqlite,.sqlite3,application/octet-stream" className="sr-only" disabled={uploading} onChange={async (e) => {
@@ -415,7 +422,7 @@ export default function AppPage() {
               {run.attempts.length > 1 ? <AttemptCompare attempts={run.attempts} /> : null}
 
               <ApprovalCard view={view} label={run.status === "applied" ? "Applied" : run.status === "rejected" ? "Rejected" : run.status === "drifted" ? "Drift detected" : run.status === "failed" ? "Failed" : critical ? "Blocked by policy" : "Approval required"}
-                applied={run.status === "applied" && run.apply_result ? `Done. This refunded ${usd(run.apply_result.refund_total_cents ?? 0)} across ${num(run.apply_result.refunds ?? 0)} charges, delivered ${num(run.apply_result.emails_sent ?? 0)} emails and wrote ${num(run.apply_result.rows_written ?? 0)} rows, after the drift check${run.approval ? `. Approved by ${run.approval.approver}` : ""}.` : undefined}>
+                applied={run.status === "applied" && run.apply_result ? appliedSentence(run) : undefined}>
                 {run.status === "review" ? (
                   <>
                     <Button variant="outline" className="h-10 rounded-full px-4" onClick={() => act("reject")} disabled={busy}><X className="size-4" /> Reject</Button>
@@ -682,4 +689,18 @@ function AttemptCompare({ attempts }: { attempts: Run["attempts"] }) {
       </div>
     </div>
   );
+}
+
+
+/** What actually happened, listing only what did (no "refunded $0 across 0 charges"). */
+function appliedSentence(run: Run): string {
+  const a = run.apply_result ?? {};
+  const n = (x: number, one: string, many: string) => `${num(x)} ${x === 1 ? one : many}`;
+  const parts: string[] = [];
+  if (a.refunds) parts.push(`refunded ${usd(a.refund_total_cents ?? 0)} across ${n(a.refunds, "charge", "charges")}`);
+  if (a.emails_sent) parts.push(`delivered ${n(a.emails_sent, "email", "emails")}`);
+  if (a.http_delivered) parts.push(`made ${n(a.http_delivered, "API call", "API calls")}`);
+  if (a.rows_written) parts.push(`wrote ${n(a.rows_written, "row", "rows")}`);
+  const list = parts.length > 1 ? `${parts.slice(0, -1).join(", ")} and ${parts.at(-1)}` : parts[0] ?? "changed nothing";
+  return `Done. This ${list}, after the drift check${run.approval ? `. Approved by ${run.approval.approver}` : ""}.`;
 }

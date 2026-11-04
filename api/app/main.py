@@ -503,6 +503,9 @@ def approve_run(rid: str, body: ApproveIn | None = None):
             now = [f for f in _gate_flags(att["consequences"], run) if f["severity"] == "critical"]
             if now:
                 raise HTTPException(409, f"Blocked by the current policy: {now[0]['title']}. Rehearse again or reject.")
+        hours = policy.load().get("approval_expires_hours", 24)
+        if hours and time.time() - att["created_at"] > hours * 3600:
+            raise HTTPException(409, f"This rehearsal is more than {hours:g} hours old and has expired. Rehearse again to approve.")
         effects = open(att["effects_path"], "rb").read()
         if hashlib.sha256(effects).hexdigest() != att.get("effects_sha256"):
             raise HTTPException(409, "Integrity check failed: the recorded effects changed after the rehearsal")

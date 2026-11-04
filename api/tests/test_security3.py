@@ -206,3 +206,18 @@ def test_notes_reasons_and_csv_export(fresh_business, monkeypatch):
     rows = {x["run_id"]: x for x in csv.DictReader(io.StringIO(r.text))}
     assert rows[a]["approvers"] == "Priya" and "ticket #88" in rows[a]["approval_notes"] and len(rows[a]["effects_sha256"]) == 64
     assert rows[b]["status"] == "rejected" and rows[b]["rejection_reason"] == "Duplicate of the run above"
+
+
+# ---- rehearsals expire ---------------------------------------------------------------------------------
+@needs_docker
+def test_old_rehearsals_cannot_be_approved(fresh_business, monkeypatch):
+    monkeypatch.setattr(main.config, "INFERENCE_KEY", "")
+    api = TestClient(main.app)
+    code = "def run(ctx):\n    ctx.db.execute(\"UPDATE customers SET name = name || '.' WHERE id = 4\")\n"
+    rid = api.post("/api/runs/manual", json={"task": "fix customer 4 name", "code": code}).json()["id"]
+    wait(api, rid)
+    main.RUNS[rid]["attempts"][-1]["created_at"] -= 25 * 3600
+    r = api.post(f"/api/runs/{rid}/approve", json={"approver": "Priya"})
+    assert r.status_code == 409 and "expired" in r.json()["detail"]
+    policy.save({"approval_expires_hours": 0})  # 0 = never expire
+    assert api.post(f"/api/runs/{rid}/approve", json={"approver": "Priya"}).json()["status"] == "applied"

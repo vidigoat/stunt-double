@@ -66,6 +66,10 @@ export const api = {
     if (!res.ok) throw new Error((data as { detail?: string }).detail || "Upload failed");
     return data as Workspace;
   },
+  deleteWorkspace: async (id: string) => {
+    const res = await fetch(`/api/workspaces/${encodeURIComponent(id)}`, { method: "DELETE" });
+    if (!res.ok) throw new Error(((await res.json().catch(() => ({}))) as { detail?: string }).detail || "Delete failed");
+  },
   run: (id: string) => req<Run>(`/runs/${id}`),
   runs: () => req<RunSummary[]>("/runs"),
   fix: (id: string, note?: string) => req<{ id: string }>(`/runs/${id}/fix`, { note }),

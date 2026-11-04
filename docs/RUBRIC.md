@@ -35,10 +35,10 @@ Criterion score (1–5) = `1 + 4 × (points earned / points possible)`, rounded 
 | gVisor runtime on Vultr | 0 | 2 | Pending VM |
 | Uses Vultr meaningfully (VM + Inference + API) | 0 | 2 | All pending keys |
 | Production-grade apply (drift check, idempotency, policy) | 2 | 2 | Tested |
-| Engineering quality (tests, CI, commits across the event) | 2 | 2 | 30+ commits, 25 API tests + MCP client test + browser e2e, 4 CI jobs green |
+| Engineering quality (tests, CI, commits across the event) | 2 | 2 | 50+ commits, 90 API tests + MCP client test + 10-step browser e2e, 4 CI jobs green |
 | Defence in depth beyond the brief | 2 | 2 | Two-phase measurement (the plan can't lie), O_NOFOLLOW copies, ulimits, integrity hash, policy engine, 6 adversarial tests |
 | Works with any agent | 2 | 2 | MCP server (stdio + HTTP), tested with a real MCP client in CI; Connect page in the app |
-| Independent security review, all findings fixed with regression tests | 2 | 2 | 1 critical, 3 high, 3 medium, low items; see SECURITY.md |
+| Independent security review, all findings fixed with regression tests | 2 | 2 | Three rounds: 1 critical, 5 high, 11 medium, ~12 low; all fixed with tests (`test_security3.py` covers round 3); see SECURITY.md |
 | Deployment proven before the VM exists | 2 | 2 | Full compose stack (Caddy HTTPS, web, api, mcp, Mailpit) run end to end; browser e2e passes over HTTPS; 104 emails delivered |
 | **Total** | **18** | **24** | **→ 4.0 / 5** |
 
@@ -110,6 +110,7 @@ Re-score after every milestone and log it below.
 | Tue Nov 3, 22:45 | 13.1 | First rating. Engine, tests, CI, landing and console done; nothing on Vultr yet. |
 | Tue Nov 3, 23:30 | 16.3 | Pitch, pricing + buyer on landing, 10-slide deck, cover, submission texts, video script. Still blocked on Vultr keys (gate G1–G3). |
 | Wed Nov 4, 07:15 | 17.4 | Agent robustness, policy engine, two-phase sandbox + adversarial tests, audit trail + SSE, MCP server, browser e2e in CI, README media, 11-slide deck. Gate G1–G3 still needs keys. |
+| Wed Nov 4, 19:25 | 17.9 | Platform depth: HTTP connectors (Slack, CRM) with server-side credentials, rehearsed undo, two-person rule, bring-your-own SQLite, policy simulator, every-row diff explorer, Python SDK + CLI, decision notes, CSV audit export, rehearsal expiry; security review 3 fixed. The score doesn't move: every remaining point needs the Vultr VM, real inference or the video. |
 
 ## Before submitting: claims to re-verify against live runs
 - [ ] Deck slide 4 and landing hero: verifier headline ("640 of these customers were never double-charged") matches a real verifier output

@@ -11,6 +11,7 @@ DEFAULTS: dict = {
     "max_http_per_run": 200,              # warn above this many API calls
     "two_person_over_usd": 10000,         # payouts above this need two different approvers
     "two_person_over_rows": 1000,         # changing more rows than this needs two different approvers
+    "approval_expires_hours": 24,         # a rehearsal older than this can't be approved: the world moved on, rehearse again
     "two_person_for_rollbacks": True,     # undoing an applied run needs two different approvers
     "notify_connector": "slack",          # post "approval needed" to this connector ("" = off)
     "max_delete_pct": 5,                  # block deleting more than this % of any table
