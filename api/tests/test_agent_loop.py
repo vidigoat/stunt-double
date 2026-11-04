@@ -148,3 +148,36 @@ def test_parse_helpers():
     assert agent.clean_code("```py\ndef run(ctx):\n    pass\n```").startswith("def run(ctx):")
     calls = agent._calls_from_text('sure ```json\n{"name": "run_query", "arguments": {"sql": "SELECT 1"}}\n```')
     assert calls and calls[0]["name"] == "run_query" and calls[0]["arguments"] == {"sql": "SELECT 1"}
+
+
+@needs_docker
+def test_history_audit_and_stream(fresh_business, monkeypatch):
+    monkeypatch.setattr(main.config, "INFERENCE_KEY", "")
+    api = TestClient(main.app)
+    rid = api.post("/api/runs/manual", json={"task": "Refund duplicates", "code": CORRECT}).json()["id"]
+    with api.stream("GET", f"/api/runs/{rid}/stream") as s:          # SSE ends once the run leaves the active states
+        frames = [json.loads(line[6:]) for line in s.iter_lines() if line.startswith("data: ")]
+    assert frames[-1]["status"] == "review" and len(frames) >= 2
+    run = api.post(f"/api/runs/{rid}/approve").json()
+    assert run["status"] == "applied"
+    appr = run["approval"]
+    assert len(appr["plan_sha256"]) == 64 and appr["effects_sha256"] == run["attempts"][-1]["effects_sha256"]
+    hist = {h["id"]: h for h in api.get("/api/runs").json()}
+    assert hist[rid]["money_cents"] == 513_600 and hist[rid]["approval"]["approver"] == "Demo approver"
+    assert (main.HISTORY_DIR / f"{rid}.json").exists()               # persisted for restarts
+
+
+@needs_docker
+def test_tampered_effects_are_refused(fresh_business, monkeypatch):
+    monkeypatch.setattr(main.config, "INFERENCE_KEY", "")
+    api = TestClient(main.app)
+    rid = api.post("/api/runs/manual", json={"task": "Refund duplicates", "code": CORRECT}).json()["id"]
+    for _ in range(80):
+        if api.get(f"/api/runs/{rid}").json()["status"] == "review":
+            break
+        time.sleep(0.25)
+    path = main.RUNS[rid]["attempts"][-1]["effects_path"]
+    data = json.loads(open(path).read()); data["payments"][0]["amount_cents"] = 999_999
+    open(path, "w").write(json.dumps(data))
+    r = api.post(f"/api/runs/{rid}/approve")
+    assert r.status_code == 409 and "Integrity" in r.json()["detail"]

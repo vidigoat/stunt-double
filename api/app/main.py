@@ -1,4 +1,6 @@
 """Stunt Double API: plan -> dispatch -> verify -> approve -> apply."""
+import asyncio
+import hashlib
 import json
 import sqlite3
 import subprocess
@@ -8,6 +10,7 @@ import uuid
 from collections import defaultdict
 
 from fastapi import FastAPI, HTTPException, Request
+from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
@@ -22,8 +25,34 @@ LOCK = threading.Lock()
 SANDBOX_SLOTS = threading.BoundedSemaphore(3)
 RATE: dict[str, list[float]] = defaultdict(list)
 
+HISTORY_DIR = config.DATA_DIR / "history"
+HISTORY_DIR.mkdir(parents=True, exist_ok=True)
+ACTIVE = {"queued", "planning", "rehearsing", "verifying", "applying"}
+
 if not config.PROD_DB.exists():
     seed.seed(config.PROD_DB)
+
+
+def _save(run: dict) -> None:
+    """Persist a run (history + audit trail survive restarts). Caller holds LOCK."""
+    run["version"] = run.get("version", 0) + 1
+    tmp = HISTORY_DIR / f"{run['id']}.json.tmp"
+    tmp.write_text(json.dumps(run, default=str))
+    tmp.replace(HISTORY_DIR / f"{run['id']}.json")
+
+
+def _load_history() -> None:
+    for f in sorted(HISTORY_DIR.glob("run_*.json")):
+        try:
+            run = json.loads(f.read_text())
+        except ValueError:
+            continue
+        if run.get("status") in ACTIVE:
+            run["status"], run["error"] = "failed", "Interrupted by a server restart"
+        RUNS[run["id"]] = run
+
+
+_load_history()
 
 
 # ---- helpers ---------------------------------------------------------------------------------------
@@ -34,17 +63,20 @@ def _new_run(task: str, mode: str) -> dict:
            "agent_model": config.AGENT_MODEL.split(",")[0], "verifier_model": config.VERIFIER_MODEL.split(",")[0]}
     with LOCK:
         RUNS[rid] = run
+        _save(run)
     return run
 
 
 def _emit(run: dict, kind: str, title: str, detail: str | None = None) -> None:
     with LOCK:
         run["events"].append({"t": time.time(), "kind": kind, "title": title, "detail": (detail or "")[:4000]})
+        _save(run)
 
 
 def _status(run: dict, status: str) -> None:
     with LOCK:
         run["status"] = status
+        _save(run)
 
 
 def _rehearse(run: dict, code: str, summary: str) -> dict:
@@ -53,10 +85,14 @@ def _rehearse(run: dict, code: str, summary: str) -> dict:
     with SANDBOX_SLOTS:
         res = sandbox.rehearse(code)
     c = res["consequences"]
+    effects = open(res["effects_path"], "rb").read() if c.get("ok") else b""
     attempt = {"n": len(run["attempts"]) + 1, "sandbox_id": res["id"], "code": code, "summary": summary,
-               "consequences": c, "flags": agent.red_flags(c), "effects_path": res["effects_path"]}
+               "consequences": c, "flags": agent.red_flags(c), "effects_path": res["effects_path"],
+               "plan_sha256": hashlib.sha256(code.encode()).hexdigest(), "effects_sha256": hashlib.sha256(effects).hexdigest() if effects else None,
+               "created_at": time.time()}
     with LOCK:
         run["attempts"].append(attempt)
+        _save(run)
     sb = c["sandbox"]
     _emit(run, "sandbox", f"Sandbox {res['id']} finished and was destroyed",
           f"ok={c['ok']} · {sb['wall_ms']} ms · network={sb['network']} · memory={sb['memory']} · runtime={sb['runtime']}")
@@ -187,10 +223,47 @@ def create_manual_run(body: ManualIn, req: Request):
     return {"id": run["id"]}
 
 
+def _summary(r: dict) -> dict:
+    a = r["attempts"][-1] if r["attempts"] else None
+    c = a["consequences"] if a else {}
+    return {"id": r["id"], "task": r["task"], "mode": r["mode"], "status": r["status"], "created_at": r["created_at"],
+            "attempts": len(r["attempts"]), "verdict": (r.get("verdict") or {}).get("verdict"),
+            "money_cents": c.get("payments", {}).get("total_cents", 0), "emails": c.get("emails", {}).get("count", 0),
+            "rows": sum(t["deleted"] + t["updated"] + t["inserted"] for t in c.get("tables", {}).values()),
+            "blocked": any(f["severity"] == "critical" for f in (a or {}).get("flags", [])),
+            "plan_sha256": (a or {}).get("plan_sha256"), "approval": r.get("approval"), "apply_result": r.get("apply_result")}
+
+
 @app.get("/api/runs")
 def list_runs():
-    return [{"id": r["id"], "task": r["task"], "status": r["status"], "created_at": r["created_at"]}
-            for r in sorted(RUNS.values(), key=lambda r: -r["created_at"])[:50]]
+    return [_summary(r) for r in sorted(RUNS.values(), key=lambda r: -r["created_at"])[:100]]
+
+
+@app.get("/api/runs/{rid}/stream")
+async def stream_run(rid: str, request: Request):
+    """Server-sent events: the full run every time it changes; ends when the run is no longer active."""
+    _get(rid)
+
+    async def events():
+        seen, idle = -1, 0.0
+        while not await request.is_disconnected():
+            run = RUNS[rid]
+            if run.get("version", 0) != seen:
+                seen = run.get("version", 0)
+                with LOCK:
+                    payload = json.dumps(_public(run), default=str)
+                yield f"data: {payload}\n\n"
+                idle = 0.0
+                if run["status"] not in ACTIVE:
+                    return
+            elif idle >= 15:
+                yield ": keep-alive\n\n"
+                idle = 0.0
+            await asyncio.sleep(0.2)
+            idle += 0.2
+
+    return StreamingResponse(events(), media_type="text/event-stream",
+                             headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
 
 
 @app.get("/api/runs/{rid}")
@@ -229,8 +302,16 @@ def approve_run(rid: str):
         raise HTTPException(409, "A plan that crashed in rehearsal cannot be applied")
     if any(f["severity"] == "critical" for f in att["flags"]):
         raise HTTPException(409, "Blocked by policy: critical blast radius. Ask the agent to fix it or reject.")
+    effects = open(att["effects_path"], "rb").read()
+    if hashlib.sha256(effects).hexdigest() != att.get("effects_sha256"):
+        raise HTTPException(409, "Integrity check failed: the recorded effects changed after the rehearsal")
+    with LOCK:
+        run["approval"] = {"approved_at": time.time(), "approver": "Demo approver", "plan_sha256": att["plan_sha256"],
+                           "effects_sha256": att["effects_sha256"], "sandbox_id": att["sandbox_id"], "policy": policy.load(),
+                           "warnings": [f["title"] for f in att["flags"]]}
     _status(run, "applying")
-    _emit(run, "human", "Approved. Running the drift check, then applying the approved changes for real")
+    _emit(run, "human", "Approved. Running the drift check, then applying the approved changes for real",
+          f"plan {att['plan_sha256'][:12]} · effects {att['effects_sha256'][:12]}")
     try:
         result = applier.apply(rid, att["effects_path"])
     except applier.DriftError as e:
