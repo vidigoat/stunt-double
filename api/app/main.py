@@ -101,6 +101,7 @@ def _rehearse(run: dict, code: str, summary: str) -> dict:
                "consequences": c, "flags": agent.red_flags(c), "effects_path": res["effects_path"],
                "plan_sha256": hashlib.sha256(code.encode()).hexdigest(), "effects_sha256": hashlib.sha256(effects).hexdigest() if effects else None,
                "created_at": time.time()}
+    attempt["approvals_required"], attempt["approval_reasons"] = policy.approvals_required(c, run["mode"])
     with LOCK:
         run["attempts"].append(attempt)
         _save(run)
@@ -362,12 +363,30 @@ def approve_run(rid: str, body: ApproveIn | None = None):
         effects = open(att["effects_path"], "rb").read()
         if hashlib.sha256(effects).hexdigest() != att.get("effects_sha256"):
             raise HTTPException(409, "Integrity check failed: the recorded effects changed after the rehearsal")
-        name = " ".join(((body.approver if body else None) or "").split())[:80] or "Demo approver"
-        run["approval"] = {"approved_at": time.time(), "approver": name, "plan_sha256": att["plan_sha256"],
-                           "effects_sha256": att["effects_sha256"], "sandbox_id": att["sandbox_id"], "policy": policy.load(),
-                           "warnings": [f["title"] for f in att["flags"]]}
-        run["status"] = "applying"
-        _save(run)
+        name = " ".join(((body.approver if body else None) or "").split())[:80]
+        needed = att.get("approvals_required", 1)
+        approvals = [x for x in run.get("approvals", []) if x.get("effects_sha256") == att["effects_sha256"]]
+        if needed > 1 and not name:
+            raise HTTPException(422, "This change needs two named approvers. Enter your name to approve.")
+        name = name or "Demo approver"
+        if any(x["name"].casefold() == name.casefold() for x in approvals):
+            raise HTTPException(409, f"{name} already approved. The second approval must come from a different person.")
+        approvals.append({"name": name, "at": time.time(), "effects_sha256": att["effects_sha256"]})
+        run["approvals"] = approvals
+        if len(approvals) < needed:
+            _save(run)
+            pending = True
+        else:
+            pending = False
+            run["approval"] = {"approved_at": time.time(), "approver": " & ".join(x["name"] for x in approvals), "approvers": [x["name"] for x in approvals],
+                               "plan_sha256": att["plan_sha256"], "effects_sha256": att["effects_sha256"], "sandbox_id": att["sandbox_id"],
+                               "policy": policy.load(), "warnings": [f["title"] for f in att["flags"]]}
+            run["status"] = "applying"
+            _save(run)
+    if pending:
+        _emit(run, "human", f"Approval {len(approvals)} of {needed} by {name}", "waiting for a second, different approver ("
+              + ", ".join(att.get("approval_reasons", [])) + ")")
+        return _public(run)
     with APPLY_LOCK:
         already = beanpay.refunded_charges([p["charge_id"] for p in json.loads(effects).get("payments", [])])
         if already:
@@ -496,7 +515,8 @@ def rollback_run(rid: str, req: Request):
         run["rollback_of"] = rid
         run["attempts"].append({"n": 1, "sandbox_id": rb_id, "code": code, "summary": f"Undo the data changes of {rid}", "consequences": c,
                                 "flags": flags, "effects_path": effects_path, "plan_sha256": hashlib.sha256(code.encode()).hexdigest(),
-                                "effects_sha256": effects_sha, "created_at": time.time()})
+                                "effects_sha256": effects_sha, "created_at": time.time(),
+                                "approvals_required": policy.approvals_required(c, "rollback")[0], "approval_reasons": policy.approvals_required(c, "rollback")[1]})
         run["flags"] = flags
         run["status"] = "review"
         src["rollback_run"] = run["id"]

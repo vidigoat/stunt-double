@@ -33,3 +33,11 @@ def fresh_business():
     seed.seed(config.PROD_DB)
     beanpay.reset()
     return config.PROD_DB
+
+
+@pytest.fixture(autouse=True)
+def reset_rate_limits():
+    """Each test is a fresh 'visitor' for the per-IP rate limiter."""
+    from app import main
+    main.RATE.clear()
+    yield

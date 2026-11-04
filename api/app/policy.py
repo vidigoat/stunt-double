@@ -9,6 +9,9 @@ DEFAULTS: dict = {
     "max_refund_total_usd": 10000,        # warn above this
     "max_emails_per_run": 500,            # warn above this
     "max_http_per_run": 200,              # warn above this many API calls
+    "two_person_over_usd": 10000,         # payouts above this need two different approvers
+    "two_person_over_rows": 1000,         # changing more rows than this needs two different approvers
+    "two_person_for_rollbacks": True,     # undoing an applied run needs two different approvers
     "max_delete_pct": 5,                  # block deleting more than this % of any table
     "protected_tables": ["customers"],    # block ANY delete in these tables
     "max_update_pct_protected": 20,       # block rewriting more than this % of a protected table
@@ -31,6 +34,21 @@ DEFAULTS: dict = {
 }
 
 SCHEMA = {k: type(v) for k, v in DEFAULTS.items()}
+
+
+def approvals_required(consequences: dict, mode: str, pol: dict | None = None) -> tuple[int, list[str]]:
+    """How many different people must approve, and why."""
+    p = pol or load()
+    reasons = []
+    money = consequences.get("payments", {}).get("total_cents", 0)
+    rows = sum(t.get("deleted", 0) + t.get("updated", 0) + t.get("inserted", 0) for t in consequences.get("tables", {}).values())
+    if money > p["two_person_over_usd"] * 100:
+        reasons.append(f"payout over ${p['two_person_over_usd']:,}")
+    if rows > p["two_person_over_rows"]:
+        reasons.append(f"more than {p['two_person_over_rows']:,} rows change")
+    if mode == "rollback" and p["two_person_for_rollbacks"]:
+        reasons.append("it undoes an applied run")
+    return (2 if reasons else 1), reasons
 
 
 def load() -> dict:
