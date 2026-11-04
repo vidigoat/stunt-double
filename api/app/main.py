@@ -540,6 +540,35 @@ def get_policy():
     return {"policy": policy.load(), "defaults": policy.DEFAULTS}
 
 
+@app.post("/api/policy/simulate")
+def simulate_policy(body: dict):
+    """What would change if this draft policy had been in force for the recent rehearsals? Nothing is saved."""
+    try:
+        draft = {**policy.load(), **policy.validate(body)}
+    except ValueError as e:
+        raise HTTPException(422, str(e)) from e
+    current = policy.load()
+    with LOCK:
+        runs = sorted((r for r in RUNS.values() if r["attempts"]), key=lambda r: -r["created_at"])[:50]
+    out = []
+    for r in runs:
+        c = r["attempts"][-1]["consequences"]
+        before = agent.red_flags(c, current)
+        after = agent.red_flags(c, draft)
+        was = any(f["severity"] == "critical" for f in before)
+        now = any(f["severity"] == "critical" for f in after)
+        need_was = policy.approvals_required(c, r["mode"], current)[0]
+        need_now = policy.approvals_required(c, r["mode"], draft)[0]
+        if was != now or need_was != need_now:
+            out.append({"id": r["id"], "task": r["task"], "blocked_before": was, "blocked_after": now,
+                        "approvers_before": need_was, "approvers_after": need_now,
+                        "new_reasons": [f["title"] for f in after if f["severity"] == "critical" and f["title"] not in {x["title"] for x in before}][:3]})
+    return {"considered": len(runs), "changed": out,
+            "newly_blocked": sum(1 for x in out if x["blocked_after"] and not x["blocked_before"]),
+            "unblocked": sum(1 for x in out if x["blocked_before"] and not x["blocked_after"]),
+            "now_two_person": sum(1 for x in out if x["approvers_after"] > x["approvers_before"])}
+
+
 @app.put("/api/policy")
 def put_policy(body: dict, req: Request):
     _rate_limit(req, per_hour=60)

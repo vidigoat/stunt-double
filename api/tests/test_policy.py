@@ -142,3 +142,21 @@ def test_glossary_reaches_the_verifier_only(monkeypatch):
     api = TestClient(main.app)
     assert api.put("/api/policy", json={"glossary": [{"term": "x" * 81, "definition": "d"}]}).status_code == 422
     assert api.put("/api/policy", json={"glossary": [{"term": "churned", "definition": "no order in 90 days"}]}).json()["policy"]["glossary"][0]["term"] == "churned"
+
+
+@needs_docker
+def test_policy_simulator_previews_impact_without_saving(fresh_business, monkeypatch):
+    import time as _t
+    from tests.test_engine import CORRECT
+    monkeypatch.setattr(main.config, "INFERENCE_KEY", "")
+    api = TestClient(main.app)
+    main.RUNS.clear()
+    rid = api.post("/api/runs/manual", json={"task": "Refund duplicates", "code": CORRECT}).json()["id"]
+    for _ in range(80):
+        if api.get(f"/api/runs/{rid}").json()["status"] == "review":
+            break
+        _t.sleep(0.25)
+    sim = api.post("/api/policy/simulate", json={"max_refund_total_usd": 1000, "two_person_over_usd": 1000, "max_update_pct_protected": 20}).json()
+    assert sim["considered"] >= 1 and sim["now_two_person"] == 1 and sim["changed"][0]["id"] == rid
+    assert api.get("/api/policy").json()["policy"]["two_person_over_usd"] == 10000          # nothing saved
+    assert api.post("/api/policy/simulate", json={"max_delete_pct": -5}).status_code == 422

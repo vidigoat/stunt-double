@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { Lock, RotateCcw, Save, TriangleAlert, X } from "lucide-react";
+import { Lock, RotateCcw, Save, TriangleAlert, Users, X } from "lucide-react";
 import { AppHeader } from "@/components/app-header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,26 +14,31 @@ type Policy = {
   block_schema_changes: boolean; block_network_attempts: boolean; block_over_refunds: boolean; block_broken_templates: boolean;
   block_data_leaks: boolean; warn_vip_emails: boolean; block_marketing_to_opted_out: boolean;
   glossary: { term: string; definition: string }[];
+  two_person_over_usd: number; two_person_over_rows: number; two_person_for_rollbacks: boolean; max_http_per_run: number;
 };
 
-const TOGGLES: { key: keyof Policy; title: string; body: string; kind: "block" | "warn" }[] = [
+const TOGGLES: { key: keyof Policy; title: string; body: string; kind: "block" | "warn" | "two" }[] = [
   { key: "block_over_refunds", title: "Block risky refunds", body: "Refunds larger than the original charge, of charges already refunded, refunded twice, or that don't exist.", kind: "block" },
   { key: "block_broken_templates", title: "Block broken emails", body: "Emails with unfilled placeholders like {{first_name}} never reach customers.", kind: "block" },
   { key: "block_marketing_to_opted_out", title: "Respect unsubscribes", body: "Marketing emails to customers who opted out are blocked. Transactional emails (like refund notices) are fine.", kind: "block" },
   { key: "block_data_leaks", title: "Block data leaks", body: "Emails that contain another customer's email address or a card-like number.", kind: "block" },
   { key: "block_network_attempts", title: "Block plans that reach for the internet", body: "Any connection or DNS attempt from the sandbox locks approval.", kind: "block" },
   { key: "block_schema_changes", title: "Block schema changes", body: "DROP or CREATE TABLE are never applied automatically.", kind: "block" },
+  { key: "two_person_for_rollbacks", title: "Two approvers for every undo", body: "Rolling back an applied run always needs two different people.", kind: "two" },
   { key: "warn_vip_emails", title: "Flag VIP recipients", body: "Show which VIP customers would be emailed.", kind: "warn" },
 ];
 
-const NUMBERS: { key: keyof Policy; title: string; body: string; unit: string; kind: "block" | "warn" }[] = [
+const NUMBERS: { key: keyof Policy; title: string; body: string; unit: string; kind: "block" | "warn" | "two" }[] = [
   { key: "max_delete_pct", title: "Max rows deleted", body: "Deleting more than this share of any table is blocked.", unit: "% of a table", kind: "block" },
   { key: "max_update_pct_protected", title: "Max rows rewritten in protected tables", body: "Updating more than this share of a protected table is blocked.", unit: "% of a table", kind: "block" },
+  { key: "two_person_over_usd", title: "Two approvers above", body: "Payouts above this need two different people to approve.", unit: "USD", kind: "two" },
+  { key: "two_person_over_rows", title: "Two approvers for large changes", body: "Changing more rows than this needs two different people.", unit: "rows", kind: "two" },
   { key: "max_refund_total_usd", title: "Large payout review", body: "Flag rehearsals that pay out more than this in total.", unit: "USD", kind: "warn" },
   { key: "max_emails_per_run", title: "Bulk email review", body: "Flag rehearsals that send more emails than this.", unit: "emails", kind: "warn" },
 ];
 
-function Kind({ kind }: { kind: "block" | "warn" }) {
+function Kind({ kind }: { kind: "block" | "warn" | "two" }) {
+  if (kind === "two") return <span className="inline-flex items-center gap-1 rounded-full border border-foreground px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider"><Users className="size-3" />2 people</span>;
   return kind === "block"
     ? <span className="inline-flex items-center gap-1 rounded-full bg-foreground px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider text-background"><Lock className="size-3" />blocks</span>
     : <span className="inline-flex items-center gap-1 rounded-full border px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider text-muted-foreground"><TriangleAlert className="size-3" />warns</span>;
@@ -49,6 +54,17 @@ export default function PolicyPage() {
 
   useEffect(() => { fetch("/api/policy").then((r) => r.json()).then((d) => { setSaved(d.policy); setDraft(d.policy); }).catch(() => toast.error("Couldn't load the policy")); }, []);
   const dirty = useMemo(() => JSON.stringify(saved) !== JSON.stringify(draft), [saved, draft]);
+  type Sim = { considered: number; newly_blocked: number; unblocked: number; now_two_person: number;
+    changed: { id: string; task: string; blocked_before: boolean; blocked_after: boolean; approvers_before: number; approvers_after: number; new_reasons: string[] }[] };
+  const [sim, setSim] = useState<Sim | null>(null);
+  useEffect(() => {
+    if (!dirty || !draft) { setSim(null); return; }
+    const t = setTimeout(() => {
+      fetch("/api/policy/simulate", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(draft) })
+        .then((r) => (r.ok ? r.json() : null)).then(setSim).catch(() => setSim(null));
+    }, 300);
+    return () => clearTimeout(t);
+  }, [dirty, draft]);
   const set = <K extends keyof Policy>(k: K, v: Policy[K]) => setDraft((d) => (d ? { ...d, [k]: v } : d));
 
   async function save() {
@@ -135,6 +151,29 @@ export default function PolicyPage() {
                 <Button type="submit" variant="outline" className="h-9 rounded-full px-4">Add</Button>
               </form>
             </section>
+            {dirty && sim ? (
+              <section className="rounded-2xl border border-foreground bg-card p-5">
+                <div className="font-medium">Impact preview, before you save</div>
+                <p className="mt-1 text-sm text-muted-foreground">Re-checked against the last {sim.considered} rehearsals on this server.</p>
+                <div className="mt-4 grid grid-cols-3 gap-2 font-mono text-sm">
+                  {[["newly blocked", sim.newly_blocked], ["unblocked", sim.unblocked], ["now need 2 approvers", sim.now_two_person]].map(([k, v]) => (
+                    <div key={k as string} className="rounded-lg border bg-background px-3 py-2"><div className="text-xl tabular">{v as number}</div><div className="text-[11px] text-muted-foreground">{k as string}</div></div>
+                  ))}
+                </div>
+                {sim.changed.length ? (
+                  <ul className="mt-3 space-y-1.5 text-sm">
+                    {sim.changed.slice(0, 6).map((c) => (
+                      <li key={c.id} className="flex flex-wrap items-baseline justify-between gap-2 rounded-lg border bg-background px-3 py-2">
+                        <span className="min-w-0 truncate">{c.task}</span>
+                        <span className="font-mono text-[11px] text-muted-foreground">
+                          {c.blocked_before !== c.blocked_after ? (c.blocked_after ? "→ blocked" : "→ unblocked") : ""}{c.approvers_before !== c.approvers_after ? ` · ${c.approvers_before}→${c.approvers_after} approvers` : ""}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                ) : <p className="mt-3 text-sm text-muted-foreground">No recent rehearsal would be affected.</p>}
+              </section>
+            ) : null}
             <p className={cn("text-sm", dirty ? "text-foreground" : "text-muted-foreground")}>{dirty ? "You have unsaved changes." : "Saved. The demo's Reset button restores the defaults."}</p>
           </div>
         )}
