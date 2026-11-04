@@ -10,7 +10,7 @@ Written Wed Nov 4, 22:45 IST. Submission closes **Sun Nov 8 23:00 UTC = Mon Nov 
 | Vultr VM backend | ✅ | vc2-2c-4gb in San Jose, built by `infra/provision.py` |
 | Public demo URL | ✅ | `https://<ip>.sslip.io`; the 10-step browser e2e passes against it |
 | Isolated sandbox per task | ✅ **gVisor on Vultr** | `/api/health` → `sandbox_runtime: runsc` |
-| Vultr Serverless Inference | ✅ key works | `glm-5.3-flash` answers; the server is being recreated with the key |
+| Vultr Serverless Inference | ✅ live | agent + verifier `glm-5.3-flash` (fallback `qwen3.8-flash-next`); `glm-5.3` dropped: it reasoned until max_tokens and never answered |
 | Repo + setup docs | ✅ | README, GO_LIVE, SECURITY, 94 API tests + MCP + e2e in CI |
 | Video with a containment moment | ❌ | Day 3 |
 | Slides, cover, texts | ✅ draft | must be re-checked against live numbers |
@@ -30,6 +30,16 @@ real VM, with measured catch rates) and *presentation* (the video and a public U
 | **Kill switch** | at **$40** spent | check `GET /v2/account` pending charges plus inference `pending_charges` twice a day; at $40, push `SD_DAILY_AGENT_RUNS=0` (the VM pulls `main` every 2 minutes) |
 
 After judging: delete the VM and the inference subscription, then regenerate both API keys (they were in chat).
+
+## Done Wed night (23:00–00:00)
+- Live with the AI: https://149-28-206-186.sslip.io · e2e 10/10 on production with the real verifier in the loop.
+- **docs/VERIFIER_EVAL.md** (live server, gVisor): 16/16 bad plans caught, 0/8 false alarms, 4/4 on the semantic trap.
+- **docs/EVAL.md**: the agent fell for none of the traps; once, its plan missed 87 of 104 customers, and the verifier caught it.
+- Fixed on the live server: a verifier that never answered (glm-5.3), a verifier/agent that ran out of steps or kept replying in prose
+  (now forced to decide with `tool_choice=required`), and Caddy compressing (and so buffering) the live event stream.
+- Judge mode (four one-click rehearsals), a live "AI verifier is investigating" panel, live server status on the landing,
+  a written reason required to overrule the AI, "Check again", and a global daily AI-check budget.
+- Spend so far: about $0.70 of AI usage plus cents of VM time.
 
 ## Tonight (Wed, after this plan)
 
