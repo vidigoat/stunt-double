@@ -187,11 +187,12 @@ export default function AppPage() {
     return hit ? { table: hit[0], sandbox: hit[1].rows_after, before: hit[1].rows_before } : null;
   }, [attempt]);
 
-  async function start() {
+  async function start(o?: { mode: "agent" | "break"; task: string; code?: string }) {
+    const m = o?.mode ?? mode, t = o ? o.task : m === "agent" ? task : breakTask, c = o?.code ?? code;
     setBusy(true);
     try {
-      const { id } = mode === "agent" ? await api.createRun(task, ws) : await api.createManualRun(breakTask, code, ws);
-      setRun({ id, task: mode === "agent" ? task : breakTask, mode: mode === "agent" ? "agent" : "manual", status: "queued", created_at: Date.now() / 1000,
+      const { id } = m === "agent" ? await api.createRun(t, ws) : await api.createManualRun(t, c, ws);
+      setRun({ id, task: t, mode: m === "agent" ? "agent" : "manual", status: "queued", created_at: Date.now() / 1000,
         events: [], attempts: [], verdict: null, flags: [], final_message: null, error: null, agent_model: "", verifier_model: "", apply_result: null });
     } catch (e) {
       toast.error((e as Error).message);
@@ -335,7 +336,7 @@ export default function AppPage() {
                 <Textarea value={code} onChange={(e) => setCode(e.target.value)} rows={9} spellCheck={false} wrap="off" className="max-h-60 resize-none overflow-auto font-mono text-[12.5px] [field-sizing:fixed]" />
               </TabsContent>
             </Tabs>
-            <Button className="mt-4 h-11 w-full rounded-full text-[15px]" onClick={start} disabled={busy || running || (mode === "agent" ? task.trim().length < 3 || health?.inference_configured === false : code.trim().length < 10)}>
+            <Button className="mt-4 h-11 w-full rounded-full text-[15px]" onClick={() => start()} disabled={busy || running || (mode === "agent" ? task.trim().length < 3 || health?.inference_configured === false : code.trim().length < 10)}>
               {running ? <><Loader2 className="size-4 animate-spin" /> {STATUS_LABEL[run!.status]}</> : <><FlaskConical className="size-4" /> Rehearse it</>}
             </Button>
           </div>
@@ -368,16 +369,21 @@ export default function AppPage() {
           {!run ? (
             <div className="rounded-2xl border border-dashed bg-card/50 p-6 sm:p-8">
               <FlaskConical className="size-7 text-muted-foreground" />
-              <div className="mt-4 font-display text-3xl">Try it in three moves</div>
-              <p className="mt-1 max-w-md text-sm text-muted-foreground">Everything runs on a throwaway copy of Bean There Coffee Co. Production only changes when you approve.</p>
+              <div className="mt-4 font-display text-3xl">Judge mode: four clicks, two minutes</div>
+              <p className="mt-1 max-w-md text-sm text-muted-foreground">Everything runs on a throwaway copy of Bean There Coffee Co., inside gVisor on a Vultr VM. Production only changes when you approve. Each click starts a real rehearsal.</p>
               <ol className="mt-6 space-y-3">
                 {[
-                  { n: "1", t: "Break it", d: "Rehearse a plan that deletes every customer. Watch it hit only the double, and see approval locked.", go: () => { setMode("break"); setCode(BREAK_IT.find((b) => b.label === "Delete every customer")!.code); setBreakTask("Clean up the customer table"); } },
-                  { n: "2", t: "Approve a good one", d: "Pick “A correct refund plan”, rehearse it, approve it. 104 real refunds and emails go out.", go: () => { const b = BREAK_IT.find((x) => x.label === "✓ A correct refund plan")!; setMode("break"); setCode(b.code); setBreakTask(b.task); } },
-                  { n: "3", t: "Ask the agent", d: "Give the AI the double-charge request and see whether Stunt Double catches its plan.", go: () => { setMode("agent"); setTask(EXAMPLES[0]); } },
+                  { n: "1", t: "Break it", d: "A plan that deletes every customer. It hits only the double; approval locks.", preset: "Delete every customer", task: "Clean up the customer table" },
+                  { n: "2", t: "Watch the AI catch what rules can't", d: "A plausible refund plan that passes every rule, but would send $37,404 to 744 people. The verifier on Vultr Inference reads the data and objects.", preset: "Obvious refund plan (rules miss it)" },
+                  { n: "3", t: "Approve a good one, then undo it", d: "104 real refunds and apology emails after a drift check. Then rehearse the undo.", preset: "✓ A correct refund plan" },
+                  { n: "4", t: "Hand it to the agent", d: "The AI agent on Vultr Serverless Inference investigates, writes a plan and rehearses it.", agent: true },
                 ].map((s) => (
                   <li key={s.n}>
-                    <button onClick={s.go} className="group flex w-full items-start gap-4 rounded-xl border bg-background p-4 text-left transition hover:border-foreground">
+                    <button disabled={busy || running} onClick={() => {
+                      if (s.agent) { setMode("agent"); setTask(EXAMPLES[0]); void start({ mode: "agent", task: EXAMPLES[0] }); return; }
+                      const b = BREAK_IT.find((x) => x.label === s.preset)!; const t = s.task ?? b.task;
+                      setMode("break"); setCode(b.code); setBreakTask(t); void start({ mode: "break", task: t, code: b.code });
+                    }} className="group flex w-full items-start gap-4 rounded-xl border bg-background p-4 text-left transition hover:border-signal disabled:opacity-60">
                       <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-signal font-mono text-xs text-white">{s.n}</span>
                       <span className="min-w-0">
                         <span className="block font-medium">{s.t} <span className="text-muted-foreground transition group-hover:text-foreground">→</span></span>
@@ -387,7 +393,7 @@ export default function AppPage() {
                   </li>
                 ))}
               </ol>
-              <p className="mt-5 text-xs text-muted-foreground">Each step fills in the form on the left. Then press <b className="font-medium text-foreground">Rehearse it</b>.</p>
+              <p className="mt-5 text-xs text-muted-foreground">Or write your own plan on the left (“Break it yourself”) and press <b className="font-medium text-foreground">Rehearse it</b>.</p>
             </div>
           ) : !view ? (
             <div className="flex min-h-[420px] flex-col items-center justify-center gap-3 rounded-2xl border bg-card p-10 text-center">
@@ -447,7 +453,7 @@ export default function AppPage() {
                 ) : null}
                 {run.status === "rejected" && run.rejection ? <p className="w-full text-sm text-muted-foreground">Rejected by {run.rejection.by}{run.rejection.reason ? `: “${run.rejection.reason}”` : ". No reason given."}</p> : null}
                 {run.status === "applied" && run.approval?.notes?.length ? <p className="w-full text-sm text-muted-foreground">{run.approval.notes.map((n) => `“${n}”`).join(" · ")}</p> : null}
-                {run.status === "drifted" ? <Button className="h-10 rounded-full px-4" onClick={start} disabled={busy}><RotateCcw className="size-4" /> Rehearse again</Button> : null}
+                {run.status === "drifted" ? <Button className="h-10 rounded-full px-4" onClick={() => start()} disabled={busy}><RotateCcw className="size-4" /> Rehearse again</Button> : null}
                 {!ACTIVE.has(run.status) && run.status !== "review" && run.attempts.length ? <a href={`/api/runs/${run.id}/evidence`} className="ml-auto text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline">Download evidence ↓</a> : null}
               </ApprovalCard>
 

@@ -32,6 +32,7 @@ SANDBOX_SLOTS = threading.BoundedSemaphore(3)
 APPLY_LOCK = threading.Lock()            # one apply at a time: ledger check + replay are serialised across runs
 RATE: dict[str, list[float]] = defaultdict(list)
 AGENT_DAY: dict[str, int] = {"day": "", "count": 0}
+VERIFY_DAY: dict[str, int] = {"day": "", "count": 0}  # AI checks of hand-written plans: a separate global daily budget
 
 HISTORY_DIR = config.DATA_DIR / "history"
 HISTORY_DIR.mkdir(parents=True, exist_ok=True)
@@ -194,9 +195,11 @@ def _manual_job(run: dict, code: str) -> None:
     workspaces.use(run.get("workspace", workspaces.DEMO))
     try:
         _rehearse(run, code, "Submitted plan")
-        if config.INFERENCE_KEY:
+        if config.INFERENCE_KEY and _verify_budget():
             _verify(run)
         else:
+            if config.INFERENCE_KEY:
+                _emit(run, "system", "Today's AI-check budget for this public demo is used up", "Policy rules still ran; the AI verifier resets at 00:00 UTC.")
             with LOCK:
                 run["flags"] = run["attempts"][-1]["flags"]
             _status(run, "review")
@@ -277,7 +280,9 @@ def health():
     return {"ok": True, "inference_configured": bool(config.INFERENCE_KEY), "agent_model": config.AGENT_MODEL.split(",")[0],
             "verifier_model": config.VERIFIER_MODEL.split(",")[0], "fallback_models": config.AGENT_MODEL.split(",")[1:],
             "agent_runs_today": AGENT_DAY["count"] if AGENT_DAY["day"] == time.strftime("%Y-%m-%d", time.gmtime()) else 0,
-            "agent_runs_daily_limit": config.DAILY_AGENT_RUNS, "sandbox_runtime": config.SANDBOX_RUNTIME or "runc",
+            "agent_runs_daily_limit": config.DAILY_AGENT_RUNS,
+            "ai_checks_today": VERIFY_DAY["count"] if VERIFY_DAY["day"] == time.strftime("%Y-%m-%d", time.gmtime()) else 0,
+            "ai_checks_daily_limit": config.DAILY_VERIFICATIONS, "sandbox_runtime": config.SANDBOX_RUNTIME or "runc",
             "docker": docker.stdout.strip() or None, "sandbox_ready": ready, "sandbox_status": why,
             "evidence_archive": f"vultr-object-storage:{archive.BUCKET}" if archive.enabled() else None}
 
@@ -334,6 +339,18 @@ def business(ws: str = workspaces.DEMO):
     return {"name": "Bean There Coffee Co.", "counts": counts, "refunded": {"count": refunded[0], "total_cents": refunded[1]},
             "recent_tickets": [dict(zip(["id", "customer", "subject", "created_at"], r, strict=False)) for r in tickets],
             "beanpay": {k: v for k, v in beanpay.ledger(0).items() if k != "refunds"}}
+
+
+def _verify_budget() -> bool:
+    """True if today's global budget of AI checks on hand-written plans has room (and counts this one)."""
+    day = time.strftime("%Y-%m-%d", time.gmtime())
+    with LOCK:
+        if VERIFY_DAY["day"] != day:
+            VERIFY_DAY.update(day=day, count=0)
+        if VERIFY_DAY["count"] >= config.DAILY_VERIFICATIONS:
+            return False
+        VERIFY_DAY["count"] += 1
+        return True
 
 
 def _agent_budget() -> None:

@@ -191,8 +191,14 @@ def _loop(models: str | list[str], messages: list, tools: list, handlers: dict[s
     models = [m.strip() for m in (models.split(",") if isinstance(models, str) else models) if m.strip()]
     called: set[str] = set()
     nudged = False
-    for _ in range(max_turns):
-        _, msg = _complete(ai, models, messages, tools, emit)
+    seen: dict[str, int] = {}  # identical tool calls, to stop a model that keeps re-running the same query
+    for turn in range(max_turns):
+        last = stop_tool and turn >= max_turns - 2
+        if last:  # out of steps: the model must decide now, with only the decision tool available
+            messages.append({"role": "user", "content": f"Your investigation budget is used up. Stop querying and call `{stop_tool}` now "
+                                                        "with your best judgment from what you have already seen."})
+        turn_tools = [t for t in tools if t.get("function", {}).get("name") == stop_tool] if last else tools
+        _, msg = _complete(ai, models, messages, turn_tools, emit)
         native = [{"id": tc.id, "name": tc.function.name, "arguments": tc.function.arguments} for tc in (msg.tool_calls or [])]
         calls = native or _calls_from_text(msg.content or "")
         if native:
@@ -215,10 +221,15 @@ def _loop(models: str | list[str], messages: list, tools: list, handlers: dict[s
                     messages.append({"role": "tool", "tool_call_id": c["id"], "content": "recorded"})
                 return None, args
             handler = handlers.get(name)
+            key = name + json.dumps(args, sort_keys=True, default=str)
+            seen[key] = seen.get(key, 0) + 1
             try:
                 result = handler(**args) if handler else {"error": f"unknown tool {name}"}
             except TypeError as e:  # wrong/missing arguments: tell the model instead of crashing
                 result = {"error": f"bad arguments for {name}: {e}"}
+            if seen[key] > 1 and stop_tool:
+                result = {"note": f"You already ran exactly this {seen[key] - 1} time(s); the result is the same. "
+                                  f"If you have enough evidence, call `{stop_tool}` now.", "result": result}
             payload = json.dumps(result, default=str)[:12000]
             if native:
                 messages.append({"role": "tool", "tool_call_id": c["id"], "content": payload})

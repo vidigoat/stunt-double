@@ -4,11 +4,16 @@
 
 <p align="center">
   <a href="https://github.com/vidigoat/stunt-double/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/vidigoat/stunt-double/actions/workflows/ci.yml/badge.svg"></a>
-  <img alt="Built on Vultr" src="https://img.shields.io/badge/built%20on-Vultr-0A0A0A?style=flat-square">
+  <a href="https://149-28-206-186.sslip.io"><img alt="Live on Vultr" src="https://img.shields.io/badge/live%20on-Vultr-1463FF?style=flat-square&logo=vultr&logoColor=white"></a>
   <img alt="Sandbox" src="https://img.shields.io/badge/sandbox-gVisor%20%C2%B7%20two--phase-0A0A0A?style=flat-square">
   <img alt="MCP" src="https://img.shields.io/badge/MCP-server-0A0A0A?style=flat-square">
   <img alt="Python SDK" src="https://img.shields.io/badge/SDK-python-0A0A0A?style=flat-square">
   <img alt="License" src="https://img.shields.io/badge/license-MIT-0A0A0A?style=flat-square">
+</p>
+
+<p align="center">
+  <a href="https://149-28-206-186.sslip.io"><b>▶ Live demo on Vultr: https://149-28-206-186.sslip.io</b></a><br>
+  <sub>Real agent on Vultr Serverless Inference · every rehearsal in gVisor on a Vultr VM · MCP at <code>/mcp</code> · try "Break it yourself"</sub>
 </p>
 
 <p align="center">

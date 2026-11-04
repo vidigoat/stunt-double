@@ -25,6 +25,13 @@ services:
       SD_SMTP_PORT: "1025"
       SD_MAILPIT_API: http://mailpit:8025/mail
       SD_PUBLIC_URL: "https://${SITE_HOST}"
+      # Models and spend caps live in the repo (not the VM's .env), so a push changes them. Measured in docs/VERIFIER_EVAL.md:
+      # glm-5.3 (non-flash) spends its whole budget reasoning and never answers; the flash models answer in seconds.
+      SD_AGENT_MODEL: "${SD_AGENT_MODEL_PIN:-glm-5.3-flash,qwen3.8-flash-next}"
+      SD_VERIFIER_MODEL: "${SD_VERIFIER_MODEL_PIN:-glm-5.3-flash,qwen3.8-flash-next}"
+      # $50 hard cap for the hackathon: worst case 5 days x (100 agent runs + 200 AI checks) ~ $30 + the VM ~ $4.
+      SD_DAILY_AGENT_RUNS: "${SD_DAILY_AGENT_RUNS_PIN:-100}"
+      SD_DAILY_VERIFICATIONS: "${SD_DAILY_VERIFICATIONS_PIN:-200}"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock     # to start sandboxes on the host daemon
       - /opt/stunt-double/data:/opt/stunt-double/data # same path inside and outside, so bind mounts line up

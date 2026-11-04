@@ -265,3 +265,13 @@ def test_rehearsals_do_not_use_up_uploads_or_resets(monkeypatch):
         main._rate_limit(req)
     main._rate_limit(req, per_hour=10, kind="upload")       # ...but can still upload a database
     main._rate_limit(req, per_hour=20, kind="demo reset")   # ...and reset the demo
+
+
+# ---- spend protection: AI checks of hand-written plans have a global daily budget ---------------------
+def test_ai_check_budget_is_global_and_daily(monkeypatch):
+    monkeypatch.setattr(main.config, "DAILY_VERIFICATIONS", 2)
+    main.VERIFY_DAY.update(day="", count=0)
+    assert main._verify_budget() and main._verify_budget()
+    assert not main._verify_budget()
+    main.VERIFY_DAY.update(day="1999-01-01", count=99)  # a new day resets it
+    assert main._verify_budget()
