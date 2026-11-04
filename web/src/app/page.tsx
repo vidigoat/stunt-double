@@ -21,7 +21,7 @@ const HERO: ApprovalView = {
   flags: [],
   verdict: {
     verdict: "concerns",
-    headline: "640 of these customers were never double-charged",
+    headline: "Plan refunds 640 customers who were never double-charged",
     summary: "The plan refunds anyone who bought the same item twice on the same day. Most of them placed two separate orders on purpose. Only 104 customers were charged twice for one order.",
     concerns: [
       { severity: "high", title: "Over-refund of $32,268", detail: "640 legitimate repeat purchases would be refunded." },
@@ -110,7 +110,7 @@ function Hero() {
             <Link href="/app" className={cn(buttonVariants(), "h-10 rounded-full px-4")}>Ask the agent to fix it</Link>
             <span className="ml-auto font-mono text-xs text-muted-foreground">Approve is locked until concerns are resolved</span>
           </ApprovalCard>
-          <p className="mt-3 text-xs text-muted-foreground">Numbers from a real rehearsal of the demo business. The verdict text is an example of what the verifier reports.</p>
+          <p className="mt-3 text-xs text-muted-foreground">A real rehearsal on Vultr. The headline is the AI verifier&apos;s own words (glm-5.3-flash on Vultr Serverless Inference). It caught this plan in 4 of 4 runs, with 0 false alarms on correct plans. <a className="underline underline-offset-4 hover:text-foreground" href="https://github.com/vidigoat/stunt-double/blob/main/docs/VERIFIER_EVAL.md">See the eval</a>.</p>
         </div>
         <div className="mx-auto mt-16 max-w-4xl">
           <div className="font-mono text-[11px] uppercase tracking-wider text-muted-foreground">Works with the agents and tools you already use</div>
@@ -256,9 +256,9 @@ function Features() {
 }
 
 const PROOF = [
-  { n: "94", k: "API tests in CI, plus MCP and browser end-to-end", href: `${GITHUB}/tree/main/api/tests` },
+  { n: "16/16", k: "bad plans caught on the live Vultr server, 0 of 8 false alarms on correct ones", href: `${GITHUB}/blob/main/docs/VERIFIER_EVAL.md` },
+  { n: "95", k: "API tests in CI, plus MCP and browser end-to-end", href: `${GITHUB}/tree/main/api/tests` },
   { n: "3", k: "security reviews, from forged reports to lookalike approvers. Every finding fixed with a test", href: `${GITHUB}/blob/main/SECURITY.md` },
-  { n: "< 1 s", k: "per two-phase rehearsal (0.8 s median in the sandbox)", href: `${GITHUB}/blob/main/docs/BENCH.md` },
   { n: "0", k: "lines of agent code ever run against production", href: `${GITHUB}/blob/main/api/app/apply.py` },
 ];
 

@@ -16,6 +16,8 @@
   <sub>Real agent on Vultr Serverless Inference · every rehearsal in gVisor on a Vultr VM · MCP at <code>/mcp</code> · try "Break it yourself"</sub>
 </p>
 
+<p align="center"><b>Measured on the live server (gVisor + Vultr Serverless Inference): 16/16 bad plans caught · 0/8 false alarms · 4/4 on the trap rules can't see.</b> <a href="docs/VERIFIER_EVAL.md">Eval →</a></p>
+
 <p align="center">
   <b>The safety layer between AI agents and your business.</b><br>
   Every action an agent takes (database writes, payments, emails, any API call) is rehearsed on a throwaway copy of
@@ -259,7 +261,7 @@ python api/eval/run_eval.py --api https://<host> --runs 10      # real models: h
 
 | Suite | What it proves |
 |---|---|
-| `api/tests/` (94 tests) | engine, containment, adversarial attacks, policy + simulator, connectors + notifications, rollback, two-person rule, workspaces, diff explorer, SDK + CLI, agent loop, archive, security reviews |
+| `api/tests/` (95 tests) | engine, containment, adversarial attacks, policy + simulator, connectors + notifications, rollback, two-person rule, workspaces, diff explorer, SDK + CLI, agent loop, archive, security reviews |
 | `mcp/tests/test_mcp.py` | a real MCP client over stdio against the live API |
 | `e2e/golden-path.js` | a real browser: containment, approve + apply, two-person undo, Slack delivery, audit trail, phone layout |
 
