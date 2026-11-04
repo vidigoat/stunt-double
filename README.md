@@ -154,6 +154,15 @@ whenever `main` changes.
 | `mcp/tests/test_mcp.py` | a real MCP client over stdio against the live API |
 | `e2e/golden-path.js` | a real browser: landing, containment, approve + apply, audit trail, policy, phone layout |
 
+## Measure it
+
+```bash
+python api/eval/bench.py --runs 30                    # rehearsal latency (no AI): 0.8 s median per two-phase rehearsal
+python api/eval/run_eval.py --api https://<host> --runs 10   # real models: how often each trap is caught
+```
+
+Results: [`docs/BENCH.md`](docs/BENCH.md) · [`docs/EVAL.md`](docs/EVAL.md) (written by the eval run).
+
 ## Repo map
 
 ```
