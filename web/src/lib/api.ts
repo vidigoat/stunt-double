@@ -14,6 +14,7 @@ export type Consequences = {
   emails: { count: number; samples: { to: string; subject: string; body: string }[] };
   blocked: { kind: string; target: string }[];
   guards: { env_keys?: string[]; uid?: number; hostname?: string; root_writable?: boolean };
+  audit?: { emails?: { vip_count?: number; templated_count?: number }; refunds?: { over_refunded_count?: number } };
   sandbox: { id: string; runtime: string; network: string; memory: string; timeout_s: number; read_only_root: boolean; exit_code: number; killed: string | null; wall_ms: number; destroyed: boolean };
 };
 export type Attempt = { n: number; sandbox_id: string; code: string; summary: string; consequences: Consequences; flags: Flag[]; plan_sha256?: string; effects_sha256?: string | null; created_at?: number };

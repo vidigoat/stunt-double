@@ -26,6 +26,7 @@ const HERO: ApprovalView = {
     ],
   },
   sandboxId: "sd-7f3a91c2", sandboxMs: 512, runtime: "runsc",
+  plain: "If approved, this refunds $37,404.00 across 744 charges, emails 744 people (8 VIPs) and changes 744 charges (refunded_at, status). Nothing else leaves the sandbox.",
 };
 
 const STEPS = [
@@ -34,7 +35,17 @@ const STEPS = [
   { n: "03", title: "Approve", body: "You see what would happen, in plain English, checked against what you asked for. Only then does it run for real." },
 ];
 
+const ATTACKS = [
+  ["DELETE FROM customers", "sandbox 0 · production 1,300 · approval locked"],
+  ["send data to evil.example.com", "DNS blocked and reported"],
+  ["2 GB memory bomb", "stopped at the ceiling"],
+  ["fork bomb · infinite loop", "64 PIDs · 60 s cap"],
+  ["forge the report", "ignored: a fresh container measures"],
+  ["symlink to a host file", "refused, never read"],
+];
+
 const FAQ = [
+  { q: "Could a malicious plan fake the report it gives you?", a: "No. The plan runs in one sandbox and only produces a modified copy of the data. A second, fresh sandbox that the plan never ran in measures exactly what changed and writes everything you see and everything that gets applied. Our test suite includes plans that try to forge that report." },
   { q: "Why not just use a staging environment?", a: "Staging has stale or fake data, and the damage depends on your real data. A database transaction can't un-send an email or un-refund money. And the person approving usually can't read SQL. Stunt Double shows consequences, not code." },
   { q: "What if the agent calls something you didn't expect?", a: "The sandbox has no network at all. Any unexpected call fails and shows up as a blocked side effect, so it fails closed. Payments and email are replaced by recorders, so we can show you exactly what would have been sent." },
   { q: "Does the agent's code ever touch my real systems?", a: "No. The agent's code only runs inside the sandbox. When you approve, Stunt Double replays the exact recorded changes you saw, after checking that none of those rows changed since the rehearsal (the drift check)." },
@@ -172,7 +183,17 @@ function Features() {
           <div className="col-span-2 flex items-center justify-center gap-2 rounded-lg bg-muted px-3 py-2 font-mono text-xs"><Ban className="size-3.5 text-damage" /> evil.example.com, DNS blocked · approval locked</div>
         </div>
       </Row>
-      <Row eyebrow="Isolate" title={<>Nothing leaves <em>the sandbox.</em></>}
+      <Row eyebrow="Measure" title={<>The plan <em>can&apos;t lie.</em></>}
+        body="The plan runs in one sandbox. A second, fresh sandbox running only our code measures what really changed. That measurement, not the plan's own story, is what you see and what gets applied. Every attack below runs in CI.">
+        <ul className="space-y-2">
+          {ATTACKS.map(([k, v]) => (
+            <li key={k} className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 rounded-lg border bg-background px-3 py-2.5 font-mono text-[13px]">
+              <span className="text-damage">{k}</span><span className="text-muted-foreground">{v}</span>
+            </li>
+          ))}
+        </ul>
+      </Row>
+      <Row flip eyebrow="Isolate" title={<>Nothing leaves <em>the sandbox.</em></>}
         body="Every rehearsal gets a fresh gVisor container on Vultr Cloud Compute. The agent never sees a credential, and the clone is destroyed when the run ends.">
         <ul className="grid gap-2 sm:grid-cols-2">
           {guards.map((g) => (
@@ -182,7 +203,7 @@ function Features() {
           ))}
         </ul>
       </Row>
-      <Row flip eyebrow="Apply" title={<>Never applies a <em>stale</em> plan.</>}
+      <Row eyebrow="Apply" title={<>Never applies a <em>stale</em> plan.</>}
         body="Approving replays exactly the changes you saw. If anyone touched those rows since the rehearsal, nothing is applied and you're asked to rehearse again.">
         <div className="space-y-2 font-mono text-[13px]">
           {[["drift check", "104 rows unchanged"], ["database", "104 charges refunded"], ["BeanPay", "104 refunds · $5,136"], ["email", "104 delivered"]].map(([k, v]) => (
@@ -196,11 +217,35 @@ function Features() {
   );
 }
 
+function Mcp() {
+  return (
+    <section id="mcp" className="mx-auto max-w-6xl scroll-mt-20 px-4 pb-24 sm:px-6">
+      <div className="grid items-center gap-8 rounded-3xl border bg-card p-6 sm:p-10 md:grid-cols-2 md:gap-14">
+        <div>
+          <div className="font-mono text-xs uppercase tracking-wider text-muted-foreground">Any agent</div>
+          <h3 className="mt-3 font-display text-4xl leading-tight">One tool call <em>before it acts.</em></h3>
+          <p className="mt-3 max-w-md text-[15px] leading-relaxed text-muted-foreground">Stunt Double ships an MCP server. Claude Code, Cursor or your own agent calls <span className="font-mono text-foreground">rehearse()</span> and gets the consequences, the policy flags and a link for a human. There is no approve tool: an agent can never approve its own plan.</p>
+        </div>
+        <pre className="min-w-0 overflow-x-auto rounded-2xl bg-foreground p-5 font-mono text-[13px] leading-relaxed text-background">{`$ claude mcp add --transport http \\
+    stunt-double https://<host>/mcp
+
+> rehearse(task, plan_code)
+{
+  "refunds": 104,
+  "money_out_usd": 5136.0,
+  "blocked_by_policy": [],
+  "approval_url": "https://<host>/app?run=…"
+}`}</pre>
+      </div>
+    </section>
+  );
+}
+
 function Stack() {
   return (
     <section className="border-y bg-card">
       <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-center gap-x-10 gap-y-3 px-4 py-8 font-mono text-[13px] text-muted-foreground sm:px-6">
-        <span className="text-foreground">Built on Vultr</span><span>Cloud Compute</span><span>Serverless Inference</span><span>gVisor sandboxes</span><span>GLM-5.3 agents</span>
+        <span className="text-foreground">Built on Vultr</span><span>Cloud Compute</span><span>Serverless Inference</span><span>gVisor sandboxes</span><span>GLM-5.3 agents</span><span>MCP server</span>
       </div>
     </section>
   );
@@ -254,6 +299,7 @@ export default function Home() {
       <Statement />
       <How />
       <Features />
+      <Mcp />
       <Stack />
       <Business />
       <Faq />

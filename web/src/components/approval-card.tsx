@@ -18,7 +18,29 @@ export type ApprovalView = {
   sandboxId?: string;
   sandboxMs?: number;
   runtime?: string;
+  plain?: string;
 };
+
+/** A deterministic, plain-English sentence from the measured consequences (no AI involved). */
+export function plainEnglish(c: Attempt["consequences"]): string {
+  if (!c.ok) return "The plan crashed in the sandbox, so nothing would be applied. Ask the agent to fix it or reject it.";
+  const parts: string[] = [];
+  if (c.payments.count) parts.push(`refunds ${(c.payments.total_cents / 100).toLocaleString("en-US", { style: "currency", currency: "USD" })} across ${num(c.payments.count)} charges`);
+  const vip = c.audit?.emails?.vip_count ?? 0;
+  if (c.emails.count) parts.push(`emails ${num(c.emails.count)} ${c.emails.count === 1 ? "person" : "people"}${vip ? ` (${num(vip)} VIP${vip === 1 ? "" : "s"})` : ""}`);
+  for (const [t, d] of Object.entries(c.tables)) {
+    if (d.dropped) parts.push(`drops the entire ${t} table (${num(d.rows_before)} rows)`);
+    else {
+      if (d.deleted) parts.push(`deletes ${num(d.deleted)} of ${num(d.rows_before)} ${t}`);
+      if (d.updated) parts.push(`changes ${num(d.updated)} ${t} (${d.changed_columns.join(", ")})`);
+      if (d.inserted) parts.push(`adds ${num(d.inserted)} ${t}`);
+    }
+  }
+  if (!parts.length) return "If approved, nothing would change: no rows, no money, no emails.";
+  const blocked = c.blocked.length ? ` It also tried to reach ${c.blocked[0].target}, which was blocked.` : "";
+  const list = parts.length > 1 ? `${parts.slice(0, -1).join(", ")} and ${parts.at(-1)}` : parts[0];
+  return `If approved, this ${list}.${blocked} Nothing else leaves the sandbox.`;
+}
 
 export function viewFromAttempt(task: string, a: Attempt, verdict: Verdict | null, flags: Flag[]): ApprovalView {
   const c = a.consequences;
@@ -27,7 +49,7 @@ export function viewFromAttempt(task: string, a: Attempt, verdict: Verdict | nul
   const big = tables.sort((x, y) => (y[1].deleted + y[1].updated + y[1].inserted) - (x[1].deleted + x[1].updated + x[1].inserted))[0];
   const biggest = big ? `${big[0]}: ${[big[1].deleted && `${num(big[1].deleted)} deleted`, big[1].updated && `${num(big[1].updated)} updated`, big[1].inserted && `${num(big[1].inserted)} added`].filter(Boolean).join(", ")}` : undefined;
   return { task, moneyCents: c.payments.total_cents, refunds: c.payments.count, emails: c.emails.count, rowsChanged: rows, biggestChange: biggest,
-    verdict, flags, sandboxId: c.sandbox?.id, sandboxMs: c.sandbox?.wall_ms, runtime: c.sandbox?.runtime };
+    verdict, flags, sandboxId: c.sandbox?.id, sandboxMs: c.sandbox?.wall_ms, runtime: c.sandbox?.runtime, plain: plainEnglish(c) };
 }
 
 function tone(v: ApprovalView) {
@@ -60,7 +82,10 @@ export function ApprovalCard({ view, children, className, label = "Approval requ
         {view.sandboxId ? <span className="truncate">rehearsed in {view.sandboxId} · {view.runtime === "runsc" ? "gVisor" : view.runtime} · {view.sandboxMs} ms · destroyed</span> : null}
       </div>
       <div className="space-y-5 p-5 sm:p-6">
-        <div className="text-[15px] leading-snug text-muted-foreground">“{view.task}”</div>
+        <div className="space-y-1.5">
+          <div className="text-[15px] leading-snug text-muted-foreground">“{view.task}”</div>
+          {view.plain ? <p className="text-[15px] leading-snug">{view.plain}</p> : null}
+        </div>
         <div className="grid grid-cols-2 gap-2.5 md:grid-cols-4">
           <Stat label="Money out" value={<CountUp value={view.moneyCents} format="usd" />} hot={hot && view.moneyCents > 0} sub={`${num(view.refunds)} refunds`} />
           <Stat label="Emails" value={<CountUp value={view.emails} />} sub="to real customers" />
