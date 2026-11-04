@@ -28,6 +28,7 @@ RUNS: dict[str, dict] = {}
 HISTORY: dict[str, list] = {}           # ops-agent conversation per run (kept server-side)
 LOCK = threading.Lock()
 SANDBOX_SLOTS = threading.BoundedSemaphore(3)
+APPLY_LOCK = threading.Lock()            # one apply at a time: ledger check + replay are serialised across runs
 RATE: dict[str, list[float]] = defaultdict(list)
 AGENT_DAY: dict[str, int] = {"day": "", "count": 0}
 
@@ -321,8 +322,11 @@ def get_run(rid: str):
 @app.post("/api/runs/{rid}/fix")
 def fix_run(rid: str, body: FixIn):
     run = _get(rid)
-    if run["status"] != "review" or run["mode"] != "agent":
-        raise HTTPException(409, "Only an agent run under review can be fixed")
+    with LOCK:  # claim atomically so a fix can't race an approval or another fix
+        if run["status"] != "review" or run["mode"] != "agent":
+            raise HTTPException(409, "Only an agent run under review can be fixed")
+        run["status"] = "planning"
+        _save(run)
     v = run.get("verdict") or {}
     feedback = "\n".join(filter(None, [v.get("fix_instructions"), *[f"- {c['title']}: {c['detail']}" for c in v.get("concerns", [])], body.note]))
     with LOCK:
@@ -358,15 +362,23 @@ def approve_run(rid: str, body: ApproveIn | None = None):
         effects = open(att["effects_path"], "rb").read()
         if hashlib.sha256(effects).hexdigest() != att.get("effects_sha256"):
             raise HTTPException(409, "Integrity check failed: the recorded effects changed after the rehearsal")
-        already = beanpay.refunded_charges([p["charge_id"] for p in json.loads(effects).get("payments", [])])
-        if already:
-            raise HTTPException(409, f"{len(already)} of these charges were already refunded through BeanPay (e.g. #{already[0]}). Rehearse again.")
         name = " ".join(((body.approver if body else None) or "").split())[:80] or "Demo approver"
         run["approval"] = {"approved_at": time.time(), "approver": name, "plan_sha256": att["plan_sha256"],
                            "effects_sha256": att["effects_sha256"], "sandbox_id": att["sandbox_id"], "policy": policy.load(),
                            "warnings": [f["title"] for f in att["flags"]]}
         run["status"] = "applying"
         _save(run)
+    with APPLY_LOCK:
+        already = beanpay.refunded_charges([p["charge_id"] for p in json.loads(effects).get("payments", [])])
+        if already:
+            with LOCK:
+                run["status"], run["approval"] = "review", None
+                _save(run)
+            raise HTTPException(409, f"{len(already)} of these charges were already refunded through BeanPay (e.g. #{already[0]}). Rehearse again.")
+        return _apply_claimed(run, att, rid)
+
+
+def _apply_claimed(run: dict, att: dict, rid: str):
     _emit(run, "human", "Approved. Running the drift check, then applying the approved changes for real",
           f"plan {att['plan_sha256'][:12]} · effects {att['effects_sha256'][:12]}")
     try:

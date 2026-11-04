@@ -339,7 +339,8 @@ def red_flags(c: dict, pol: dict | None = None) -> list[dict]:
     if e.get("duplicate_recipient_count"):
         flag("duplicate_emails", False, f"{e['duplicate_recipient_count']} customers would get the same email more than once", "Usually a join or loop bug.", "medium")
     if e.get("not_a_customer_count"):
-        flag("unknown_recipients", False, f"{e['not_a_customer_count']} emails go to addresses that aren't customers", "Check the recipient list.", "medium")
+        flag("unknown_recipients", True, f"{e['not_a_customer_count']} emails go to addresses that aren't customers",
+             "Only customers can be emailed from a rehearsed plan.")
     n_emails = c.get("emails", {}).get("count", 0)
     if n_emails > p["max_emails_per_run"]:
         flag("max_emails_per_run", False, f"Sends {n_emails:,} emails", f"Above the {p['max_emails_per_run']:,}-email review threshold.", "medium")

@@ -187,11 +187,16 @@ EMAIL = re.compile(r"[\w.+-]+@[\w-]+\.[\w.]+")
 PROMO = re.compile(r"\b\d{1,2}\s?% off\b|\bdiscount\b|\bpromo(?:tion)?\b|\bcoupon\b|\bsale\b|\buse (?:the )?code\b|\bspecial offer\b", re.I)
 
 
+def _unsafe_header(value: str) -> bool:
+    """Anything that could split or break an email header line (\r, \n, \v, \x85, \u2028, ... or any control char)."""
+    return len(value.splitlines()) > 1 or any(ord(ch) < 32 or ord(ch) == 127 or 0x80 <= ord(ch) <= 0x9F for ch in value)
+
+
 def audit(before: dict, payments: list, emails: list) -> dict:
     """Facts about the intended side effects, checked against the data as it was BEFORE the plan ran."""
     charges = before.get("charges", {}).get("rows", {})
     customers = before.get("customers", {}).get("rows", {})
-    by_email = {r.get("email"): r for r in customers.values()}
+    by_email = {str(r.get("email", "")).lower(): r for r in customers.values()}
     per_charge = Counter(p["charge_id"] for p in payments)
     over, already, unknown = [], [], []
     for p in payments:
@@ -209,17 +214,17 @@ def audit(before: dict, payments: list, emails: list) -> dict:
         text = e["subject"] + "\n" + e["body"]
         # Exactly one bare address, no header injection; anything else is refused (smtplib would happily send it).
         addrs = email.utils.getaddresses([e["to"]])
-        if ("\r" in e["to"] or "\n" in e["to"] or "\r" in e["subject"] or "\n" in e["subject"] or len(addrs) != 1
-                or addrs[0][1] != e["to"].strip() or "@" not in addrs[0][1]):
+        if (_unsafe_header(e["to"]) or _unsafe_header(e["subject"]) or len(addrs) != 1
+                or addrs[0][1] != e["to"] or "@" not in addrs[0][1]):
             invalid.append({"to": e["to"][:120], "reason": "not exactly one plain address (or a header line break)"})
             continue
         m = PLACEHOLDER.search(text)
         if m:
             templated.append({"to": e["to"], "match": m.group(0)})
-        others = [x for x in EMAIL.findall(e["body"]) if x != e["to"] and x in by_email]
+        others = [x for x in EMAIL.findall(e["body"]) if x.lower() != e["to"].lower() and x.lower() in by_email]
         if others or CARD.search(e["body"]):
             leaks.append({"to": e["to"], "reason": "contains another customer's email" if others else "contains a card-like number"})
-        c = by_email.get(e["to"])
+        c = by_email.get(e["to"].lower())
         if c is None:
             strangers.append(e["to"])
         else:

@@ -21,8 +21,8 @@ def _db() -> sqlite3.Connection:
 def refund(charge_id: int, amount_cents: int, reason: str, run_id: str, idempotency_key: str) -> dict:
     db = _db()
     with db:
-        row = db.execute("SELECT id FROM refunds WHERE idempotency_key=?", (idempotency_key,)).fetchone()
-        if row:
+        row = db.execute("SELECT id FROM refunds WHERE idempotency_key=? OR charge_id=?", (idempotency_key, charge_id)).fetchone()
+        if row:  # one refund per charge, across every run
             return {"id": row[0], "status": "duplicate_ignored"}
         rid = "re_" + uuid.uuid4().hex[:14]
         db.execute("INSERT INTO refunds VALUES (?,?,?,?,?,?,?)", (rid, charge_id, amount_cents, reason, run_id,

@@ -52,6 +52,11 @@ test in `api/tests/test_review_fixes.py`:
 | Medium | Mass *updates* of a protected table weren't flagged | `max_update_pct_protected` rule (default 20%) |
 | Low | Reject after apply; runaway agent SQL; spoofable `X-Forwarded-For` | Reject only during review; 5 s query deadline; right-most forwarded address |
 
+**Round 2 (re-review of the fixes):** whitespace/case tricks in addresses, Unicode line breaks in headers, a fix-vs-approve
+race and a cross-run refund race. Fixed: exact single-address match with case-insensitive customer lookup and non-customers
+blocked; any control or line-break character in To/Subject is refused and every email is built before the database is
+touched; `fix` claims the run atomically; one global apply lock plus BeanPay's one-refund-per-charge rule.
+
 ## Known limitations (hackathon scope)
 - The API container talks to the host Docker daemon to start sandboxes; a compromise of the API process is host-level.
   Production deployments should use a dedicated sandbox host or a rootless/remote runtime.

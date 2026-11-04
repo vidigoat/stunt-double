@@ -66,6 +66,14 @@ def apply(run_id: str, effects_path: str) -> dict:
     if any(d.get("dropped") or d.get("created") or d.get("schema_changed") for d in changes.values()):
         raise ValueError("Schema changes (CREATE/DROP/ALTER TABLE) are never auto-applied")
 
+    # Build every email BEFORE touching the database: a malformed header must fail while nothing has changed.
+    messages = []
+    for e in effects["emails"]:
+        msg = EmailMessage()
+        msg["From"], msg["To"], msg["Subject"] = "Bean There Coffee Co. <hello@beanthere.example>", e["to"], e["subject"]
+        msg.set_content(e["body"])
+        messages.append(msg)
+
     db = sqlite3.connect(config.PROD_DB, isolation_level=None)
     db.execute("BEGIN IMMEDIATE")  # lock: nothing can change between the drift check and the write
     try:
@@ -99,10 +107,7 @@ def apply(run_id: str, effects_path: str) -> dict:
     sent, failed = 0, 0
     try:
         with smtplib.SMTP(config.SMTP_HOST, config.SMTP_PORT, timeout=10) as smtp:
-            for e in effects["emails"]:
-                msg = EmailMessage()
-                msg["From"], msg["To"], msg["Subject"] = "Bean There Coffee Co. <hello@beanthere.example>", e["to"], e["subject"]
-                msg.set_content(e["body"])
+            for msg in messages:
                 try:
                     smtp.send_message(msg); sent += 1
                 except Exception:  # noqa: BLE001

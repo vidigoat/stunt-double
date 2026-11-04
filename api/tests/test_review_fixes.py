@@ -119,3 +119,47 @@ def test_8_reject_only_while_awaiting_review_and_query_timeout(fresh_business):
     t0 = time.time()
     r = agent.run_query("WITH RECURSIVE n(x) AS (SELECT 1 UNION ALL SELECT x + 1 FROM n) SELECT COUNT(*) FROM n")
     assert "error" in r and time.time() - t0 < 15
+
+
+# ---- second review round -----------------------------------------------------------------------------
+@needs_docker
+def test_r2_address_whitespace_and_case_cannot_dodge_consent(fresh_business):
+    db = sqlite3.connect(fresh_business)
+    email = db.execute("SELECT email FROM customers WHERE marketing_opt_in = 0 LIMIT 1").fetchone()[0]
+    for to in [email + " ", " " + email]:
+        c = rehearse(f'ctx.email.send({to!r}, "Hi", "Use code BEANS10 for 10% off")')["consequences"]
+        assert "invalid_recipients" in critical(c), repr(to)
+    c = rehearse(f'ctx.email.send({email.upper()!r}, "Hi", "Use code BEANS10 for 10% off")')["consequences"]
+    assert "block_marketing_to_opted_out" in critical(c)
+    c = rehearse('ctx.email.send("stranger@example.net", "Hi", "Hello")')["consequences"]
+    assert "unknown_recipients" in critical(c)
+
+
+@needs_docker
+def test_r2_unicode_line_breaks_in_headers_are_blocked(fresh_business):
+    for subject in ["Hi Bcc: x@y.z", "Hi\x0bthere", "Hi\x85there", "Hi\x1cthere"]:
+        c = rehearse(f'ctx.email.send("ava.patel1@example.com", {subject!r}, "Hello")')["consequences"]
+        assert "invalid_recipients" in critical(c), repr(subject)
+
+
+def test_r2_apply_builds_emails_before_touching_the_database(fresh_business, tmp_path):
+    bad = {"changes": {"charges": {"dropped": False, "created": False, "deleted": [], "inserted": [], "updated": [
+        {"rowid": 8, "before": dict(zip(["id", "order_id", "customer_id", "amount_cents", "status", "created_at", "refunded_at"],
+                                        sqlite3.connect(fresh_business).execute("SELECT * FROM charges WHERE rowid=8").fetchone())),
+         "after": {}, "changed": ["status"]}]}},
+        "payments": [{"charge_id": 8, "amount_cents": 1, "reason": "x"}], "emails": [{"to": "a@b.c", "subject": "x y", "body": "b"}]}
+    bad["changes"]["charges"]["updated"][0]["after"] = {**bad["changes"]["charges"]["updated"][0]["before"], "status": "refunded"}
+    p = tmp_path / "effects.json"
+    p.write_text(json.dumps(bad))
+    with pytest.raises(ValueError):
+        applier.apply("run_x", str(p))
+    assert sqlite3.connect(fresh_business).execute("SELECT status FROM charges WHERE rowid=8").fetchone()[0] == "succeeded"
+    from app import beanpay
+    assert beanpay.ledger()["count"] == 0
+
+
+def test_r2_beanpay_refunds_each_charge_once_across_runs(fresh_business):
+    from app import beanpay
+    assert beanpay.refund(8, 1800, "dup", "run_a", "run_a:0")["status"] == "succeeded"
+    assert beanpay.refund(8, 1800, "dup", "run_b", "run_b:0")["status"] == "duplicate_ignored"
+    assert beanpay.ledger()["count"] == 1
