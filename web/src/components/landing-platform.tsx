@@ -5,13 +5,15 @@ import { Database, FileCheck2, KeyRound, Mail, Scale, Undo2, Users, Webhook, Cre
 import { num, usd } from "@/lib/api";
 
 const CONNECTORS = [
-  { icon: Database, name: "Your database", line: "Every changed row is measured on a clone. Approval replays exactly those rows, only if nobody touched them since." },
+  { icon: Database, name: "Your database", line: "Every changed row is measured on a clone and replayed only if nobody touched it since. Upload your own SQLite to try it on your schema." },
   { icon: CreditCard, name: "Payments", line: "Refunds are recorded, checked against the real charge and the ledger, and paid once per charge. Never twice." },
   { icon: Mail, name: "Email", line: "One real customer per message, no broken templates, no leaked data, and unsubscribes are respected." },
   { icon: Webhook, name: "Any HTTP API", line: "Slack, your CRM, anything. Calls are recorded in the sandbox and delivered through a connector after approval." },
 ];
 
 const CONTROLS = [
+  { icon: Scale, name: "Policy simulator", line: "Change a rule and see which recent rehearsals it would have blocked or sent to two approvers, before you save it." },
+  { icon: FileCheck2, name: "Every row, inspectable", line: "Search and page through every changed row of the recorded effects. Not a sample: exactly what approval replays." },
   { icon: Users, name: "Two-person rule", line: "Big payouts, large changes and every undo need two different people. One click can't move $37,404." },
   { icon: Undo2, name: "Rehearsed undo", line: "Regret an approval? Roll the data back. The undo is rehearsed, drift-checked and approved like any change." },
   { icon: FileCheck2, name: "Evidence, not vibes", line: "Each approval is bound to a SHA-256 of the plan and its effects. Download the evidence bundle for any run." },

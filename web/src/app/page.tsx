@@ -249,7 +249,7 @@ function Features() {
 }
 
 const PROOF = [
-  { n: "58", k: "API tests in CI, plus MCP and browser end-to-end", href: `${GITHUB}/tree/main/api/tests` },
+  { n: "65", k: "API tests in CI, plus MCP and browser end-to-end", href: `${GITHUB}/tree/main/api/tests` },
   { n: "18", k: "attacks blocked, from forged reports to SQL in column names", href: `${GITHUB}/blob/main/SECURITY.md` },
   { n: "< 1 s", k: "per two-phase rehearsal (0.8 s median in the sandbox)", href: `${GITHUB}/blob/main/docs/BENCH.md` },
   { n: "0", k: "lines of agent code ever run against production", href: `${GITHUB}/blob/main/api/app/apply.py` },

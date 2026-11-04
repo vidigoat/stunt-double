@@ -86,6 +86,19 @@ cd ../web && npm install && npm run dev                                   # http
 VULTR_API_KEY=... VULTR_INFERENCE_KEY=... python3 infra/provision.py --region sjc --plan vc2-2c-4gb [--object-storage]
 ```
 
+## Product tour
+
+| Page | What you can do |
+|---|---|
+| **Landing** `/` | run a real `DELETE FROM customers` on the double from the page itself, and watch production survive |
+| **Console** `/app` | ask the agent, or paste any plan ("Break it yourself"); see consequences, blast radius, checks, every changed row, emails, refunds, API calls; approve (one or two people), reject, ask for a fix, rehearse an undo; switch workspace or **upload your own SQLite DB** |
+| **History** `/history` | the audit trail as an inbox: awaiting approval, applied, stopped, undos; search; evidence download per run |
+| **Policy** `/policy` | blocking vs warning rules, two-person thresholds, protected tables, glossary, plus a **simulator** that previews the impact of a change before you save |
+| **Outbox** `/ledger` | everything that actually left the building after approval: BeanPay refunds and API deliveries (Slack, CRM); emails land in the inbox at `/mail` |
+| **Connect** `/connect` | copy-paste setup for Claude Code, Cursor and other MCP clients, the SDK and REST |
+
+When a run needs a human, Stunt Double posts "approval needed" (with a review link) to Slack #ops through the connector.
+
 ## Concepts
 
 | Term | Meaning |
@@ -99,6 +112,7 @@ VULTR_API_KEY=... VULTR_INFERENCE_KEY=... python3 infra/provision.py --region sj
 | **Approval** | One or two named people, bound to `plan_sha256` + `effects_sha256`. |
 | **Replay** | Applying approved effects after an integrity check and a locked drift check. Agent code never runs against production. |
 | **Rollback** | A new run containing the inverse of an applied run's data changes, approved by two people. |
+| **Workspace** | Which database a run targets: the demo business, or a SQLite database you uploaded (up to 20 MB; no WITHOUT ROWID or virtual tables yet). |
 | **Evidence** | A downloadable JSON bundle per run (and optionally archived to Vultr Object Storage). |
 
 ## Connectors: everything an agent touches
@@ -120,7 +134,7 @@ to an observable outbox so you can see real deliveries without third-party accou
 
 ## Connect an agent
 
-**MCP** (Claude Code, Cursor, any MCP client). Tools: `describe_business`, `list_connectors`, `rehearse`, `get_run_status`, `request_undo`. No approve tool.
+**MCP** (Claude Code, Cursor, any MCP client). Tools: `list_workspaces`, `describe_business`, `list_connectors`, `rehearse`, `get_run_status`, `request_undo`. No approve tool.
 
 ```bash
 claude mcp add stunt-double -- python mcp/server.py                         # local, stdio
@@ -226,7 +240,7 @@ python api/eval/run_eval.py --api https://<host> --runs 10      # real models: h
 
 | Suite | What it proves |
 |---|---|
-| `api/tests/` (58 tests) | engine, containment, adversarial attacks, policy, connectors, rollback, two-person rule, SDK, agent loop, archive, both security reviews |
+| `api/tests/` (65 tests) | engine, containment, adversarial attacks, policy + simulator, connectors + notifications, rollback, two-person rule, workspaces, diff explorer, SDK + CLI, agent loop, archive, security reviews |
 | `mcp/tests/test_mcp.py` | a real MCP client over stdio against the live API |
 | `e2e/golden-path.js` | a real browser: containment, approve + apply, two-person undo, Slack delivery, audit trail, phone layout |
 
@@ -239,7 +253,8 @@ api/app/agent.py           ops agent + verifier (tool calling, fallbacks) + poli
 api/app/connectors.py      HTTP connectors: matching, policy, server-side credential injection, outbox
 api/app/apply.py           integrity + drift-checked replay of approved effects
 api/app/rollback.py        inverse of an applied run, reviewed like any change
-api/app/policy.py          rules, glossary, two-person thresholds
+api/app/policy.py          rules, glossary, two-person thresholds, simulator inputs
+api/app/workspaces.py      bring-your-own SQLite: validation, registry, per-run binding
 api/app/main.py            FastAPI: runs, approvals, rollback, SSE stream, history, stats, policy, outbox
 mcp/server.py              MCP server (stdio + streamable HTTP)
 sdk/python/                Python SDK (StuntDouble, @sd.plan, wait_for_decision)
