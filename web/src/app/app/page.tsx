@@ -264,10 +264,28 @@ export default function AppPage() {
         {/* RIGHT: consequences */}
         <div className="min-w-0 space-y-5">
           {!run ? (
-            <div className="flex min-h-[420px] flex-col items-center justify-center rounded-2xl border border-dashed bg-card/50 p-10 text-center">
-              <FlaskConical className="size-8 text-muted-foreground" />
-              <div className="mt-4 font-display text-3xl">Nothing rehearsed yet</div>
-              <p className="mt-2 max-w-sm text-sm text-muted-foreground">Ask the ops agent to do something. Its plan runs on a throwaway copy of the business first, and you&apos;ll see the consequences here.</p>
+            <div className="rounded-2xl border border-dashed bg-card/50 p-6 sm:p-8">
+              <FlaskConical className="size-7 text-muted-foreground" />
+              <div className="mt-4 font-display text-3xl">Try it in three moves</div>
+              <p className="mt-1 max-w-md text-sm text-muted-foreground">Everything runs on a throwaway copy of Bean There Coffee Co. Production only changes when you approve.</p>
+              <ol className="mt-6 space-y-3">
+                {[
+                  { n: "1", t: "Break it", d: "Rehearse a plan that deletes every customer. Watch it hit only the double, and see approval locked.", go: () => { setMode("break"); setCode(BREAK_IT.find((b) => b.label === "Delete every customer")!.code); setBreakTask("Clean up the customer table"); } },
+                  { n: "2", t: "Approve a good one", d: "Pick “A correct refund plan”, rehearse it, approve it. 104 real refunds and emails go out.", go: () => { setMode("break"); setCode(BREAK_IT[0].code); setBreakTask(BREAK_IT[0].task); } },
+                  { n: "3", t: "Ask the agent", d: "Give the AI the double-charge request and see whether Stunt Double catches its plan.", go: () => { setMode("agent"); setTask(EXAMPLES[0]); } },
+                ].map((s) => (
+                  <li key={s.n}>
+                    <button onClick={s.go} className="group flex w-full items-start gap-4 rounded-xl border bg-background p-4 text-left transition hover:border-foreground">
+                      <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-foreground font-mono text-xs text-background">{s.n}</span>
+                      <span className="min-w-0">
+                        <span className="block font-medium">{s.t} <span className="text-muted-foreground transition group-hover:text-foreground">→</span></span>
+                        <span className="mt-0.5 block text-sm text-muted-foreground">{s.d}</span>
+                      </span>
+                    </button>
+                  </li>
+                ))}
+              </ol>
+              <p className="mt-5 text-xs text-muted-foreground">Each step fills in the form on the left. Then press <b className="font-medium text-foreground">Rehearse it</b>.</p>
             </div>
           ) : !view ? (
             <div className="flex min-h-[420px] flex-col items-center justify-center gap-3 rounded-2xl border bg-card p-10 text-center">
