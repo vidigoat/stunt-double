@@ -118,6 +118,9 @@ Stunt Double shows you the difference **before** the money moves. A poisoned sup
 | Header injection / extra recipients in an email | refused: exactly one plain customer address |
 | Replace the DB with a FIFO to hang the host | refused instantly (non-blocking, regular files only) |
 | Approve twice at the same moment | exactly one apply |
+| Send customer data to an unknown API | no connector for that host: approval locked, apply refuses |
+| Bulk-export customer emails to an approved connector | blocked as a data leak |
+| Smuggle credentials in API call headers | auth headers dropped; real credentials only injected after approval |
 | Read environment secrets | the environment is empty |
 
 ## Use it from any agent (MCP)

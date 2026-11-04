@@ -6,6 +6,7 @@ import { ApprovalCard, type ApprovalView } from "@/components/approval-card";
 import { GithubIcon, Mark, Wordmark } from "@/components/brand";
 import { cn } from "@/lib/utils";
 import { Business } from "@/components/landing-business";
+import { ForAgents, LiveStats, Platform } from "@/components/landing-platform";
 
 const GITHUB = "https://github.com/vidigoat/stunt-double";
 const pill = (variant: "default" | "outline" = "default") =>
@@ -66,6 +67,7 @@ function Nav() {
         <Link href="/" aria-label="Stunt Double home"><Wordmark /></Link>
         <div className="hidden items-center gap-7 text-sm text-muted-foreground md:flex">
           <a href="#how" className="hover:text-foreground">How it works</a>
+          <a href="#platform" className="hover:text-foreground">Platform</a>
           <a href="#containment" className="hover:text-foreground">Containment</a>
           <a href="#pricing" className="hover:text-foreground">Pricing</a>
           <a href="#faq" className="hover:text-foreground">FAQ</a>
@@ -90,7 +92,7 @@ function Hero() {
           Let the double<br /><em>take the hit.</em>
         </h1>
         <p className="animate-rise mx-auto mt-6 max-w-xl text-balance text-lg text-muted-foreground [animation-delay:120ms]">
-          Your AI agent rehearses every risky action on a throwaway copy of your business. You approve <span className="text-foreground">consequences</span>, not code.
+          Every action your AI agent takes (database, payments, email, any API) is rehearsed on a throwaway copy of your business first. You approve <span className="text-foreground">consequences</span>, not code.
         </p>
         <div className="animate-rise mt-8 flex flex-wrap items-center justify-center gap-3 [animation-delay:180ms]">
           <Link href="/app" className={pill()}><Play className="size-4 fill-current" /> Try the live demo</Link>
@@ -245,33 +247,9 @@ function Features() {
   );
 }
 
-function Mcp() {
-  return (
-    <section id="mcp" className="mx-auto max-w-6xl scroll-mt-20 px-4 pb-24 sm:px-6">
-      <div className="grid items-center gap-8 rounded-3xl border bg-card p-6 sm:p-10 md:grid-cols-2 md:gap-14">
-        <div>
-          <div className="font-mono text-xs uppercase tracking-wider text-muted-foreground">Any agent</div>
-          <h3 className="mt-3 font-display text-4xl leading-tight">One tool call <em>before it acts.</em></h3>
-          <p className="mt-3 max-w-md text-[15px] leading-relaxed text-muted-foreground">Stunt Double ships an MCP server. Claude Code, Cursor or your own agent calls <span className="font-mono text-foreground">rehearse()</span> and gets the consequences, the policy flags and a link for a human. There is no approve tool: an agent can never approve its own plan.</p>
-        </div>
-        <pre className="min-w-0 overflow-x-auto rounded-2xl bg-foreground p-5 font-mono text-[13px] leading-relaxed text-background">{`$ claude mcp add --transport http \\
-    stunt-double https://<host>/mcp
-
-> rehearse(task, plan_code)
-{
-  "refunds": 104,
-  "money_out_usd": 5136.0,
-  "blocked_by_policy": [],
-  "approval_url": "https://<host>/app?run=…"
-}`}</pre>
-      </div>
-    </section>
-  );
-}
-
 const PROOF = [
-  { n: "46", k: "safety & behaviour tests in CI", href: `${GITHUB}/tree/main/api/tests` },
-  { n: "15", k: "attacks blocked, from forged reports to SQL in column names", href: `${GITHUB}/blob/main/SECURITY.md` },
+  { n: "58", k: "API tests in CI, plus MCP and browser end-to-end", href: `${GITHUB}/tree/main/api/tests` },
+  { n: "18", k: "attacks blocked, from forged reports to SQL in column names", href: `${GITHUB}/blob/main/SECURITY.md` },
   { n: "< 1 s", k: "per two-phase rehearsal (0.8 s median in the sandbox)", href: `${GITHUB}/blob/main/docs/BENCH.md` },
   { n: "0", k: "lines of agent code ever run against production", href: `${GITHUB}/blob/main/api/app/apply.py` },
 ];
@@ -350,8 +328,10 @@ export default function Home() {
       <How />
       <Traps />
       <Features />
-      <Mcp />
+      <Platform />
+      <ForAgents />
       <Proof />
+      <LiveStats />
       <Stack />
       <Business />
       <Faq />

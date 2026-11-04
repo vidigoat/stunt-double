@@ -84,3 +84,13 @@ def test_two_person_rule_for_big_payouts(fresh_business, monkeypatch):
     r = api.post(f"/api/runs/{rid}/approve", json={"approver": "Marco"}).json()
     assert r["status"] == "applied" and r["approval"]["approvers"] == ["Priya", "Marco"]
     policy.reset()
+
+
+@needs_docker
+def test_stats_count_what_was_stopped(fresh_business, monkeypatch):
+    monkeypatch.setattr(main.config, "INFERENCE_KEY", "")
+    api = TestClient(main.app)
+    rid = api.post("/api/runs/manual", json={"task": "clean up", "code": "def run(ctx):\n    ctx.db.execute('DELETE FROM customers')\n"}).json()["id"]
+    wait(api, rid)
+    st = api.get("/api/stats").json()
+    assert st["stopped"] >= 1 and st["rows_protected"] >= 1300 and st["rehearsals"] >= 1

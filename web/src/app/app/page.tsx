@@ -105,7 +105,7 @@ export default function AppPage() {
   const [mode, setMode] = useState<"agent" | "break">("agent");
   const [code, setCode] = useState(BREAK_IT[0].code);
   const [breakTask, setBreakTask] = useState(BREAK_IT[0].task);
-  const [touchedMode, setTouchedMode] = useState(false);
+  const touchedMode = useRef(false);
   const [run, setRun] = useState<Run | null>(null);
   const [busy, setBusy] = useState(false);
   const [approver, setApprover] = useState("");
@@ -116,7 +116,7 @@ export default function AppPage() {
   const refreshBiz = useCallback(() => api.business().then(setBiz).catch(() => {}), []);
   useEffect(() => {
     refreshBiz();
-    api.health().then((h) => { setHealth(h); if (!h.inference_configured) setMode((m) => (touchedMode ? m : "break")); }).catch(() => {});
+    api.health().then((h) => { setHealth(h); if (!h.inference_configured) setMode((m) => (touchedMode.current ? m : "break")); }).catch(() => {});
   }, [refreshBiz]);
 
   // Deep link: /app?run=<id> opens a past run (from History).
@@ -256,7 +256,7 @@ export default function AppPage() {
           </div>
 
           <div className="rounded-2xl border bg-card p-5">
-            <Tabs value={mode} onValueChange={(v) => { setTouchedMode(true); setMode(v as "agent" | "break"); }}>
+            <Tabs value={mode} onValueChange={(v) => { touchedMode.current = true; setMode(v as "agent" | "break"); }}>
               <TabsList className="w-full">
                 <TabsTrigger value="agent" className="flex-1"><Sparkles className="size-3.5" /> Ask the agent</TabsTrigger>
                 <TabsTrigger value="break" className="flex-1"><Ban className="size-3.5" /> Break it yourself</TabsTrigger>

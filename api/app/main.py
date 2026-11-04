@@ -288,6 +288,24 @@ def list_runs():
     return [_summary(r) for r in sorted(RUNS.values(), key=lambda r: -r["created_at"])[:100]]
 
 
+@app.get("/api/stats")
+def stats():
+    """Live impact numbers for this server (since the last demo reset)."""
+    with LOCK:
+        runs = list(RUNS.values())
+    def last(r):
+        return r["attempts"][-1] if r["attempts"] else None
+    stopped = [r for r in runs if last(r) and (r["status"] == "rejected" or (r["status"] == "review" and any(f["severity"] == "critical" for f in last(r)["flags"])))]
+    fixed = [r for r in runs if len(r["attempts"]) > 1]
+    prevented = sum(last(r)["consequences"].get("payments", {}).get("total_cents", 0) for r in stopped)
+    prevented += sum(max(0, r["attempts"][0]["consequences"].get("payments", {}).get("total_cents", 0)
+                         - last(r)["consequences"].get("payments", {}).get("total_cents", 0)) for r in fixed)
+    rows_protected = sum(sum(t["deleted"] + t["updated"] for t in last(r)["consequences"].get("tables", {}).values()) for r in stopped)
+    return {"rehearsals": sum(len(r["attempts"]) for r in runs), "runs": len(runs), "applied": sum(1 for r in runs if r["status"] == "applied"),
+            "stopped": len(stopped), "money_prevented_cents": prevented, "rows_protected": rows_protected,
+            "rolled_back": sum(1 for r in runs if r.get("rolled_back_by"))}
+
+
 @app.get("/api/runs/{rid}/stream")
 async def stream_run(rid: str, request: Request):
     """Server-sent events: the full run every time it changes; ends when the run is no longer active."""
