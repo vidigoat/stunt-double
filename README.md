@@ -186,6 +186,7 @@ sd wait <run_id>                                                         # exit 
 | Delete limit | > 5% of any table blocks |
 | Refund safety | over-refunds, already-refunded, double or unknown charges block |
 | Email safety | one valid customer address, no placeholders, no leaked data, consent for marketing |
+| Exactly-once delivery | every approved API call carries a stable `Idempotency-Key` (run + effects hash + index); repeats are dropped |
 | API safety | approved connectors only, https only, allowed methods only, no path escapes (`..`), no bulk customer data (counted across all calls), payloads ≤ 64 KB, only content headers forwarded |
 | Review thresholds | payouts > $10,000, > 500 emails, > 200 API calls warn |
 | Spend protection | per-visitor rate limits and a daily cap on AI-agent runs |
@@ -253,7 +254,7 @@ python api/eval/run_eval.py --api https://<host> --runs 10      # real models: h
 
 | Suite | What it proves |
 |---|---|
-| `api/tests/` (90 tests) | engine, containment, adversarial attacks, policy + simulator, connectors + notifications, rollback, two-person rule, workspaces, diff explorer, SDK + CLI, agent loop, archive, security reviews |
+| `api/tests/` (91 tests) | engine, containment, adversarial attacks, policy + simulator, connectors + notifications, rollback, two-person rule, workspaces, diff explorer, SDK + CLI, agent loop, archive, security reviews |
 | `mcp/tests/test_mcp.py` | a real MCP client over stdio against the live API |
 | `e2e/golden-path.js` | a real browser: containment, approve + apply, two-person undo, Slack delivery, audit trail, phone layout |
 

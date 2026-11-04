@@ -131,9 +131,9 @@ def test_real_delivery_forwards_only_allowlisted_headers(monkeypatch):
     monkeypatch.setattr(connectors.httpx, "request", fake)
     call = {"method": "POST", "url": "https://api.beancrm.example/notes?x=1", "host": "api.beancrm.example", "scheme": "https",
             "path": "/notes?x=1", "json": {}, "headers": {"Host": "evil", "X-Forwarded-For": "1.2.3.4", "Content-Type": "application/json"}}
-    assert connectors.deliver(call, "r")["ok"]
+    assert connectors.deliver(call, "r", "sd-r-abc-0")["ok"]
     assert seen["url"] == "https://crm.real/api/v1/notes?x=1"
-    assert set(seen["headers"]) == {"Content-Type", "Authorization"}
+    assert set(seen["headers"]) == {"Content-Type", "Idempotency-Key", "Authorization"} and seen["headers"]["Idempotency-Key"] == "sd-r-abc-0"
 
 
 def test_customer_data_spread_over_many_calls_is_still_a_leak():
@@ -220,3 +220,16 @@ def test_old_rehearsals_cannot_be_approved(fresh_business, monkeypatch):
     assert r.status_code == 409 and "expired" in r.json()["detail"]
     policy.save({"approval_expires_hours": 0})  # 0 = never expire
     assert api.post(f"/api/runs/{rid}/approve", json={"approver": "Priya"}).json()["status"] == "applied"
+
+
+# ---- exactly-once delivery -------------------------------------------------------------------------------
+def test_repeated_delivery_with_the_same_key_posts_once():
+    connectors.reset()
+    call = {"method": "POST", "url": "https://hooks.slack.com/services/ops", "host": "hooks.slack.com", "scheme": "https",
+            "path": "/services/ops", "json": {"text": "hi"}, "headers": {}}
+    first = connectors.deliver(call, "run_x", "sd-run_x-abc-0")
+    again = connectors.deliver(call, "run_x", "sd-run_x-abc-0")
+    other = connectors.deliver(call, "run_x", "sd-run_x-abc-1")
+    assert first["ok"] and not first.get("duplicate") and again.get("duplicate") and other["ok"]
+    assert connectors.deliveries()["count"] == 2
+    connectors.reset()

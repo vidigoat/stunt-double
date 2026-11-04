@@ -125,7 +125,9 @@ def apply(run_id: str, effects_path: str, workspace: str | None = None) -> dict:
                     failed += 1
     except OSError:
         failed = len(effects["emails"])
-    deliveries = [connectors.deliver(c, run_id) for c in calls]
+    import hashlib
+    digest = hashlib.sha256(open(effects_path, "rb").read()).hexdigest()[:16]
+    deliveries = [connectors.deliver(c, run_id, f"sd-{run_id}-{digest}-{i}") for i, c in enumerate(calls)]
     return {"rows_written": n, "refunds": len(refunds), "http_delivered": sum(1 for d in deliveries if d.get("ok")),
             "http_failed": sum(1 for d in deliveries if not d.get("ok")), "refund_total_cents": sum(p["amount_cents"] for p in effects["payments"]),
             "emails_sent": sent, "emails_failed": failed}

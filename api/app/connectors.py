@@ -81,11 +81,18 @@ def unsafe_path(path: str) -> bool:
 def _outbox() -> sqlite3.Connection:
     db = sqlite3.connect(OUTBOX_DB)
     db.execute("CREATE TABLE IF NOT EXISTS deliveries (id INTEGER PRIMARY KEY, connector TEXT, method TEXT, path TEXT, body TEXT, "
-               "run_id TEXT, created_at TEXT, status INTEGER)")
+               "run_id TEXT, created_at TEXT, status INTEGER, idempotency_key TEXT)")
+    try:
+        db.execute("ALTER TABLE deliveries ADD COLUMN idempotency_key TEXT")  # outboxes created before exactly-once delivery
+    except sqlite3.OperationalError:
+        pass
+    db.execute("CREATE UNIQUE INDEX IF NOT EXISTS deliveries_key ON deliveries (idempotency_key)")
     return db
 
 
-def deliver(call: dict, run_id: str) -> dict:
+def deliver(call: dict, run_id: str, key: str | None = None) -> dict:
+    """Deliver one approved call. `key` is a stable Idempotency-Key (run + effects hash + index): the outbox stores each key
+    once and real APIs receive it as a header, so a retried or repeated apply never posts the same call twice."""
     name, c = match(call)
     if not name or check(call):
         return {"connector": name, "ok": False, "error": check(call) or "no connector"}
@@ -93,9 +100,12 @@ def deliver(call: dict, run_id: str) -> dict:
     if target.startswith("outbox:"):
         db = _outbox()
         with db:
-            db.execute("INSERT INTO deliveries (connector, method, path, body, run_id, created_at, status) VALUES (?,?,?,?,?,?,?)",
-                       (name, call["method"], call.get("path", ""), json.dumps(call.get("json"), default=str)[:65536], run_id,
-                        time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()), 200))
+            cur = db.execute("INSERT OR IGNORE INTO deliveries (connector, method, path, body, run_id, created_at, status, idempotency_key) "
+                             "VALUES (?,?,?,?,?,?,?,?)",
+                             (name, call["method"], call.get("path", ""), json.dumps(call.get("json"), default=str)[:65536], run_id,
+                              time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime()), 200, key))
+        if not cur.rowcount:
+            return {"connector": name, "ok": True, "status": 200, "delivered_to": target, "duplicate": True}
         return {"connector": name, "ok": True, "status": 200, "delivered_to": target}
     # Real delivery: the URL and credential come from the server's environment, never from the plan.
     #   {"url_env": "SD_SLACK_WEBHOOK_URL", "append_path": false}   or   {"url_env": "SD_CRM_BASE_URL", "token_env": "SD_CRM_TOKEN", "append_path": true}
@@ -107,8 +117,8 @@ def deliver(call: dict, run_id: str) -> dict:
         return {"connector": name, "ok": False, "error": "the path escapes the connector's base URL"}
     token = os.environ.get(c.get("token_env", ""), "")
     # Only plain content headers from the plan: Host, X-Forwarded-*, auth and the like are never forwarded.
-    plan_headers = {k: v for k, v in call.get("headers", {}).items() if k.lower() in FORWARD_HEADERS}
-    headers = {**plan_headers, **({"Authorization": f"Bearer {token}"} if token else {})}
+    plan_headers = {k: v for k, v in call.get("headers", {}).items() if k.lower() in FORWARD_HEADERS and not (key and k.lower() == "idempotency-key")}
+    headers = {**plan_headers, **({"Idempotency-Key": key} if key else {}), **({"Authorization": f"Bearer {token}"} if token else {})}
     try:
         r = httpx.request(call["method"], url, json=call.get("json"), headers=headers, timeout=10)
         return {"connector": name, "ok": r.status_code < 400, "status": r.status_code}
