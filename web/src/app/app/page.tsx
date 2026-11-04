@@ -322,15 +322,15 @@ export default function AppPage() {
                   <>
                     <Button variant="outline" className="h-10 rounded-full px-4" onClick={() => act("reject")} disabled={busy}><X className="size-4" /> Reject</Button>
                     {run.mode === "agent" ? <Button variant="outline" className="h-10 rounded-full px-4" onClick={() => act("fix")} disabled={busy}><Wrench className="size-4" /> Ask the agent to fix it</Button> : null}
-                    <input value={approver} onChange={(e) => setApprover(e.target.value)} placeholder="Your name (for the audit trail)" maxLength={80}
-                      aria-label="Approver name" className="h-10 min-w-0 flex-1 rounded-full border bg-background px-4 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring/50 sm:ml-auto sm:max-w-[240px]" disabled={critical} />
+                    {!critical ? <input value={approver} onChange={(e) => setApprover(e.target.value)} placeholder="Your name (for the audit trail)" maxLength={80}
+                      aria-label="Approver name" className="h-10 min-w-0 flex-1 rounded-full border bg-background px-4 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring/50 sm:ml-auto sm:max-w-[240px]" /> : <span className="sm:ml-auto" />}
                     <Button className="h-10 rounded-full px-4" onClick={() => act("approve")} disabled={busy || critical || !attempt?.consequences.ok}>
                       <Check className="size-4" /> {critical ? "Blocked by policy" : "Approve and apply"}
                     </Button>
                   </>
                 ) : null}
                 {run.status === "drifted" ? <Button className="h-10 rounded-full px-4" onClick={start} disabled={busy}><RotateCcw className="size-4" /> Rehearse again</Button> : null}
-                {!ACTIVE.has(run.status) && run.attempts.length ? <a href={`/api/runs/${run.id}/evidence`} className="ml-auto text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline">Download evidence ↓</a> : null}
+                {!ACTIVE.has(run.status) && run.status !== "review" && run.attempts.length ? <a href={`/api/runs/${run.id}/evidence`} className="ml-auto text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline">Download evidence ↓</a> : null}
               </ApprovalCard>
 
               {run.status === "applied" && run.apply_result ? (
