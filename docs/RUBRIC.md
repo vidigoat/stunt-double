@@ -37,8 +37,9 @@ Criterion score (1–5) = `1 + 4 × (points earned / points possible)`, rounded 
 | Production-grade apply (drift check, idempotency, policy) | 2 | 2 | Tested |
 | Engineering quality (tests, CI, commits across the event) | 2 | 2 | 30+ commits, 25 API tests + MCP client test + browser e2e, 4 CI jobs green |
 | Defence in depth beyond the brief | 2 | 2 | Two-phase measurement (the plan can't lie), O_NOFOLLOW copies, ulimits, integrity hash, policy engine, 6 adversarial tests |
-| Works with any agent | 2 | 2 | MCP server (stdio + HTTP), tested with a real MCP client in CI |
-| **Total** | **14** | **20** | **→ 3.8 / 5** |
+| Works with any agent | 2 | 2 | MCP server (stdio + HTTP), tested with a real MCP client in CI; Connect page in the app |
+| Deployment proven before the VM exists | 2 | 2 | Full compose stack (Caddy HTTPS, web, api, mcp, Mailpit) run end to end; browser e2e passes over HTTPS; 104 emails delivered |
+| **Total** | **16** | **22** | **→ 3.9 / 5** |
 
 ## 2. Presentation
 
@@ -49,7 +50,7 @@ Criterion score (1–5) = `1 + 4 × (points earned / points possible)`, rounded 
 | Value obvious in 30 s (first screen) | 2 | 2 | Hero shows "$37,404 → 744, 640 never double-charged" |
 | Polished, coherent visual design | 2 | 2 | Landing + console + ledger, black-and-white system |
 | Public live URL judges can use | 0 | 2 | Pending VM |
-| Judges can trigger the wow moment themselves | 1 | 2 | "Break it yourself" exists; not public yet |
+| Judges can trigger the wow moment themselves | 1 | 2 | Guided 3-step tour + Break-it presets (3 traps); public once the VM is live |
 | Demo video, 4–5 min, golden path rehearsed | 1 | 2 | 30 s recorded demo (GIF/MP4) in README; narrated 4-min video still Day 4 |
 | Slide deck (8–10 slides) | 2 | 2 | `presentation/stunt-double-deck.pdf`, 10 slides |
 | Cover image + lablab texts | 2 | 2 | `presentation/cover.png`, `docs/SUBMISSION.md` (lengths checked) |
@@ -66,8 +67,8 @@ Criterion score (1–5) = `1 + 4 × (points earned / points possible)`, rounded 
 | Revenue model | 2 | 2 | Pricing section on landing + deck |
 | Why AI is essential (not a rules engine) | 2 | 2 | Deck slide 7 table; verifier still to prove live |
 | Credible demo scenario with real numbers | 2 | 2 | Seeded trap with real measured numbers |
-| Fit with the listed business areas (finance, support, sales ops) | 1 | 2 | Refunds = finance/support; show more examples |
-| **Total** | **11** | **12** | **→ 4.7 / 5** |
+| Fit with the listed business areas (finance, support, sales ops) | 2 | 2 | Three traps: finance (refunds), support (ticket inbox), marketing/sales (consent) |
+| **Total** | **12** | **12** | **→ 5.0 / 5** |
 
 ## 4. Originality
 
@@ -87,11 +88,11 @@ Criterion score (1–5) = `1 + 4 × (points earned / points possible)`, rounded 
 
 | Criterion | Now (Tue night) | Target (Sun) |
 |---|---|---|
-| Application of Technology | 3.5 → **3.8** | 5.0 |
+| Application of Technology | 3.5 → 3.8 → **3.9** | 5.0 |
 | Presentation | 2.4 → 3.6 → **3.9** | 5.0 |
-| Business Value | 2.7 → **4.7** | 4.5 |
+| Business Value | 2.7 → 4.7 → **5.0** | 5.0 |
 | Originality | 4.5 → **5.0** | 5.0 |
-| **Total (/20)** | 13.1 → 16.3 → **17.4** | 19.0 |
+| **Total (/20)** | 13.1 → 16.3 → 17.4 → **17.8** | 19.5 |
 | Gate | ❌ (G1–G3, G7 open) | ✅ |
 
 **Biggest score movers, in order:**
@@ -114,3 +115,7 @@ Re-score after every milestone and log it below.
 - [ ] Deck slide 7: VIP and crash rows reflect real verifier behaviour
 - [ ] "gVisor (runsc)" everywhere: confirmed by `/api/health` → `sandbox_runtime: runsc` on the Vultr VM
 - [ ] Model names on slides match `SD_AGENT_MODEL` / `SD_VERIFIER_MODEL` in production
+- [ ] `docs/EVAL.md` exists with real catch rates (run `api/eval/run_eval.py`); quote only those numbers
+- [ ] `docs/BENCH.md` re-measured on the VM with gVisor
+- [ ] Object Storage archive: `/api/health` shows `evidence_archive` and an approved run has an `archive.key` (only then mention it)
+| Wed Nov 4, 07:55 | 17.8 | Three traps (finance/support/marketing), glossary-aware verifier, Checks tab, named approvals + evidence export, Connect page, guided tour, spend protection, Object Storage archive (untested), full compose stack verified over HTTPS. Gate G1–G3 still needs keys. |
