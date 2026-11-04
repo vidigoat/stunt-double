@@ -5,6 +5,8 @@ Tools
   rehearse(task, plan_code)    run the plan on a throwaway copy in an isolated sandbox; returns the consequences,
                                policy flags and verdict, plus a link where a HUMAN approves
   get_run_status(run_id)       has a human approved / rejected it yet? what was applied?
+  list_connectors()            which external APIs plans may call (ctx.http) and with which methods
+  request_undo(run_id)         ask humans to roll back an applied run's data changes (two people must approve)
 
 There is deliberately no approve tool: an agent can never approve its own plan.
 
@@ -71,6 +73,9 @@ def _summarise(run: dict) -> dict:
         "warnings": [f["title"] for f in flags if f["severity"] != "critical"],
         "blocked_side_effects": c.get("blocked", []),
         "verdict": run.get("verdict"),
+        "api_calls": (c.get("http") or {}).get("count", 0),
+        "approvals_required": (att or {}).get("approvals_required", 1),
+        "irreversible": c.get("irreversible"),
         "plan_sha256": (att or {}).get("plan_sha256"),
         "sandbox": c.get("sandbox"),
         "approval": run.get("approval"),
@@ -109,6 +114,24 @@ def rehearse(task: str, plan_code: str, wait_seconds: int = 120) -> dict:
             time.sleep(0.5)
             run = c.get(f"/api/runs/{rid}").json()
         return _summarise(run)
+
+
+@mcp.tool()
+def list_connectors() -> dict:
+    """External APIs a plan may call with ctx.http (host + allowed methods). Credentials are added by Stunt Double after approval."""
+    with _client() as c:
+        return c.get("/api/connectors").raise_for_status().json()
+
+
+@mcp.tool()
+def request_undo(run_id: str) -> dict:
+    """Ask humans to roll back an APPLIED run's data changes. Creates a rollback that two different people must approve.
+    Refunds, emails and API calls that already happened cannot be undone and are listed as irreversible."""
+    with _client() as c:
+        r = c.post(f"/api/runs/{run_id}/rollback")
+        if r.status_code >= 400:
+            return {"error": r.json().get("detail", r.text)}
+        return _summarise(c.get(f"/api/runs/{r.json()['id']}").json())
 
 
 @mcp.tool()

@@ -27,7 +27,9 @@ async def main() -> None:
     async with stdio_client(params) as (r, w), ClientSession(r, w) as s:
         await s.initialize()
         tools = {t.name for t in (await s.list_tools()).tools}
-        assert tools == {"describe_business", "rehearse", "get_run_status"}, tools          # no approve tool, by design
+        assert tools == {"describe_business", "rehearse", "get_run_status", "list_connectors", "request_undo"}, tools   # no approve tool
+        conns = json.loads((await s.call_tool("list_connectors", {})).content[0].text)["connectors"]
+        assert any(c["name"] == "slack" for c in conns)
         schema = json.loads((await s.call_tool("describe_business", {})).content[0].text)
         assert "charges" in schema["tables"] and "ctx.payments.refund" in schema["plan_api"]
         good = json.loads((await s.call_tool("rehearse", {"task": "Refund double charges", "plan_code": GOOD})).content[0].text)
@@ -37,6 +39,11 @@ async def main() -> None:
         assert evil["blocked_by_policy"] and evil["row_changes"]["customers"]["deleted"] == 1300, evil
         status = json.loads((await s.call_tool("get_run_status", {"run_id": good["run_id"]})).content[0].text)
         assert status["status"] == "review"
+        import httpx as _h
+        api = os.environ.get("STUNT_DOUBLE_API", "http://localhost:8000")
+        _h.post(f"{api}/api/runs/{good['run_id']}/approve", json={"approver": "Human"}).raise_for_status()   # a human approves
+        undo = json.loads((await s.call_tool("request_undo", {"run_id": good["run_id"]})).content[0].text)
+        assert undo["status"] == "review" and undo["approvals_required"] == 2 and undo["irreversible"]["refunds"] == 104, undo
         print("MCP OK:", sorted(tools), "| good:", good["refunds"], "refunds", good["money_out_usd"], "USD | evil blocked:", evil["blocked_by_policy"][0])
 
 

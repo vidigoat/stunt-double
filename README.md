@@ -120,7 +120,7 @@ to an observable outbox so you can see real deliveries without third-party accou
 
 ## Connect an agent
 
-**MCP** (Claude Code, Cursor, any MCP client). Tools: `describe_business`, `rehearse`, `get_run_status`. No approve tool.
+**MCP** (Claude Code, Cursor, any MCP client). Tools: `describe_business`, `list_connectors`, `rehearse`, `get_run_status`, `request_undo`. No approve tool.
 
 ```bash
 claude mcp add stunt-double -- python mcp/server.py                         # local, stdio
