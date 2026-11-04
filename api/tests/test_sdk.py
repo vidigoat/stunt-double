@@ -43,3 +43,18 @@ def test_sdk_reports_policy_blocks(fresh_business, monkeypatch):
     sd = StuntDouble("https://demo.example", http=TestClient(main.app))
     r = sd.rehearse("clean up", "def run(ctx):\n    ctx.db.execute('DELETE FROM customers')\n")
     assert r.blocked and any("protected table" in b for b in r.blocked_by_policy)
+
+
+@needs_docker
+def test_cli_exit_codes(fresh_business, monkeypatch, tmp_path, capsys):
+    from stunt_double import cli
+    monkeypatch.setattr(main.config, "INFERENCE_KEY", "")
+    http = TestClient(main.app)
+    good, bad = tmp_path / "good.py", tmp_path / "bad.py"
+    good.write_text("def run(ctx):\n    ctx.log('nothing to do')\n")
+    bad.write_text("def run(ctx):\n    ctx.db.execute('DELETE FROM customers')\n")
+    assert cli.main(["--url", "https://demo.example", "rehearse", str(good), "--task", "noop"], http=http) == 0
+    assert "review    https://demo.example/app?run=" in capsys.readouterr().out
+    assert cli.main(["rehearse", str(bad), "--task", "clean up"], http=http) == 2
+    assert "BLOCKED" in capsys.readouterr().out
+    assert cli.main(["connectors"], http=http) == 0 and "slack" in capsys.readouterr().out

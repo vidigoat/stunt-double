@@ -142,6 +142,13 @@ print(r.summary, r.blocked_by_policy, r.approval_url)
 sd.wait_for_decision(r.run_id)           # a human decides. There is no sd.approve().
 ```
 
+**CLI / CI gate** (`pip install ./sdk/python`):
+
+```bash
+sd rehearse refund.py --task "Refund everyone who was double-charged"   # exit 0 ready · 2 blocked by policy · 1 error
+sd wait <run_id>                                                         # exit 0 only if a human approved and it applied
+```
+
 **REST**: `POST /api/runs/manual {task, code}` → poll `GET /api/runs/{id}` · OpenAPI at `/api/docs`.
 
 ## Controls

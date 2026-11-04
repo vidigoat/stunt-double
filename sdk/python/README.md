@@ -20,3 +20,15 @@ else:
 ```
 
 There is no `approve()` on purpose: an agent can never approve its own plan.
+
+## CLI
+
+```bash
+pip install ./sdk/python
+export STUNT_DOUBLE_URL=https://<your-host>
+sd rehearse refund.py --task "Refund everyone who was double-charged"   # exit 0 ready · 2 blocked · 1 error
+sd wait <run_id>                                                         # exit 0 only if a human approved and it applied
+sd connectors
+```
+
+Use it as a CI gate for data scripts: `sd rehearse migration.py --task "..." || exit 1`.
