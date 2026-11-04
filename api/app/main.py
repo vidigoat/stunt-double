@@ -14,7 +14,7 @@ from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
-from . import agent, archive, beanpay, config, connectors, policy, rollback, sandbox, seed
+from . import agent, archive, beanpay, config, connectors, policy, rollback, sandbox, seed, workspaces
 from . import apply as applier
 
 app = FastAPI(
@@ -67,9 +67,9 @@ except OSError:
 
 
 # ---- helpers ---------------------------------------------------------------------------------------
-def _new_run(task: str, mode: str) -> dict:
+def _new_run(task: str, mode: str, workspace: str = workspaces.DEMO) -> dict:
     rid = "run_" + uuid.uuid4().hex[:10]
-    run = {"id": rid, "task": task, "mode": mode, "status": "queued", "created_at": time.time(), "events": [],
+    run = {"id": rid, "task": task, "mode": mode, "workspace": workspace, "status": "queued", "created_at": time.time(), "events": [],
            "attempts": [], "verdict": None, "flags": [], "final_message": None, "apply_result": None, "error": None,
            "agent_model": config.AGENT_MODEL.split(",")[0], "verifier_model": config.VERIFIER_MODEL.split(",")[0]}
     with LOCK:
@@ -148,6 +148,7 @@ def _verify(run: dict) -> None:
 
 
 def _agent_job(run: dict, feedback: str | None = None) -> None:
+    workspaces.use(run.get("workspace", workspaces.DEMO))
     try:
         _status(run, "planning")
         _emit(run, "agent", "Ops agent is planning" if not feedback else "Ops agent is fixing the plan")
@@ -167,6 +168,7 @@ def _agent_job(run: dict, feedback: str | None = None) -> None:
 
 
 def _manual_job(run: dict, code: str) -> None:
+    workspaces.use(run.get("workspace", workspaces.DEMO))
     try:
         _rehearse(run, code, "Submitted plan")
         if config.INFERENCE_KEY:
@@ -208,6 +210,7 @@ def _rate_limit(req: Request, per_hour: int = 30) -> None:
 # ---- API ----------------------------------------------------------------------------------------------
 class TaskIn(BaseModel):
     task: str = Field(min_length=3, max_length=2000)
+    workspace: str = Field(default=workspaces.DEMO, max_length=40)
 
 
 class ManualIn(TaskIn):
@@ -249,8 +252,32 @@ def health():
             "evidence_archive": f"vultr-object-storage:{archive.BUCKET}" if archive.enabled() else None}
 
 
+@app.get("/api/workspaces")
+def list_workspaces():
+    return {"workspaces": workspaces.all_workspaces()}
+
+
+@app.post("/api/workspaces")
+async def upload_workspace(request: Request, name: str = ""):
+    """Upload a SQLite database (raw body, up to 20 MB) to rehearse plans against your own schema."""
+    _rate_limit(request, per_hour=10)
+    if int(request.headers.get("content-length") or 0) > workspaces.MAX_BYTES:
+        raise HTTPException(413, "Databases up to 20 MB, please")
+    data = await request.body()
+    try:
+        return workspaces.create(name, data)
+    except ValueError as e:
+        raise HTTPException(422, str(e)) from e
+
+
 @app.get("/api/business")
-def business():
+def business(ws: str = workspaces.DEMO):
+    if ws != workspaces.DEMO:
+        if not workspaces.exists(ws):
+            raise HTTPException(404, "unknown workspace")
+        d = workspaces.describe(ws)
+        return {"name": d["name"], "workspace": ws, "tables": d["tables"], "counts": d["tables"],
+                "refunded": {"count": 0, "total_cents": 0}, "recent_tickets": [], "beanpay": {k: v for k, v in beanpay.ledger(0).items() if k != "refunds"}}
     db = sqlite3.connect(f"file:{config.PROD_DB}?mode=ro", uri=True)
     counts = {t: db.execute(f"SELECT COUNT(*) FROM {t}").fetchone()[0] for t in ("customers", "orders", "charges", "tickets")}
     refunded = db.execute("SELECT COUNT(*), COALESCE(SUM(amount_cents),0) FROM charges WHERE status='refunded'").fetchone()
@@ -277,7 +304,9 @@ def create_run(body: TaskIn, req: Request):
     if not config.INFERENCE_KEY:
         raise HTTPException(503, "The AI agent is offline: Vultr Serverless Inference is not configured on this server")
     _agent_budget()
-    run = _new_run(body.task, "agent")
+    if not workspaces.exists(body.workspace):
+        raise HTTPException(404, "unknown workspace")
+    run = _new_run(body.task, "agent", body.workspace)
     threading.Thread(target=_agent_job, args=(run,), daemon=True).start()
     return {"id": run["id"]}
 
@@ -285,7 +314,9 @@ def create_run(body: TaskIn, req: Request):
 @app.post("/api/runs/manual")
 def create_manual_run(body: ManualIn, req: Request):
     _rate_limit(req)
-    run = _new_run(body.task, "manual")
+    if not workspaces.exists(body.workspace):
+        raise HTTPException(404, "unknown workspace")
+    run = _new_run(body.task, "manual", body.workspace)
     threading.Thread(target=_manual_job, args=(run, body.code), daemon=True).start()
     return {"id": run["id"]}
 
@@ -293,7 +324,7 @@ def create_manual_run(body: ManualIn, req: Request):
 def _summary(r: dict) -> dict:
     a = r["attempts"][-1] if r["attempts"] else None
     c = a["consequences"] if a else {}
-    return {"id": r["id"], "task": r["task"], "mode": r["mode"], "status": r["status"], "created_at": r["created_at"],
+    return {"id": r["id"], "task": r["task"], "mode": r["mode"], "workspace": r.get("workspace", workspaces.DEMO), "status": r["status"], "created_at": r["created_at"],
             "attempts": len(r["attempts"]), "verdict": (r.get("verdict") or {}).get("verdict"),
             "money_cents": c.get("payments", {}).get("total_cents", 0), "emails": c.get("emails", {}).get("count", 0),
             "rows": sum(t["deleted"] + t["updated"] + t["inserted"] for t in c.get("tables", {}).values()),
@@ -437,7 +468,7 @@ def _apply_claimed(run: dict, att: dict, rid: str):
     _emit(run, "human", "Approved. Running the drift check, then applying the approved changes for real",
           f"plan {att['plan_sha256'][:12]} · effects {att['effects_sha256'][:12]}")
     try:
-        result = applier.apply(rid, att["effects_path"])
+        result = applier.apply(rid, att["effects_path"], run.get("workspace"))
     except applier.DriftError as e:
         with LOCK:
             run["apply_result"] = {"drifted": e.drifted[:20], "drift_count": len(e.drifted)}
@@ -467,9 +498,12 @@ def _apply_claimed(run: dict, att: dict, rid: str):
 
 
 @app.get("/api/schema")
-def schema():
+def schema(ws: str = workspaces.DEMO):
     """What an external agent needs to write a plan: tables and the ctx API."""
-    return {"tables": agent.get_schema(), "plan_api": agent.CTX_DOC}
+    if not workspaces.exists(ws):
+        raise HTTPException(404, "unknown workspace")
+    workspaces.use(ws)
+    return {"workspace": ws, "tables": agent.get_schema(), "plan_api": agent.CTX_DOC}
 
 
 def _evidence(run: dict) -> dict:
@@ -590,8 +624,8 @@ def rollback_run(rid: str, req: Request):
         if existing and RUNS.get(existing, {}).get("status") in ("review", "applying", "applied"):
             raise HTTPException(409, f"Rollback already exists: {existing}")
     att = src["attempts"][-1]
-    run = _new_run(f"Undo: {src['task']}", "rollback")
-    db = sqlite3.connect(f"file:{config.PROD_DB}?mode=ro", uri=True)
+    run = _new_run(f"Undo: {src['task']}", "rollback", src.get("workspace", workspaces.DEMO))
+    db = sqlite3.connect(f"file:{workspaces.db_path(run['workspace'])}?mode=ro", uri=True)
     rows_now = {t: db.execute(f'SELECT COUNT(*) FROM "{t}"').fetchone()[0]  # noqa: S608 - names from sqlite_master
                 for (t,) in db.execute("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'")}
     db.close()

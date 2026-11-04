@@ -84,7 +84,8 @@ def client() -> OpenAI:
 
 # ---- read-only data access for both roles ----------------------------------------------------
 def _ro(deadline_s: float = 5.0) -> sqlite3.Connection:
-    db = sqlite3.connect(f"file:{config.PROD_DB}?mode=ro", uri=True)
+    from . import workspaces
+    db = sqlite3.connect(f"file:{workspaces.db_path()}?mode=ro", uri=True)
     db.execute("PRAGMA query_only = ON")
     stop = time.time() + deadline_s
     db.set_progress_handler(lambda: 1 if time.time() > stop else 0, 10000)   # abort runaway queries (e.g. recursive CTEs)

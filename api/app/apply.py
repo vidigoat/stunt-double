@@ -60,7 +60,7 @@ def drift_check(db: sqlite3.Connection, changes: dict) -> list[dict]:
     return drifted
 
 
-def apply(run_id: str, effects_path: str) -> dict:
+def apply(run_id: str, effects_path: str, workspace: str | None = None) -> dict:
     effects = json.loads(open(effects_path).read())
     changes = effects["changes"]
     if any(d.get("dropped") or d.get("created") or d.get("schema_changed") for d in changes.values()):
@@ -80,7 +80,8 @@ def apply(run_id: str, effects_path: str) -> dict:
         msg.set_content(e["body"])
         messages.append(msg)
 
-    db = sqlite3.connect(config.PROD_DB, isolation_level=None)
+    from . import workspaces
+    db = sqlite3.connect(workspaces.db_path(workspace), isolation_level=None)
     db.execute("BEGIN IMMEDIATE")  # lock: nothing can change between the drift check and the write
     try:
         _check_identifiers(_schema(db), changes)

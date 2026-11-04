@@ -26,7 +26,8 @@ GUARD_FLAGS = [
 
 def clone_db(dest: Path) -> None:
     """Consistent online copy of the production database (SQLite backup API)."""
-    src = sqlite3.connect(f"file:{config.PROD_DB}?mode=ro", uri=True)
+    from . import workspaces
+    src = sqlite3.connect(f"file:{workspaces.db_path()}?mode=ro", uri=True)
     dst = sqlite3.connect(dest)
     with dst:
         src.backup(dst)
