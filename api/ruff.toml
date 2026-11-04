@@ -14,8 +14,8 @@ ignore = [
 ]
 
 [lint.per-file-ignores]
-"app/harness/runner.py" = ["S102"]   # exec of the plan is the point of the sandbox
-"app/seed.py" = ["S311"]             # deterministic fake data, not cryptography
-"app/sandbox.py" = ["S103"]          # work dirs must be writable by the unprivileged sandbox user
-"tests/*" = ["S", "B", "SIM"]
-"eval/*" = ["S310"]
+"**/app/harness/runner.py" = ["S102"]   # exec of the plan is the point of the sandbox
+"**/app/seed.py" = ["S311"]             # deterministic fake data, not cryptography
+"**/app/sandbox.py" = ["S103"]          # work dirs must be writable by the unprivileged sandbox user
+"**/tests/*" = ["S", "B", "SIM"]
+"**/eval/*" = ["S310"]

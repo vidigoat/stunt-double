@@ -28,8 +28,8 @@ async function step(name, fn) {
   await step("containment: deleting every customer hits only the double", async () => {
     await page.goto(`${BASE}/app`, { waitUntil: "networkidle" });
     await page.getByRole("tab", { name: /Break it yourself/ }).click();
-    await page.getByRole("button", { name: "Delete every customer" }).click();
-    await page.getByRole("button", { name: "Rehearse it" }).click();
+    await page.getByRole("button", { name: "Delete every customer", exact: true }).click();
+    await page.getByRole("button", { name: "Rehearse it", exact: true }).click();
     await page.getByText(/containment: the damage happened only on the double/i).waitFor({ timeout: 60000 });
     assert.ok(await page.getByRole("button", { name: /Blocked by policy/ }).isDisabled(), "approval is locked");
     const prod = await fetch(`${BASE}/api/business`).then((r) => r.json());
@@ -40,8 +40,8 @@ async function step(name, fn) {
   await step("approve + apply: a correct plan really refunds 104 customers", async () => {
     await page.getByRole("button", { name: "New" }).click();
     await page.getByRole("tab", { name: /Break it yourself/ }).click();
-    await page.getByRole("button", { name: /A correct refund plan/ }).click();
-    await page.getByRole("button", { name: "Rehearse it" }).click();
+    await page.getByRole("button", { name: "✓ A correct refund plan", exact: true }).click();
+    await page.getByRole("button", { name: "Rehearse it", exact: true }).click();
     const approve = page.getByRole("button", { name: /Approve and apply/ });
     await approve.waitFor({ timeout: 60000 });
     await approve.click();

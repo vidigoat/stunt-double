@@ -37,9 +37,9 @@ const OVERLAY = `(() => {
   await page.goto(`${BASE}/app`, { waitUntil: "networkidle" });
   await say("A real business: Bean There Coffee Co. <b>1,300 customers</b> in production."); await pause(3600);
   await click(page.getByRole("tab", { name: /Break it yourself/ }));
-  await click(page.getByRole("button", { name: "Delete every customer" }));
+  await click(page.getByRole("button", { name: "Delete every customer", exact: true }));
   await say("Let's try something malicious: <b>DELETE FROM customers</b>."); await pause(2200);
-  await click(page.getByRole("button", { name: "Rehearse it" }));
+  await click(page.getByRole("button", { name: "Rehearse it", exact: true }));
   await page.getByText(/containment: the damage happened only on the double/i).waitFor({ timeout: 60000 });
   await say("It ran in an isolated Vultr sandbox. The double lost <b>every customer</b>. Production lost <b>none</b>."); await page.mouse.move(1150, 200, { steps: 20 }); await pause(5200);
   await say("Policy locks the Approve button. <b>Blast radius: zero.</b>"); await page.mouse.move(1380, 470, { steps: 20 }); await pause(3800);
@@ -48,9 +48,9 @@ const OVERLAY = `(() => {
 
   await click(page.getByRole("button", { name: "New" }));
   await click(page.getByRole("tab", { name: /Break it yourself/ }));
-  await click(page.getByRole("button", { name: /A correct refund plan/ }));
+  await click(page.getByRole("button", { name: "✓ A correct refund plan", exact: true }));
   await say("Now a correct plan: refund only the <b>104</b> customers who were really charged twice."); await pause(2600);
-  await click(page.getByRole("button", { name: "Rehearse it" }));
+  await click(page.getByRole("button", { name: "Rehearse it", exact: true }));
   const approve = page.getByRole("button", { name: /Approve and apply/ });
   await approve.waitFor({ timeout: 60000 });
   await say("$5,136 to 104 people, in plain English. Approval is bound to a <b>fingerprint</b> of the plan."); await pause(4600);
