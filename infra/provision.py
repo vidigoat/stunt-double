@@ -16,9 +16,9 @@ API = "https://api.vultr.com/v2"
 
 
 def call(method: str, path: str, body: dict | None = None) -> dict:
-    req = urllib.request.Request(API + path, method=method, data=json.dumps(body).encode() if body else None,
+    req = urllib.request.Request(API + path, method=method,  # noqa: S310 - fixed https API base data=json.dumps(body).encode() if body else None,
                                  headers={"Authorization": f"Bearer {os.environ['VULTR_API_KEY']}", "Content-Type": "application/json"})
-    with urllib.request.urlopen(req, timeout=60) as r:
+    with urllib.request.urlopen(req, timeout=60) as r:  # noqa: S310
         raw = r.read()
         return json.loads(raw) if raw else {}
 
@@ -36,8 +36,8 @@ def object_storage(region: str, label: str) -> dict:
             tiers = call("GET", f"/object-storage/clusters/{cluster['id']}/tiers").get("tiers", [])
             if tiers:
                 body["tier_id"] = sorted(tiers, key=lambda t: float(t.get("price", 0) or 0))[0]["id"]
-        except Exception:  # noqa: BLE001 - older API without tiers
-            pass
+        except Exception as e:  # noqa: BLE001 - older API without tiers
+            print(f"(no tier list: {e}); creating with the cluster default")
         obj = call("POST", "/object-storage", body)["object_storage"]
         print(f"Created Object Storage {obj['id']} in cluster {cluster['hostname']}; waiting for it to be active...")
     while obj.get("status") != "active":
@@ -71,7 +71,8 @@ def main() -> None:
                                            "user_data": base64.b64encode(user_data.encode()).decode(), "backups": "disabled",
                                            "tags": ["stunt-double", "agent-rush"]})["instance"]
         print(f"Created instance {inst['id']} in {a.region} ({a.plan}); waiting for an IP...")
-    while inst.get("main_ip") in (None, "", "0.0.0.0") or inst.get("status") != "active":
+    no_ip = (None, "", "0.0.0.0")  # noqa: S104 - "no IP assigned yet", not a bind address
+    while inst.get("main_ip") in no_ip or inst.get("status") != "active":
         time.sleep(10)
         inst = call("GET", f"/instances/{inst['id']}")["instance"]
     host = inst["main_ip"].replace(".", "-") + ".sslip.io"
