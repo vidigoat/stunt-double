@@ -328,6 +328,12 @@ def approve_run(rid: str):
     return _public(run)
 
 
+@app.get("/api/schema")
+def schema():
+    """What an external agent needs to write a plan: tables and the ctx API."""
+    return {"tables": agent.get_schema(), "plan_api": agent.CTX_DOC}
+
+
 @app.get("/api/policy")
 def get_policy():
     return {"policy": policy.load(), "defaults": policy.DEFAULTS}

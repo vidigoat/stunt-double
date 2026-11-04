@@ -6,7 +6,7 @@ services:
     ports: ["80:80", "443:443"]
     environment: { SITE_HOST: "${SITE_HOST}" }
     volumes: ["./Caddyfile:/etc/caddy/Caddyfile:ro", "caddy_data:/data"]
-    depends_on: [web, api, mailpit]
+    depends_on: [web, api, mcp, mailpit]
 
   web:
     build: { context: ../web, args: { NEXT_PUBLIC_SITE_URL: "https://${SITE_HOST}" } }
@@ -26,6 +26,14 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock     # to start sandboxes on the host daemon
       - /opt/stunt-double/data:/opt/stunt-double/data # same path inside and outside, so bind mounts line up
+
+  mcp:
+    build: ../mcp
+    restart: unless-stopped
+    environment:
+      STUNT_DOUBLE_API: http://api:8000
+      STUNT_DOUBLE_PUBLIC: "https://${SITE_HOST}"
+      STUNT_DOUBLE_ALLOWED_HOSTS: "${SITE_HOST}"
 
   mailpit:
     image: axllent/mailpit:v1.21

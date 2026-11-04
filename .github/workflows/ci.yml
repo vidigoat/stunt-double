@@ -10,6 +10,20 @@ jobs:
         with: { python-version: "3.12" }
       - run: pip install -r api/requirements.txt -r api/requirements-dev.txt
       - run: cd api && python -m pytest -q tests
+  mcp:
+    name: MCP server (real MCP client over stdio against the live API)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - run: docker build -t stunt-double-sandbox:latest -f sandbox/Dockerfile .
+      - run: python -m venv api/.venv && api/.venv/bin/pip install -r api/requirements.txt
+      - run: python -m venv mcp/.venv && mcp/.venv/bin/pip install -r mcp/requirements.txt
+      - run: |
+          cd api && SD_DATA_DIR=$RUNNER_TEMP/sd .venv/bin/uvicorn app.main:app --port 8000 &
+          for i in $(seq 1 30); do curl -sf localhost:8000/api/health && break; sleep 1; done
+          cd mcp && STUNT_DOUBLE_API=http://localhost:8000 .venv/bin/python tests/test_mcp.py
   web:
     name: Web build (Next.js + shadcn/ui)
     runs-on: ubuntu-24.04
