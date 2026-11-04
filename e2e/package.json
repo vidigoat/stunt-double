@@ -1,0 +1,7 @@
+{
+  "name": "stunt-double-e2e",
+  "private": true,
+  "type": "commonjs",
+  "scripts": { "test": "node golden-path.js" },
+  "devDependencies": { "playwright": "1.63.0" }
+}

@@ -32,3 +32,24 @@ jobs:
       - uses: actions/setup-node@v4
         with: { node-version: "22", cache: npm, cache-dependency-path: web/package-lock.json }
       - run: cd web && npm ci && npm run build
+  e2e:
+    name: End-to-end (real browser through the golden path)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - uses: actions/setup-node@v4
+        with: { node-version: "22", cache: npm, cache-dependency-path: web/package-lock.json }
+      - run: docker build -t stunt-double-sandbox:latest -f sandbox/Dockerfile .
+      - run: python -m venv api/.venv && api/.venv/bin/pip install -r api/requirements.txt
+      - run: cd web && npm ci && API_URL=http://localhost:8000 npm run build && cp -r .next/static .next/standalone/.next/ && cp -r public .next/standalone/
+      - run: cd e2e && npm install && npx playwright install --with-deps chromium
+      - run: |
+          (cd api && SD_DATA_DIR=$RUNNER_TEMP/sd .venv/bin/uvicorn app.main:app --port 8000 &)
+          (cd web/.next/standalone && PORT=3000 node server.js &)
+          for i in $(seq 1 60); do curl -sf localhost:3000/api/health && break; sleep 1; done
+          cd e2e && BASE_URL=http://localhost:3000 SHOTS_DIR=$RUNNER_TEMP node golden-path.js
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with: { name: e2e-screenshots, path: "${{ runner.temp }}/e2e-*.png", if-no-files-found: ignore }
