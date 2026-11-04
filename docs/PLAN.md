@@ -134,3 +134,10 @@ prod: Postgres 16 "Bean There Coffee Co." (customers, charges, tickets, subscrip
 1. **Vultr API key** and **Serverless Inference API key**, added in the cloud environment settings as `VULTR_API_KEY` and `VULTR_INFERENCE_KEY`. Never paste them in chat.
 2. An empty **public** repo `vidigoat/stunt-double`. Create it on github.com (this session can't create repos), and I'll attach it.
 4. Optional: a domain. Otherwise we use a free `sslip.io` hostname.
+
+## Progress (Wed Nov 4, 08:15 IST)
+Ahead of plan on everything that doesn't need Vultr keys:
+- Day 0–3 scope done: engine, two-phase sandbox, policy, verifier/agent (wiring tested), approval console, history/ledger/policy/connect pages,
+  landing page, MCP server, deck (12 slides), cover, submission texts, video pipeline, README media, 42 API tests + MCP + browser e2e in CI.
+- Full production compose stack verified end to end over HTTPS (Caddy, web, api, mcp, Mailpit).
+- Blocked on keys: VM, real model runs + eval, gVisor benchmark, narration, final video. Follow docs/GO_LIVE.md.

@@ -38,8 +38,9 @@ Criterion score (1–5) = `1 + 4 × (points earned / points possible)`, rounded 
 | Engineering quality (tests, CI, commits across the event) | 2 | 2 | 30+ commits, 25 API tests + MCP client test + browser e2e, 4 CI jobs green |
 | Defence in depth beyond the brief | 2 | 2 | Two-phase measurement (the plan can't lie), O_NOFOLLOW copies, ulimits, integrity hash, policy engine, 6 adversarial tests |
 | Works with any agent | 2 | 2 | MCP server (stdio + HTTP), tested with a real MCP client in CI; Connect page in the app |
+| Independent security review, all findings fixed with regression tests | 2 | 2 | 1 critical, 3 high, 3 medium, low items; see SECURITY.md |
 | Deployment proven before the VM exists | 2 | 2 | Full compose stack (Caddy HTTPS, web, api, mcp, Mailpit) run end to end; browser e2e passes over HTTPS; 104 emails delivered |
-| **Total** | **16** | **22** | **→ 3.9 / 5** |
+| **Total** | **18** | **24** | **→ 4.0 / 5** |
 
 ## 2. Presentation
 
@@ -88,11 +89,11 @@ Criterion score (1–5) = `1 + 4 × (points earned / points possible)`, rounded 
 
 | Criterion | Now (Tue night) | Target (Sun) |
 |---|---|---|
-| Application of Technology | 3.5 → 3.8 → **3.9** | 5.0 |
+| Application of Technology | 3.5 → 3.8 → 3.9 → **4.0** | 5.0 |
 | Presentation | 2.4 → 3.6 → **3.9** | 5.0 |
 | Business Value | 2.7 → 4.7 → **5.0** | 5.0 |
 | Originality | 4.5 → **5.0** | 5.0 |
-| **Total (/20)** | 13.1 → 16.3 → 17.4 → **17.8** | 19.5 |
+| **Total (/20)** | 13.1 → 16.3 → 17.4 → 17.8 → **17.9** | 19.5 |
 | Gate | ❌ (G1–G3, G7 open) | ✅ |
 
 **Biggest score movers, in order:**
@@ -119,3 +120,4 @@ Re-score after every milestone and log it below.
 - [ ] `docs/BENCH.md` re-measured on the VM with gVisor
 - [ ] Object Storage archive: `/api/health` shows `evidence_archive` and an approved run has an `archive.key` (only then mention it)
 | Wed Nov 4, 07:55 | 17.8 | Three traps (finance/support/marketing), glossary-aware verifier, Checks tab, named approvals + evidence export, Connect page, guided tour, spend protection, Object Storage archive (untested), full compose stack verified over HTTPS. Gate G1–G3 still needs keys. |
+| Wed Nov 4, 08:15 | 17.9 | Independent security review: 1 critical + 3 high + 3 medium fixed with 10 regression tests (42 API tests total). Remaining points are all behind the Vultr keys: live URL, real AI runs, gVisor, narrated video. |
