@@ -42,7 +42,7 @@ Usage-based pricing (per rehearsal) scales with agent adoption. Seats follow the
 | **Stunt Double** | rehearse on a clone, measure, verify against intent, approve, replay exact effects with a drift check | approvals for non-engineers, grounded in real numbers |
 
 ## Why now, and why Vultr
-Cheap, fast, isolated compute (Vultr Cloud Compute + gVisor) makes a full rehearsal per action affordable: ~0.5 s per rehearsal on the demo business. Serverless inference makes a second, independent verifier model practical on every action.
+Cheap, fast, isolated compute (Vultr Cloud Compute + gVisor) makes a full rehearsal per action affordable: a full two-phase rehearsal of the demo business takes 0.8 s (median, see docs/BENCH.md). Serverless inference makes a second, independent verifier model practical on every action.
 
 ## Roadmap
 1. Connectors: Postgres/MySQL (copy-on-write branches), Stripe, HubSpot/Salesforce, Zendesk, SMTP providers.

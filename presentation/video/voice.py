@@ -42,7 +42,9 @@ SCENES = [
 
 
 def tts(text: str, out: Path) -> None:
-    req = urllib.request.Request(f"{BASE}/audio/speech", method="POST",
+    if not BASE.startswith("https://"):
+        raise ValueError("VULTR_INFERENCE_BASE_URL must be https")
+    req = urllib.request.Request(  # noqa: S310 - https only, checked abovef"{BASE}/audio/speech", method="POST",
                                  data=json.dumps({"model": MODEL, "input": text, "voice": "default", "response_format": "mp3", "speed": 1.0}).encode(),
                                  headers={"Authorization": f"Bearer {os.environ['VULTR_INFERENCE_KEY']}", "Content-Type": "application/json"})
     with urllib.request.urlopen(req, timeout=180) as r:  # noqa: S310 - fixed https endpoint
