@@ -11,7 +11,7 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
-from . import agent, apply as applier, beanpay, config, sandbox, seed
+from . import agent, apply as applier, beanpay, config, policy, sandbox, seed
 
 app = FastAPI(title="Stunt Double API")
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
@@ -247,6 +247,20 @@ def approve_run(rid: str):
     return _public(run)
 
 
+@app.get("/api/policy")
+def get_policy():
+    return {"policy": policy.load(), "defaults": policy.DEFAULTS}
+
+
+@app.put("/api/policy")
+def put_policy(body: dict, req: Request):
+    _rate_limit(req, per_hour=60)
+    try:
+        return {"policy": policy.save(body), "defaults": policy.DEFAULTS}
+    except ValueError as e:
+        raise HTTPException(422, str(e)) from e
+
+
 @app.get("/api/beanpay/ledger")
 def ledger():
     return beanpay.ledger()
@@ -257,4 +271,5 @@ def reset(req: Request):
     _rate_limit(req, per_hour=20)
     seed.seed(config.PROD_DB)
     beanpay.reset()
+    policy.reset()
     return {"ok": True, **business()}

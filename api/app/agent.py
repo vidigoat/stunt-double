@@ -272,17 +272,59 @@ def verify(task: str, code: str, consequences: dict, emit: Callable) -> dict:
 
 
 # ---- deterministic red flags (no AI needed) -----------------------------------------------------
-def red_flags(c: dict) -> list[dict]:
-    flags = []
+def red_flags(c: dict, pol: dict | None = None) -> list[dict]:
+    """Deterministic checks (no AI). severity 'critical' = blocked by policy; the Approve button is locked."""
+    from . import policy as _policy
+    p = pol or _policy.load()
+    flags: list[dict] = []
+
+    def flag(rule: str, block: bool, title: str, detail: str, warn_severity: str = "high"):
+        flags.append({"rule": rule, "severity": "critical" if block else warn_severity, "title": title, "detail": detail})
+
     for t, v in c.get("tables", {}).items():
-        if v.get("dropped"):
-            flags.append({"severity": "critical", "title": f"Drops the whole {t} table", "detail": f"{v['rows_before']:,} rows would be lost."})
-        elif v["deleted"] and v["rows_before"] and v["deleted"] / v["rows_before"] >= 0.05:
-            flags.append({"severity": "critical", "title": f"Deletes {v['deleted']:,} of {v['rows_before']:,} {t}",
-                          "detail": f"{v['deleted'] / v['rows_before']:.0%} of the table would be gone."})
+        if v.get("dropped") or v.get("created"):
+            flag("block_schema_changes", p["block_schema_changes"], f"{'Drops' if v.get('dropped') else 'Creates'} the {t} table",
+                 f"{v['rows_before']:,} rows would be lost." if v.get("dropped") else "Schema changes are never auto-applied.")
+            continue
+        if v["deleted"] and t in p["protected_tables"]:
+            flag("protected_tables", True, f"Deletes {v['deleted']:,} rows from protected table '{t}'", f"'{t}' is protected by policy.")
+        elif v["deleted"] and v["rows_before"] and v["deleted"] / v["rows_before"] * 100 > p["max_delete_pct"]:
+            flag("max_delete_pct", True, f"Deletes {v['deleted']:,} of {v['rows_before']:,} {t}",
+                 f"{v['deleted'] / v['rows_before']:.0%} of the table; policy allows {p['max_delete_pct']}%.")
     for b in c.get("blocked", []):
-        flags.append({"severity": "high", "title": f"Tried to reach {b['target']}", "detail": f"Blocked {b['kind']} attempt. Nothing left the sandbox."})
+        flag("block_network_attempts", p["block_network_attempts"], f"Tried to reach {b['target']}", f"Blocked {b['kind']} attempt. Nothing left the sandbox.")
     if not c.get("ok"):
         msg = c.get("error", {}).get("message") if isinstance(c.get("error"), dict) else c.get("error")
-        flags.append({"severity": "high", "title": "The plan crashed", "detail": str(msg)[:300]})
-    return flags
+        flag("crash", True, "The plan crashed", str(msg)[:300])
+
+    a = c.get("audit") or {}
+    r, e = a.get("refunds", {}), a.get("emails", {})
+    if r.get("over_refunded_count"):
+        x = r["over_refunded"][0]
+        flag("block_over_refunds", p["block_over_refunds"], f"{r['over_refunded_count']} refunds exceed the original charge",
+             f"e.g. charge #{x['charge_id']}: refunding ${x['amount_cents'] / 100:,.2f} of ${x['charged_cents'] / 100:,.2f}.")
+    if r.get("already_refunded_count") or r.get("duplicate_refund_count"):
+        flag("block_over_refunds", p["block_over_refunds"], "Refunds money that was already refunded",
+             f"{r.get('already_refunded_count', 0)} already-refunded charges, {r.get('duplicate_refund_count', 0)} charges refunded twice.")
+    if r.get("unknown_charge_count"):
+        flag("block_over_refunds", p["block_over_refunds"], f"{r['unknown_charge_count']} refunds for charges that don't exist", "BeanPay would reject or misroute these.")
+    total = c.get("payments", {}).get("total_cents", 0)
+    if total > p["max_refund_total_usd"] * 100:
+        flag("max_refund_total_usd", False, f"Large payout: ${total / 100:,.2f}", f"Above the ${p['max_refund_total_usd']:,} review threshold.", "medium")
+    if e.get("templated_count"):
+        flag("block_broken_templates", p["block_broken_templates"], f"{e['templated_count']} emails contain an unfilled placeholder",
+             f"e.g. '{e['templated'][0]['match']}' in the email to {e['templated'][0]['to']}.")
+    if e.get("leak_count"):
+        flag("block_data_leaks", p["block_data_leaks"], f"{e['leak_count']} emails would leak private data", f"e.g. to {e['leaks'][0]['to']}: {e['leaks'][0]['reason']}.")
+    if e.get("duplicate_recipient_count"):
+        flag("duplicate_emails", False, f"{e['duplicate_recipient_count']} customers would get the same email more than once", "Usually a join or loop bug.", "medium")
+    if e.get("not_a_customer_count"):
+        flag("unknown_recipients", False, f"{e['not_a_customer_count']} emails go to addresses that aren't customers", "Check the recipient list.", "medium")
+    n_emails = c.get("emails", {}).get("count", 0)
+    if n_emails > p["max_emails_per_run"]:
+        flag("max_emails_per_run", False, f"Sends {n_emails:,} emails", f"Above the {p['max_emails_per_run']:,}-email review threshold.", "medium")
+    if p["warn_vip_emails"] and e.get("vip_count"):
+        names = ", ".join(v["name"] for v in e.get("vip", [])[:3])
+        flag("warn_vip_emails", False, f"Emails {e['vip_count']} VIP customers", f"Including {names}.", "medium")
+    order = {"critical": 0, "high": 1, "medium": 2, "low": 3}
+    return sorted(flags, key=lambda f: order[f["severity"]])

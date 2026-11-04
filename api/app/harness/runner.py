@@ -11,6 +11,8 @@ outside world is logged as a blocked side effect (the container has no network a
 import contextlib
 import io
 import json
+import re
+from collections import Counter
 import os
 import resource
 import socket
@@ -105,6 +107,49 @@ def diff(before: dict, after: dict) -> dict:
     return out
 
 
+PLACEHOLDER = re.compile(r"\{\{[^}]*\}\}|\{[a-z_]+\}|\[(?:NAME|FIRST_NAME|CUSTOMER)\]|<(?:name|first_name)>|%\(\w+\)s|%s", re.I)
+CARD = re.compile(r"\b(?:\d[ -]?){13,16}\b")
+EMAIL = re.compile(r"[\w.+-]+@[\w-]+\.[\w.]+")
+
+
+def audit(before: dict) -> dict:
+    """Facts about the recorded side effects, checked against the data as it was BEFORE the plan ran."""
+    charges = before.get("charges", {}).get("rows", {})
+    customers = before.get("customers", {}).get("rows", {})
+    by_email = {r.get("email"): r for r in customers.values()}
+    per_charge = Counter(p["charge_id"] for p in PAYMENTS)
+    over, already, unknown = [], [], []
+    for p in PAYMENTS:
+        ch = charges.get(p["charge_id"])
+        if ch is None:
+            unknown.append(p)
+        elif p["amount_cents"] > (ch.get("amount_cents") or 0):
+            over.append({**p, "charged_cents": ch.get("amount_cents")})
+        elif ch.get("status") == "refunded":
+            already.append(p)
+    recipients = Counter(e["to"] for e in EMAILS)
+    templated, leaks, vip, strangers = [], [], [], []
+    for e in EMAILS:
+        text = e["subject"] + "\n" + e["body"]
+        if PLACEHOLDER.search(text):
+            templated.append({"to": e["to"], "match": PLACEHOLDER.search(text).group(0)})
+        others = [m for m in EMAIL.findall(e["body"]) if m != e["to"] and m in by_email]
+        if others or CARD.search(e["body"]):
+            leaks.append({"to": e["to"], "reason": "contains another customer's email" if others else "contains a card-like number"})
+        c = by_email.get(e["to"])
+        if c is None:
+            strangers.append(e["to"])
+        elif c.get("vip"):
+            vip.append({"to": e["to"], "name": c.get("name")})
+    return {
+        "refunds": {"over_refunded": over[:5], "over_refunded_count": len(over), "already_refunded": already[:5], "already_refunded_count": len(already),
+                    "unknown_charge_count": len(unknown), "duplicate_refund_count": sum(1 for n in per_charge.values() if n > 1)},
+        "emails": {"templated": templated[:5], "templated_count": len(templated), "leaks": leaks[:5], "leak_count": len(leaks),
+                   "vip": vip[:10], "vip_count": len(vip), "not_a_customer_count": len(strangers),
+                   "duplicate_recipient_count": sum(1 for n in recipients.values() if n > 1)},
+    }
+
+
 def main() -> None:
     os.makedirs(OUT, exist_ok=True)
     started = time.time()
@@ -165,6 +210,7 @@ def main() -> None:
         "emails": {"count": len(EMAILS), "samples": EMAILS[:25]},
         "blocked": BLOCKED[:50],
         "guards": guards,
+        "audit": audit(before),
     }
     with open(os.path.join(OUT, "consequences.json"), "w") as f:
         json.dump(consequences, f, default=str)
