@@ -68,6 +68,10 @@ After judging: delete the VM and the inference subscription, then regenerate bot
 
 ## Sat Nov 7: video (≤ 4 minutes)
 
+Narrate with **Vultr's own TTS** (`qwen3-tts-12hz-1.7b` on Serverless Inference, `POST /v1/audio/speech`, MP3; tested Wed
+night). That's one more real Vultr service in the submission, and costs cents. Record the screen with `e2e/record-live.js`
+against production.
+
 Use the existing script. Must-have beats:
 1. 0:00 hook: "AI agents now refund money and email customers. Here's one about to send $37,404 to the wrong people."
 2. The real agent on Vultr Inference writes the plan and rehearses it; the verifier catches it; the agent fixes it.
