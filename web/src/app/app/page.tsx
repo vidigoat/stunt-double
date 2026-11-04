@@ -418,7 +418,7 @@ export default function AppPage() {
               ) : null}
 
               {attempt ? <BlastRadius c={attempt.consequences} /> : null}
-              {attempt ? <Details attempt={attempt} events={run.events} /> : null}
+              {attempt ? <Details attempt={attempt} events={run.events} runId={run.id} /> : null}
             </>
           )}
         </div>
@@ -480,7 +480,63 @@ function Checks({ attempt, events }: { attempt: NonNullable<Run["attempts"][numb
   );
 }
 
-function Details({ attempt, events }: { attempt: NonNullable<Run["attempts"][number]>; events: Run["events"] }) {
+type ChangeRow = { table: string; op: "updated" | "deleted" | "inserted"; rowid: number; before: Record<string, unknown> | null; after: Record<string, unknown> | null; changed: string[] };
+
+function ChangesExplorer({ runId }: { runId: string }) {
+  const [table, setTable] = useState("");
+  const [op, setOp] = useState("");
+  const [q, setQ] = useState("");
+  const [offset, setOffset] = useState(0);
+  const [data, setData] = useState<{ total: number; rows: ChangeRow[]; tables: string[] } | null>(null);
+  useEffect(() => {
+    const ctl = new AbortController();
+    const t = setTimeout(() => {
+      const params = new URLSearchParams({ table, op, q, offset: String(offset), limit: "20" });
+      fetch(`/api/runs/${runId}/changes?${params}`, { signal: ctl.signal, cache: "no-store" }).then((r) => r.json()).then(setData).catch(() => {});
+    }, 200);
+    return () => { clearTimeout(t); ctl.abort(); };
+  }, [runId, table, op, q, offset]);
+  const sel = "h-8 rounded-lg border bg-background px-2 text-[13px] outline-none focus-visible:ring-2 focus-visible:ring-ring/50";
+  return (
+    <div className="space-y-3">
+      <div className="flex flex-wrap items-center gap-2">
+        <select aria-label="Table" className={sel} value={table} onChange={(e) => { setTable(e.target.value); setOffset(0); }}>
+          <option value="">all tables</option>{data?.tables.map((t) => <option key={t} value={t}>{t}</option>)}
+        </select>
+        <select aria-label="Change type" className={sel} value={op} onChange={(e) => { setOp(e.target.value); setOffset(0); }}>
+          <option value="">all changes</option><option value="updated">updated</option><option value="deleted">deleted</option><option value="inserted">inserted</option>
+        </select>
+        <input aria-label="Search rows" placeholder="search any value…" value={q} onChange={(e) => { setQ(e.target.value); setOffset(0); }} className={cn(sel, "min-w-0 flex-1")} />
+        <span className="font-mono text-[12px] text-muted-foreground">{data ? `${num(data.total)} rows` : "…"}</span>
+      </div>
+      <div className="space-y-1.5">
+        {data?.rows.map((u) => {
+          const row = u.after ?? u.before ?? {};
+          return (
+            <div key={`${u.table}-${u.op}-${u.rowid}`} className="overflow-x-auto rounded-lg border bg-background px-3 py-2 font-mono text-[12px]">
+              <span className={cn("mr-2 rounded px-1.5 py-0.5 text-[10px] uppercase", u.op === "deleted" ? "bg-damage/10 text-damage" : "bg-muted")}>{u.op} {u.table}</span>
+              {Object.entries(row).map(([k, v]) => (
+                <span key={k} className={cn("mr-3 whitespace-nowrap", u.changed.includes(k) ? "text-foreground" : "text-muted-foreground")}>
+                  {k}={u.changed.includes(k) && u.before ? <><s className="opacity-50">{String(u.before[k])}</s>→</> : null}{String(v)}
+                </span>
+              ))}
+            </div>
+          );
+        })}
+      </div>
+      {data && data.total > 20 ? (
+        <div className="flex items-center justify-between gap-3 text-sm">
+          <Button variant="outline" className="h-8 rounded-full px-3" disabled={offset === 0} onClick={() => setOffset(Math.max(0, offset - 20))}>← Previous</Button>
+          <span className="font-mono text-[12px] text-muted-foreground">{num(offset + 1)}–{num(Math.min(offset + 20, data.total))} of {num(data.total)}</span>
+          <Button variant="outline" className="h-8 rounded-full px-3" disabled={offset + 20 >= data.total} onClick={() => setOffset(offset + 20)}>Next →</Button>
+        </div>
+      ) : null}
+      <p className="text-xs text-muted-foreground">Every row here is recorded in the effects that approval replays, exactly and only these.</p>
+    </div>
+  );
+}
+
+function Details({ attempt, events, runId }: { attempt: NonNullable<Run["attempts"][number]>; events: Run["events"]; runId: string }) {
   const c = attempt.consequences;
   const updated = Object.entries(c.tables).flatMap(([t, d]) => [
     ...d.samples.updated.map((r) => ({ t, op: "update", row: r.after, changed: r.changed, before: r.before })),
@@ -501,21 +557,7 @@ function Details({ attempt, events }: { attempt: NonNullable<Run["attempts"][num
         </TabsList>
         <TabsContent value="checks" className="pt-3"><Checks attempt={attempt} events={events} /></TabsContent>
         <TabsContent value="rows" className="pt-3">
-          {updated.length ? (
-            <div className="space-y-2">
-              {updated.slice(0, 12).map((u, i) => (
-                <div key={i} className="overflow-x-auto rounded-lg border bg-background px-3 py-2 font-mono text-[12px]">
-                  <span className={cn("mr-2 rounded px-1.5 py-0.5 text-[10px] uppercase", u.op === "delete" ? "bg-damage/10 text-damage" : "bg-muted")}>{u.op} {u.t}</span>
-                  {Object.entries(u.row).map(([k, v]) => (
-                    <span key={k} className={cn("mr-3 whitespace-nowrap", u.changed.includes(k) ? "text-foreground" : "text-muted-foreground")}>
-                      {k}={u.changed.includes(k) && u.before ? <><s className="opacity-50">{String(u.before[k])}</s>→</> : null}{String(v)}
-                    </span>
-                  ))}
-                </div>
-              ))}
-              <p className="text-xs text-muted-foreground">Showing a sample. Every changed row is recorded and replayed exactly on approval.</p>
-            </div>
-          ) : <p className="text-sm text-muted-foreground">No rows changed.</p>}
+          {updated.length ? <ChangesExplorer runId={runId} /> : <p className="text-sm text-muted-foreground">No rows changed.</p>}
         </TabsContent>
         <TabsContent value="emails" className="space-y-2 pt-3">
           {c.emails.samples.length ? c.emails.samples.slice(0, 6).map((e, i) => (

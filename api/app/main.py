@@ -499,6 +499,34 @@ def _archive_async(run: dict) -> None:
     threading.Thread(target=job, daemon=True).start()
 
 
+@app.get("/api/runs/{rid}/changes")
+def run_changes(rid: str, table: str = "", op: str = "", q: str = "", offset: int = 0, limit: int = 25):
+    """Every changed row of the latest attempt (not just samples), filterable and paginated."""
+    run = _get(rid)
+    if not run["attempts"]:
+        raise HTTPException(404, "no rehearsal yet")
+    try:
+        effects = json.loads(open(run["attempts"][-1]["effects_path"]).read())
+    except (OSError, ValueError) as e:
+        raise HTTPException(404, "effects not available") from e
+    limit = max(1, min(limit, 100))
+    rows = []
+    for t, d in effects.get("changes", {}).items():
+        if table and t != table:
+            continue
+        for kind in ("updated", "deleted", "inserted"):
+            if op and op != kind:
+                continue
+            for item in d.get(kind, []):
+                row = item.get("after") or item.get("before") or {}
+                if q and q.lower() not in json.dumps(row, default=str).lower():
+                    continue
+                rows.append({"table": t, "op": kind, "rowid": item["rowid"], "before": item.get("before"), "after": item.get("after"),
+                             "changed": item.get("changed", [])})
+    return {"total": len(rows), "offset": offset, "limit": limit, "rows": rows[offset:offset + limit],
+            "tables": sorted(effects.get("changes", {}).keys())}
+
+
 @app.get("/api/runs/{rid}/evidence")
 def evidence(rid: str):
     """Everything an auditor needs for one run: request, plan, fingerprints, measured consequences, checks, verdict,

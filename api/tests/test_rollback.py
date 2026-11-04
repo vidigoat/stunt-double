@@ -94,3 +94,19 @@ def test_stats_count_what_was_stopped(fresh_business, monkeypatch):
     wait(api, rid)
     st = api.get("/api/stats").json()
     assert st["stopped"] >= 1 and st["rows_protected"] >= 1300 and st["rehearsals"] >= 1
+
+
+@needs_docker
+def test_diff_explorer_pages_through_every_changed_row(fresh_business, monkeypatch):
+    monkeypatch.setattr(main.config, "INFERENCE_KEY", "")
+    api = TestClient(main.app)
+    rid = api.post("/api/runs/manual", json={"task": "Refund duplicates", "code": CORRECT}).json()["id"]
+    wait(api, rid)
+    first = api.get(f"/api/runs/{rid}/changes?limit=25").json()
+    assert first["total"] == 104 and len(first["rows"]) == 25 and first["tables"] == ["charges"]
+    last = api.get(f"/api/runs/{rid}/changes?offset=100&limit=25").json()
+    assert len(last["rows"]) == 4
+    one = first["rows"][0]
+    hit = api.get(f"/api/runs/{rid}/changes", params={"q": str(one["after"]["order_id"]), "op": "updated"}).json()
+    assert any(r["rowid"] == one["rowid"] for r in hit["rows"])
+    assert api.get(f"/api/runs/{rid}/changes?op=deleted").json()["total"] == 0
