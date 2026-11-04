@@ -89,7 +89,7 @@ export function ApprovalCard({ view, children, className, label = "Approval requ
         <div className="grid grid-cols-2 gap-2.5 md:grid-cols-4">
           <Stat label="Money out" value={<CountUp value={view.moneyCents} format="usd" />} hot={hot && view.moneyCents > 0} sub={`${num(view.refunds)} refunds`} />
           <Stat label="Emails" value={<CountUp value={view.emails} />} sub="to real customers" />
-          <Stat label="Rows changed" value={<CountUp value={view.rowsChanged} />} hot={t === "danger"} sub={view.biggestChange} />
+          <Stat label="Rows changed" value={<CountUp value={view.rowsChanged} />} hot={t === "danger" && view.rowsChanged > 0} sub={view.biggestChange} />
           <Stat label="Verdict" value={t === "ok" ? "Looks right" : t === "danger" ? "Critical" : t === "warn" ? "Check this" : "Passed checks"} hot={hot} small sub={view.verdict ? "verified by Stunt Double" : "policy checks only"} />
         </div>
         {view.verdict || issues.length ? (

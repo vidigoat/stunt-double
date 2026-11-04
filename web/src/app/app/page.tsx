@@ -9,7 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ApprovalCard, viewFromAttempt } from "@/components/approval-card";
 import { AppHeader } from "@/components/app-header";
-import { api, num, usd, type Business, type Health, type Run } from "@/lib/api";
+import { api, num, usd, type Business, type Flag, type Health, type Run } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
 const EXAMPLES = [
@@ -336,7 +336,7 @@ export default function AppPage() {
                 </div>
               ) : null}
 
-              {attempt ? <Details attempt={attempt} /> : null}
+              {attempt ? <Details attempt={attempt} events={run.events} /> : null}
             </>
           )}
         </div>
@@ -345,7 +345,57 @@ export default function AppPage() {
   );
 }
 
-function Details({ attempt }: { attempt: NonNullable<Run["attempts"][number]> }) {
+const RULES: { rule: string; label: string }[] = [
+  { rule: "protected_tables", label: "No deletes in protected tables" },
+  { rule: "max_delete_pct", label: "Deletes stay under the table limit" },
+  { rule: "block_schema_changes", label: "No schema changes" },
+  { rule: "block_network_attempts", label: "No attempts to reach the internet" },
+  { rule: "crash", label: "Plan ran to completion" },
+  { rule: "block_over_refunds", label: "Refunds match real, unrefunded charges" },
+  { rule: "block_broken_templates", label: "Emails have no unfilled placeholders" },
+  { rule: "block_data_leaks", label: "Emails leak no other customer's data" },
+  { rule: "block_marketing_to_opted_out", label: "Marketing respects unsubscribes" },
+  { rule: "max_refund_total_usd", label: "Payout under the review threshold" },
+  { rule: "max_emails_per_run", label: "Email volume under the review threshold" },
+  { rule: "warn_vip_emails", label: "VIP recipients flagged" },
+  { rule: "duplicate_emails", label: "Nobody gets the same email twice" },
+  { rule: "unknown_recipients", label: "Every recipient is a customer" },
+];
+
+function Checks({ attempt, events }: { attempt: NonNullable<Run["attempts"][number]>; events: Run["events"] }) {
+  const byRule = new Map<string, Flag>();
+  for (const f of attempt.flags) if (f.rule && !byRule.has(f.rule)) byRule.set(f.rule, f);
+  const queries = events.filter((e) => e.kind === "verify" && /select|with/i.test(e.detail));
+  return (
+    <div className="space-y-5">
+      <div>
+        <div className="mb-2 font-mono text-[11px] uppercase tracking-wider text-muted-foreground">Policy checks · no AI involved</div>
+        <ul className="grid gap-1.5 sm:grid-cols-2">
+          {RULES.map(({ rule, label }) => {
+            const f = byRule.get(rule);
+            const state = !f ? "pass" : f.severity === "critical" ? "block" : "warn";
+            return (
+              <li key={rule} title={f ? `${f.title}. ${f.detail}` : undefined} className={cn("flex items-center gap-2 rounded-lg border bg-background px-3 py-2 text-[13px]", state === "block" && "border-damage/40 text-damage")}>
+                <span className={cn("flex size-4 shrink-0 items-center justify-center rounded-full text-[10px]", state === "pass" ? "bg-foreground text-background" : state === "block" ? "bg-damage text-white" : "border border-foreground")}>{state === "pass" ? "✓" : state === "block" ? "✕" : "!"}</span>
+                <span className="min-w-0 truncate">{label}</span>
+              </li>
+            );
+          })}
+        </ul>
+      </div>
+      <div>
+        <div className="mb-2 font-mono text-[11px] uppercase tracking-wider text-muted-foreground">Verifier investigation · {queries.length ? `${queries.length} read-only ${queries.length === 1 ? "query" : "queries"}` : "AI verification not run"}</div>
+        {queries.length ? (
+          <ol className="space-y-1.5">
+            {queries.map((q, i) => <li key={i} className="overflow-x-auto rounded-lg border bg-background px-3 py-2 font-mono text-[12px]"><span className="mr-2 text-muted-foreground">{i + 1}.</span>{q.detail}</li>)}
+          </ol>
+        ) : <p className="text-sm text-muted-foreground">The policy checks above still ran. Ask the agent (with Vultr Serverless Inference configured) to see the verifier investigate.</p>}
+      </div>
+    </div>
+  );
+}
+
+function Details({ attempt, events }: { attempt: NonNullable<Run["attempts"][number]>; events: Run["events"] }) {
   const c = attempt.consequences;
   const updated = Object.entries(c.tables).flatMap(([t, d]) => [
     ...d.samples.updated.map((r) => ({ t, op: "update", row: r.after, changed: r.changed, before: r.before })),
@@ -354,14 +404,16 @@ function Details({ attempt }: { attempt: NonNullable<Run["attempts"][number]> })
   ]);
   return (
     <div className="rounded-2xl border bg-card p-5">
-      <Tabs defaultValue="rows">
+      <Tabs defaultValue="checks">
         <TabsList className="flex w-full flex-wrap">
+          <TabsTrigger value="checks">Checks</TabsTrigger>
           <TabsTrigger value="rows">Rows</TabsTrigger>
           <TabsTrigger value="emails">Emails · {num(c.emails.count)}</TabsTrigger>
           <TabsTrigger value="refunds">Refunds · {num(c.payments.count)}</TabsTrigger>
           <TabsTrigger value="sandbox">Sandbox</TabsTrigger>
           <TabsTrigger value="code">Code</TabsTrigger>
         </TabsList>
+        <TabsContent value="checks" className="pt-3"><Checks attempt={attempt} events={events} /></TabsContent>
         <TabsContent value="rows" className="pt-3">
           {updated.length ? (
             <div className="space-y-2">
