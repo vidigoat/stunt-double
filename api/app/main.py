@@ -380,7 +380,14 @@ def ledger():
 @app.post("/api/demo/reset")
 def reset(req: Request):
     _rate_limit(req, per_hour=20)
+    if any(r["status"] in ACTIVE for r in RUNS.values()):
+        raise HTTPException(409, "A rehearsal is still running; try again in a moment")
     seed.seed(config.PROD_DB)
     beanpay.reset()
     policy.reset()
+    with LOCK:  # a demo reset starts a fresh audit trail too
+        RUNS.clear()
+        HISTORY.clear()
+        for f in HISTORY_DIR.glob("run_*.json"):
+            f.unlink(missing_ok=True)
     return {"ok": True, **business()}

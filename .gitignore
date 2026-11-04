@@ -10,3 +10,7 @@ __pycache__/
 .DS_Store
 .venv/
 data/
+presentation/video/*.mp4
+presentation/video/voice/
+presentation/video/segments.json
+infra/.env
