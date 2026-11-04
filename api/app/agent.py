@@ -305,7 +305,7 @@ def red_flags(c: dict, pol: dict | None = None) -> list[dict]:
                  f"Columns: {', '.join(v.get('changed_columns', [])[:5])}. Policy allows {p['max_update_pct_protected']}%.")
         if v["deleted"] and t in p["protected_tables"]:
             flag("protected_tables", True, f"Deletes {v['deleted']:,} rows from protected table '{t}'", f"'{t}' is protected by policy.")
-        elif v["deleted"] and v["rows_before"] and v["deleted"] / v["rows_before"] * 100 > p["max_delete_pct"]:
+        if v["deleted"] and v["rows_before"] and v["deleted"] / v["rows_before"] * 100 > p["max_delete_pct"]:
             flag("max_delete_pct", True, f"Deletes {v['deleted']:,} of {v['rows_before']:,} {t}",
                  f"{v['deleted'] / v['rows_before']:.0%} of the table; policy allows {p['max_delete_pct']}%.")
     for b in c.get("blocked", []):
@@ -351,6 +351,6 @@ def red_flags(c: dict, pol: dict | None = None) -> list[dict]:
              f"e.g. {x['name']}{' (VIP)' if x.get('vip') else ''} opted out of marketing. Sending anyway breaks consent rules.")
     if p["warn_vip_emails"] and e.get("vip_count"):
         names = ", ".join(v["name"] for v in e.get("vip", [])[:3])
-        flag("warn_vip_emails", False, f"Emails {e['vip_count']} VIP customers", f"Including {names}.", "medium")
+        flag("warn_vip_emails", False, f"Emails {e['vip_count']} VIP customer{'s' if e['vip_count'] != 1 else ''}", f"Including {names}.", "medium")
     order = {"critical": 0, "high": 1, "medium": 2, "low": 3}
     return sorted(flags, key=lambda f: order[f["severity"]])

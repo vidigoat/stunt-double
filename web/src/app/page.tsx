@@ -25,7 +25,7 @@ const HERO: ApprovalView = {
       { severity: "medium", title: "8 VIP customers emailed by mistake", detail: "They'd get an apology for a problem they never had." },
     ],
   },
-  sandboxId: "sd-7f3a91c2", sandboxMs: 512, runtime: "runsc",
+  sandboxId: "sd-7f3a91c2", sandboxMs: 880, runtime: "runsc",
   plain: "If approved, this refunds $37,404.00 across 744 charges, emails 744 people (8 VIPs) and changes 744 charges (refunded_at, status). Nothing else leaves the sandbox.",
 };
 
@@ -272,7 +272,7 @@ function Mcp() {
 const PROOF = [
   { n: "46", k: "safety & behaviour tests in CI", href: `${GITHUB}/tree/main/api/tests` },
   { n: "15", k: "attacks blocked, from forged reports to SQL in column names", href: `${GITHUB}/blob/main/SECURITY.md` },
-  { n: "0.8 s", k: "median per two-phase rehearsal", href: `${GITHUB}/blob/main/docs/BENCH.md` },
+  { n: "< 1 s", k: "per two-phase rehearsal (0.8 s median in the sandbox)", href: `${GITHUB}/blob/main/docs/BENCH.md` },
   { n: "0", k: "lines of agent code ever run against production", href: `${GITHUB}/blob/main/api/app/apply.py` },
 ];
 

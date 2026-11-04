@@ -1,6 +1,6 @@
 "use client";
 
-import { AlertTriangle, CheckCircle2, OctagonX, ShieldCheck } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Info, OctagonX, ShieldCheck } from "lucide-react";
 import type { Attempt, Flag, Verdict } from "@/lib/api";
 import { num } from "@/lib/api";
 import { cn } from "@/lib/utils";
@@ -69,7 +69,7 @@ function Stat({ label, value, hot, sub, small }: { label: string; value: React.R
   );
 }
 
-export function ApprovalCard({ view, children, className, label = "Approval required" }: { view: ApprovalView; children?: React.ReactNode; className?: string; label?: string }) {
+export function ApprovalCard({ view, children, className, label = "Approval required", applied }: { view: ApprovalView; children?: React.ReactNode; className?: string; label?: string; applied?: string }) {
   const t = tone(view);
   const hot = t === "danger" || t === "warn";
   const issues = [...view.flags.map((f) => ({ severity: f.severity, title: f.title, detail: f.detail })), ...(view.verdict?.concerns ?? [])];
@@ -79,23 +79,23 @@ export function ApprovalCard({ view, children, className, label = "Approval requ
         <span className="flex items-center gap-2 uppercase tracking-wider text-foreground">
           <span className={cn("size-1.5 rounded-full", hot ? "bg-damage" : "bg-foreground")} />{label}
         </span>
-        {view.sandboxId ? <span className="truncate">rehearsed in {view.sandboxId} · {view.runtime === "runsc" ? "gVisor" : view.runtime} · {view.sandboxMs} ms · destroyed</span> : null}
+        {view.sandboxId ? <span className="truncate">rehearsed in {view.sandboxId} · {view.runtime === "runsc" ? "gVisor" : `${view.runtime} (dev host, no gVisor)`} · {view.sandboxMs} ms · destroyed</span> : null}
       </div>
       <div className="space-y-5 p-5 sm:p-6">
         <div className="space-y-1.5">
           <div className="text-[15px] leading-snug text-muted-foreground">“{view.task}”</div>
-          {view.plain ? <p className="text-[15px] leading-snug">{view.plain}</p> : null}
+          {applied ? <p className="text-[15px] leading-snug">{applied}</p> : view.plain ? <p className="text-[15px] leading-snug">{view.plain}</p> : null}
         </div>
         <div className="grid grid-cols-2 gap-2.5 md:grid-cols-4">
           <Stat label="Money out" value={<CountUp value={view.moneyCents} format="usd" />} hot={hot && view.moneyCents > 0} sub={`${num(view.refunds)} refunds`} />
-          <Stat label="Emails" value={<CountUp value={view.emails} />} sub="to real customers" />
+          <Stat label="Emails" value={<CountUp value={view.emails} />} sub={applied ? "delivered" : "would be sent"} />
           <Stat label="Rows changed" value={<CountUp value={view.rowsChanged} />} hot={t === "danger" && view.rowsChanged > 0} sub={view.biggestChange} />
           <Stat label="Verdict" value={t === "ok" ? "Looks right" : t === "danger" ? "Critical" : t === "warn" ? "Check this" : "Passed checks"} hot={hot} small sub={view.verdict ? "verified by Stunt Double" : "policy checks only"} />
         </div>
         {view.verdict || issues.length ? (
           <div className={cn("rounded-xl border p-4", hot ? "border-damage/30 bg-damage/[0.04]" : "bg-background")}>
             <div className="flex items-start gap-3">
-              {t === "danger" ? <OctagonX className="mt-0.5 size-5 shrink-0 text-damage" /> : hot ? <AlertTriangle className="mt-0.5 size-5 shrink-0 text-damage" /> : <CheckCircle2 className="mt-0.5 size-5 shrink-0" />}
+              {t === "danger" ? <OctagonX className="mt-0.5 size-5 shrink-0 text-damage" /> : hot ? <AlertTriangle className="mt-0.5 size-5 shrink-0 text-damage" /> : view.verdict?.verdict === "looks_right" && !issues.length ? <CheckCircle2 className="mt-0.5 size-5 shrink-0" /> : <Info className="mt-0.5 size-5 shrink-0 text-muted-foreground" />}
               <div className="min-w-0 space-y-1.5">
                 {view.verdict ? <div className="font-medium">{view.verdict.headline}</div> : null}
                 {view.verdict ? <p className="text-sm text-muted-foreground">{view.verdict.summary}</p> : null}
@@ -103,7 +103,7 @@ export function ApprovalCard({ view, children, className, label = "Approval requ
                   <ul className="space-y-1.5 pt-1 text-sm">
                     {issues.slice(0, 5).map((c, i) => (
                       <li key={i} className="flex gap-2">
-                        <span className={cn("mt-1.5 size-1.5 shrink-0 rounded-full", c.severity === "critical" || c.severity === "high" ? "bg-damage" : "bg-muted-foreground")} />
+                        {c.severity === "critical" || c.severity === "high" ? <span className="mt-1.5 size-1.5 shrink-0 rounded-full bg-damage" /> : <Info className="mt-0.5 size-3.5 shrink-0 text-muted-foreground" />}
                         {c.severity === "critical" ? <span className="mt-0.5 shrink-0 self-start rounded bg-damage/10 px-1 py-px font-mono text-[10px] uppercase leading-4 text-damage">blocks</span> : null}
                         <span><span className="font-medium">{c.title}.</span> <span className="text-muted-foreground">{c.detail}</span></span>
                       </li>
@@ -115,7 +115,7 @@ export function ApprovalCard({ view, children, className, label = "Approval requ
           </div>
         ) : null}
         {children ? <div className="flex flex-wrap items-center gap-2">{children}</div> : null}
-        <div className="flex items-center gap-1.5 text-xs text-muted-foreground"><ShieldCheck className="size-3.5" /> Nothing real has happened yet. Approving replays exactly these changes, after a drift check.</div>
+        {!applied ? <div className="flex items-center gap-1.5 text-xs text-muted-foreground"><ShieldCheck className="size-3.5" /> Nothing real has happened yet. Approving replays exactly these changes, after a drift check.</div> : null}
       </div>
     </div>
   );

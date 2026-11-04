@@ -50,6 +50,8 @@ jobs:
           (cd api && SD_DATA_DIR=$RUNNER_TEMP/sd .venv/bin/uvicorn app.main:app --port 8000 &)
           (cd web/.next/standalone && PORT=3000 node server.js &)
           for i in $(seq 1 60); do curl -sf localhost:3000/api/health && break; sleep 1; done
+          chunk=$(curl -s localhost:3000/app | grep -o '/_next/static/chunks/[^"]*\.js' | head -1)
+          test "$(curl -s -o /dev/null -w '%{http_code}' localhost:3000$chunk)" = 200   # static assets are served
           cd e2e && BASE_URL=http://localhost:3000 SHOTS_DIR=$RUNNER_TEMP node golden-path.js
       - uses: actions/upload-artifact@v4
         if: always()
