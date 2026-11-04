@@ -12,10 +12,10 @@ Criterion score (1–5) = `1 + 4 × (points earned / points possible)`, rounded 
 
 | # | Requirement (Challenge 01 + submission) | Status | Evidence |
 |---|---|---|---|
-| G1 | Vultr Cloud Compute VM backend | ⏳ pending keys | `infra/provision.py`, `infra/setup-vultr.sh` written, not run |
-| G2 | Web app hosted on Vultr, public URL | ⏳ pending keys | compose + Caddy + sslip.io ready |
+| G1 | Vultr Cloud Compute VM backend | ✅ | vc2-2c-4gb in San Jose, provisioned by `infra/provision.py` (credit-guarded) |
+| G2 | Web app hosted on Vultr, public URL | ✅ | https://149-28-206-186.sslip.io (10-step browser e2e passes against it) |
 | G3 | Vultr Serverless Inference for the agent's LLM calls | ⏳ pending keys | `api/app/agent.py`, wiring tested with a scripted model |
-| G4 | Isolated sandbox per task (process isolation, no secrets, limits, destroyed) | ✅ (Docker) · ⏳ gVisor | `api/tests/test_engine.py::test_containment` |
+| G4 | Isolated sandbox per task (process isolation, no secrets, limits, destroyed) | ✅ gVisor on Vultr | `/api/health` → `sandbox_runtime: runsc`, `runsc ready` |
 | G5 | Containment moment shown in the demo video | ✅ in app · ⏳ video | /app → Break it yourself |
 | G6 | Public GitHub repo with setup docs | ✅ | README, CI green |
 | G7 | Demo video (≤5 min), slide PDF, cover image, texts | ❌ | Day 4 |
@@ -32,7 +32,7 @@ Criterion score (1–5) = `1 + 4 × (points earned / points possible)`, rounded 
 | Plan → dispatch → verify loop with self-correction | 1 | 2 | Fix flow built; untested live |
 | Verification uses real measured results, not model opinion | 2 | 2 | Row diffs, recorders, read-only investigation |
 | Sandbox isolation is real and tested | 2 | 2 | 7 engine tests, containment in CI |
-| gVisor runtime on Vultr | 0 | 2 | Pending VM |
+| gVisor runtime on Vultr | 2 | 2 | `runsc` live on the Vultr VM; every rehearsal runs in it |
 | Uses Vultr meaningfully (VM + Inference + API) | 0 | 2 | All pending keys |
 | Production-grade apply (drift check, idempotency, policy) | 2 | 2 | Tested |
 | Engineering quality (tests, CI, commits across the event) | 2 | 2 | 50+ commits, 94 API tests + MCP client test + 10-step browser e2e, 4 CI jobs green |
@@ -50,7 +50,7 @@ Criterion score (1–5) = `1 + 4 × (points earned / points possible)`, rounded 
 |---|---|---|---|
 | Value obvious in 30 s (first screen) | 2 | 2 | Hero shows "$37,404 → 744, 640 never double-charged" |
 | Polished, coherent visual design | 2 | 2 | Landing + console + ledger, black-and-white system |
-| Public live URL judges can use | 0 | 2 | Pending VM |
+| Public live URL judges can use | 2 | 2 | https://149-28-206-186.sslip.io |
 | Judges can trigger the wow moment themselves | 1 | 2 | Guided 3-step tour + Break-it presets (3 traps); public once the VM is live |
 | Demo video, 4–5 min, golden path rehearsed | 1 | 2 | 30 s recorded demo (GIF/MP4) in README; narrated 4-min video still Day 4 |
 | Slide deck (8–10 slides) | 2 | 2 | `presentation/stunt-double-deck.pdf`, 10 slides |
@@ -115,7 +115,7 @@ Re-score after every milestone and log it below.
 ## Before submitting: claims to re-verify against live runs
 - [ ] Deck slide 4 and landing hero: verifier headline ("640 of these customers were never double-charged") matches a real verifier output
 - [ ] Deck slide 7: VIP and crash rows reflect real verifier behaviour
-- [ ] "gVisor (runsc)" everywhere: confirmed by `/api/health` → `sandbox_runtime: runsc` on the Vultr VM
+- [x] "gVisor (runsc)" everywhere: confirmed by `/api/health` → `sandbox_runtime: runsc` on the Vultr VM
 - [ ] Model names on slides match `SD_AGENT_MODEL` / `SD_VERIFIER_MODEL` in production
 - [ ] `docs/EVAL.md` exists with real catch rates (run `api/eval/run_eval.py`); quote only those numbers
 - [ ] `docs/BENCH.md` re-measured on the VM with gVisor
