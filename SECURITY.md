@@ -30,6 +30,8 @@ Please open a private security advisory on GitHub (Security → Report a vulnera
 | Tampering between review and apply | effects SHA-256 recorded at rehearsal and re-checked at approval | `test_agent_loop::test_tampered_effects_are_refused` |
 | Stale approvals | `BEGIN IMMEDIATE` + row-level drift check; any drift aborts the whole apply | `test_engine::test_drift_blocks_stale_plans` |
 | Dangerous but "valid" plans | Policy: protected tables, delete %, over/double refunds, templates, leaks, network attempts | `test_policy.py` |
+| Marketing without consent | audit classifies marketing emails (kind or promo wording) and blocks them for opted-out customers | `test_policy::test_marketing_to_opted_out_is_blocked_but_transactional_is_fine` |
+| Inference spend abuse on the public demo | per-IP rate limit + daily cap on AI-agent runs (`SD_DAILY_AGENT_RUNS`) | `test_policy::test_agent_runs_need_a_key_and_respect_the_daily_budget` |
 | Agent self-approval | No approve tool in the MCP server; approval only via the human UI | `mcp/tests/test_mcp.py` |
 | SQL from agents during planning | read-only connection, `PRAGMA query_only`, single SELECT only | `test_engine::test_read_only_query_tool_rejects_writes` |
 | DNS rebinding against the MCP endpoint | host allow-list kept on (421 for unknown hosts) | manual check, see commit history |
