@@ -110,7 +110,7 @@ function Hero() {
           <ApprovalCard view={HERO}>
             <Link href="/app" className={cn(buttonVariants({ variant: "outline" }), "h-10 rounded-full px-4")}>Reject</Link>
             <Link href="/app" className={cn(buttonVariants(), "h-10 rounded-full px-4")}>Ask the agent to fix it</Link>
-            <span className="ml-auto font-mono text-xs text-muted-foreground">Approve is locked until concerns are resolved</span>
+            <span className="ml-auto font-mono text-xs text-muted-foreground">Approving over the AI needs a written reason</span>
           </ApprovalCard>
           <p className="mt-3 text-xs text-muted-foreground">A real rehearsal on Vultr. The headline is the AI verifier&apos;s own words (glm-5.3-flash on Vultr Serverless Inference). It caught this plan in 7 of 7 live runs, with 0 false alarms on correct plans. <a className="underline underline-offset-4 hover:text-foreground" href="https://github.com/vidigoat/stunt-double/blob/main/docs/VERIFIER_EVAL.md">See the eval</a>.</p>
         </div>
