@@ -178,6 +178,9 @@ def test_tampered_effects_are_refused(fresh_business, monkeypatch):
         time.sleep(0.25)
     path = main.RUNS[rid]["attempts"][-1]["effects_path"]
     data = json.loads(open(path).read()); data["payments"][0]["amount_cents"] = 999_999
-    open(path, "w").write(json.dumps(data))
+    import os
+    tmp = path + ".forged"
+    open(tmp, "w").write(json.dumps(data))
+    os.replace(tmp, path)          # swap the file in (works even when the sandbox user owns the original)
     r = api.post(f"/api/runs/{rid}/approve")
     assert r.status_code == 409 and "Integrity" in r.json()["detail"]
