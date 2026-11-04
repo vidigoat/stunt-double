@@ -446,6 +446,12 @@ def reset(req: Request):
     seed.seed(config.PROD_DB)
     beanpay.reset()
     policy.reset()
+    if config.MAILPIT_API:  # empty the demo inbox too (best effort)
+        try:
+            import httpx
+            httpx.delete(f"{config.MAILPIT_API}/api/v1/messages", timeout=5)
+        except Exception:  # noqa: BLE001, S110 - an inbox that can't be emptied must not block the reset
+            pass
     with LOCK:  # a demo reset starts a fresh audit trail too
         RUNS.clear()
         HISTORY.clear()

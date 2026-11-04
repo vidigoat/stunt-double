@@ -32,3 +32,5 @@ SMTP_PORT = int(os.environ.get("SD_SMTP_PORT", "1025"))
 
 # Spend protection for the public demo: max AI-agent runs per UTC day (rehearsing pasted plans is free and unlimited).
 DAILY_AGENT_RUNS = int(os.environ.get("SD_DAILY_AGENT_RUNS", "300"))
+# Mailpit's HTTP API (demo inbox), so a demo reset can empty it. Empty = don't touch any inbox.
+MAILPIT_API = os.environ.get("SD_MAILPIT_API", "")

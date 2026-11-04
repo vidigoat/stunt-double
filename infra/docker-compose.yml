@@ -23,6 +23,7 @@ services:
       SD_SANDBOX_RUNTIME: "${SD_SANDBOX_RUNTIME-runsc}"  # gVisor (override only for local testing)
       SD_SMTP_HOST: mailpit
       SD_SMTP_PORT: "1025"
+      SD_MAILPIT_API: http://mailpit:8025/mail
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock     # to start sandboxes on the host daemon
       - /opt/stunt-double/data:/opt/stunt-double/data # same path inside and outside, so bind mounts line up
