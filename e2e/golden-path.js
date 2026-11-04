@@ -25,6 +25,12 @@ async function step(name, fn) {
     if (SHOTS) await page.screenshot({ path: `${SHOTS}/e2e-landing.png` });
   });
 
+  await step("landing: 'Try it right here' runs a real destructive plan and production survives", async () => {
+    await page.getByRole("button", { name: /Run it on the double/ }).click();
+    await page.getByText(/Approval locked\./).waitFor({ timeout: 60000 });
+    assert.ok(await page.getByText("untouched").first().isVisible());
+  });
+
   await step("containment: deleting every customer hits only the double", async () => {
     await page.goto(`${BASE}/app`, { waitUntil: "networkidle" });
     await page.getByRole("tab", { name: /Break it yourself/ }).click();
@@ -83,6 +89,9 @@ async function step(name, fn) {
     await page.goto(`${BASE}/history`, { waitUntil: "networkidle" });
     await page.getByText("applied", { exact: true }).first().waitFor();
     await page.getByText("blocked by policy").first().waitFor();
+    await page.getByRole("button", { name: /Awaiting approval/ }).click();
+    await page.getByRole("button", { name: /Undos/ }).click();
+    await page.getByText("undo", { exact: true }).first().waitFor();
   });
 
   await step("policy page loads the rules", async () => {

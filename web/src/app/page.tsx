@@ -7,6 +7,7 @@ import { GithubIcon, Mark, Wordmark } from "@/components/brand";
 import { cn } from "@/lib/utils";
 import { Business } from "@/components/landing-business";
 import { ForAgents, LiveStats, Platform } from "@/components/landing-platform";
+import { TryIt } from "@/components/try-it";
 
 const GITHUB = "https://github.com/vidigoat/stunt-double";
 const pill = (variant: "default" | "outline" = "default") =>
@@ -326,6 +327,7 @@ export default function Home() {
       <Hero />
       <Statement />
       <How />
+      <TryIt />
       <Traps />
       <Features />
       <Platform />

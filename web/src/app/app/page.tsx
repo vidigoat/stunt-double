@@ -156,6 +156,15 @@ export default function AppPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [runId, status === undefined || ACTIVE.has(status), refreshBiz]);
 
+  // While a run awaits a decision, keep it fresh: another approver (or a reject) may act on it from elsewhere.
+  useEffect(() => {
+    if (!runId || status !== "review") return;
+    const t = setInterval(() => {
+      api.run(runId).then((r) => setRun((cur) => (cur && cur.id === r.id && (r.version ?? 0) !== (cur.version ?? 0) ? r : cur))).catch(() => {});
+    }, 4000);
+    return () => clearInterval(t);
+  }, [runId, status]);
+
   useEffect(() => {
     const url = new URL(window.location.href);
     if (runId) url.searchParams.set("run", runId); else url.searchParams.delete("run");
