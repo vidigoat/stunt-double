@@ -2,6 +2,12 @@
 
 Everything below is scripted; the order matters because each step de-risks the next.
 
+**Spending rules (the owner's card is linked; it must never be charged):**
+- Only the $200 hackathon credit may be used. Check it first: `GET /v2/account` (balance is negative when it's credit) or Billing in the console.
+- One VM, `vc2-2c-4gb` (about $20/month). `infra/provision.py` refuses anything over `--max-monthly` (default $30) or more than the remaining credit.
+- No Object Storage, backups, extra IPs, load balancers or snapshots unless the owner says yes.
+- After judging, and before the credit expires (30 days after signup): destroy the VM and cancel Serverless Inference.
+
 | # | Step | Command | Done when |
 |---|---|---|---|
 | 1 | Keys in the cloud environment | `VULTR_API_KEY`, `VULTR_INFERENCE_KEY` in environment settings (never in chat) | `env \| grep -c VULTR` → 2 |

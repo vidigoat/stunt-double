@@ -16,7 +16,7 @@ API = "https://api.vultr.com/v2"
 
 
 def call(method: str, path: str, body: dict | None = None) -> dict:
-    req = urllib.request.Request(API + path, method=method,  # noqa: S310 - fixed https API base data=json.dumps(body).encode() if body else None,
+    req = urllib.request.Request(API + path, method=method, data=json.dumps(body).encode() if body else None,  # noqa: S310 - fixed https API base
                                  headers={"Authorization": f"Bearer {os.environ['VULTR_API_KEY']}", "Content-Type": "application/json"})
     with urllib.request.urlopen(req, timeout=60) as r:  # noqa: S310
         raw = r.read()
@@ -46,13 +46,33 @@ def object_storage(region: str, label: str) -> dict:
     return obj
 
 
+def credit_check(plan: str, max_monthly_usd: float, extra_monthly_usd: float = 0.0) -> None:
+    """Refuse to spend unless the remaining Vultr credit covers it: the linked card must never be charged.
+
+    Vultr reports `balance` negative when the account holds credit; `pending_charges` is this month's usage so far.
+    """
+    acct = call("GET", "/account")["account"]
+    credit = -float(acct.get("balance", 0)) - float(acct.get("pending_charges", 0))
+    plans = {p["id"]: p for p in call("GET", "/plans?per_page=500").get("plans", [])}
+    if plan not in plans:
+        raise SystemExit(f"Unknown plan {plan!r}")
+    monthly = float(plans[plan]["monthly_cost"]) + extra_monthly_usd
+    print(f"Credit left: ${credit:,.2f} · this setup: ${monthly:,.2f}/month at most (limit ${max_monthly_usd:,.2f})")
+    if monthly > max_monthly_usd:
+        raise SystemExit(f"Refusing: ${monthly:,.2f}/month is above the ${max_monthly_usd:,.2f} limit. Pick a smaller plan or raise --max-monthly.")
+    if monthly > credit:
+        raise SystemExit(f"Refusing: a full month (${monthly:,.2f}) is more than the remaining credit (${credit:,.2f}). The card would pay.")
+
+
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--region", default="sjc")
     ap.add_argument("--plan", default="vc2-2c-4gb")
     ap.add_argument("--label", default="stunt-double")
     ap.add_argument("--object-storage", action="store_true", help="also create Vultr Object Storage for the evidence archive")
+    ap.add_argument("--max-monthly", type=float, default=30.0, help="refuse anything costing more than this per month (USD)")
     a = ap.parse_args()
+    credit_check(a.plan, a.max_monthly, extra_monthly_usd=6.0 if a.object_storage else 0.0)
     s3 = object_storage(a.region, a.label) if a.object_storage else None
 
     existing = [i for i in call("GET", "/instances?per_page=100").get("instances", []) if i["label"] == a.label]
