@@ -57,7 +57,7 @@ export const api = {
   run: (id: string) => req<Run>(`/runs/${id}`),
   runs: () => req<RunSummary[]>("/runs"),
   fix: (id: string, note?: string) => req<{ id: string }>(`/runs/${id}/fix`, { note }),
-  approve: (id: string) => req<Run>(`/runs/${id}/approve`, {}),
+  approve: (id: string, approver?: string) => req<Run>(`/runs/${id}/approve`, { approver }),
   reject: (id: string) => req<Run>(`/runs/${id}/reject`, {}),
   reset: () => req<Business>("/demo/reset", {}),
 };

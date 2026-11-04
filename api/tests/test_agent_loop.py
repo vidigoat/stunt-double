@@ -185,3 +185,23 @@ def test_tampered_effects_are_refused(fresh_business, monkeypatch):
     os.replace(tmp, path)          # swap the file in (works even when the sandbox user owns the original)
     r = api.post(f"/api/runs/{rid}/approve")
     assert r.status_code == 409 and "Integrity" in r.json()["detail"]
+
+
+@needs_docker
+def test_named_approval_and_evidence_bundle(fresh_business, monkeypatch):
+    monkeypatch.setattr(main.config, "INFERENCE_KEY", "")
+    api = TestClient(main.app)
+    rid = api.post("/api/runs/manual", json={"task": "Refund duplicates", "code": CORRECT}).json()["id"]
+    for _ in range(80):
+        if api.get(f"/api/runs/{rid}").json()["status"] == "review":
+            break
+        time.sleep(0.25)
+    run = api.post(f"/api/runs/{rid}/approve", json={"approver": "  Priya   Patel (Finance Ops) "}).json()
+    assert run["approval"]["approver"] == "Priya Patel (Finance Ops)"
+    r = api.get(f"/api/runs/{rid}/evidence")
+    assert "attachment" in r.headers["content-disposition"]
+    ev = r.json()
+    a = ev["attempts"][0]
+    assert a["plan"] == CORRECT and len(a["plan_sha256"]) == 64 and ev["approval"]["plan_sha256"] == a["plan_sha256"]
+    assert ev["apply_result"]["refunds"] == 104
+    assert a["consequences"]["payments"]["count"] == 104 and a["consequences"]["measured_by"] == "trusted-phase-2"

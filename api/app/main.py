@@ -192,6 +192,10 @@ class ManualIn(TaskIn):
     code: str = Field(min_length=10, max_length=20000)
 
 
+class ApproveIn(BaseModel):
+    approver: str | None = Field(default=None, max_length=80)
+
+
 class FixIn(BaseModel):
     note: str | None = Field(default=None, max_length=2000)
 
@@ -333,7 +337,7 @@ def reject_run(rid: str):
 
 
 @app.post("/api/runs/{rid}/approve")
-def approve_run(rid: str):
+def approve_run(rid: str, body: ApproveIn | None = None):
     run = _get(rid)
     if run["status"] != "review":
         raise HTTPException(409, f"Run is {run['status']}, not awaiting review")
@@ -346,7 +350,8 @@ def approve_run(rid: str):
     if hashlib.sha256(effects).hexdigest() != att.get("effects_sha256"):
         raise HTTPException(409, "Integrity check failed: the recorded effects changed after the rehearsal")
     with LOCK:
-        run["approval"] = {"approved_at": time.time(), "approver": "Demo approver", "plan_sha256": att["plan_sha256"],
+        name = " ".join(((body.approver if body else None) or "").split())[:80] or "Demo approver"
+        run["approval"] = {"approved_at": time.time(), "approver": name, "plan_sha256": att["plan_sha256"],
                            "effects_sha256": att["effects_sha256"], "sandbox_id": att["sandbox_id"], "policy": policy.load(),
                            "warnings": [f["title"] for f in att["flags"]]}
     _status(run, "applying")
@@ -372,6 +377,26 @@ def approve_run(rid: str):
 def schema():
     """What an external agent needs to write a plan: tables and the ctx API."""
     return {"tables": agent.get_schema(), "plan_api": agent.CTX_DOC}
+
+
+@app.get("/api/runs/{rid}/evidence")
+def evidence(rid: str):
+    """Everything an auditor needs for one run: request, plan, fingerprints, measured consequences, checks, verdict,
+    approval (who, when, policy in force) and what was applied."""
+    run = _get(rid)
+    from fastapi.responses import JSONResponse
+    with LOCK:
+        bundle = {
+            "evidence_version": 1, "generated_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+            "run": {k: run.get(k) for k in ("id", "task", "mode", "status", "created_at", "agent_model", "verifier_model", "error")},
+            "attempts": [{"n": a["n"], "sandbox_id": a["sandbox_id"], "plan_sha256": a.get("plan_sha256"), "effects_sha256": a.get("effects_sha256"),
+                          "plan": a["code"], "summary": a["summary"], "flags": a["flags"],
+                          "consequences": {k: a["consequences"].get(k) for k in ("ok", "error", "tables", "row_counts", "payments", "emails", "blocked", "audit", "sandbox", "measured_by")}}
+                         for a in run["attempts"]],
+            "verdict": run.get("verdict"), "approval": run.get("approval"), "apply_result": run.get("apply_result"),
+            "timeline": run["events"],
+        }
+    return JSONResponse(bundle, headers={"Content-Disposition": f'attachment; filename="stunt-double-evidence-{rid}.json"'})
 
 
 @app.get("/api/policy")

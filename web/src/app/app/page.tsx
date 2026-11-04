@@ -71,6 +71,8 @@ export default function AppPage() {
   const [breakTask, setBreakTask] = useState(BREAK_IT[0].task);
   const [run, setRun] = useState<Run | null>(null);
   const [busy, setBusy] = useState(false);
+  const [approver, setApprover] = useState("");
+  useEffect(() => { try { setApprover(localStorage.getItem("sd-approver") || ""); } catch { /* storage unavailable */ } }, []);
   const runId = run?.id;
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -150,7 +152,10 @@ export default function AppPage() {
     setBusy(true);
     try {
       if (kind === "fix") { await api.fix(run.id); setRun({ ...run, status: "planning" }); }
-      else { const r = await api[kind](run.id); setRun(r); refreshBiz(); }
+      else if (kind === "approve") {
+        try { localStorage.setItem("sd-approver", approver); } catch { /* storage unavailable */ }
+        const r = await api.approve(run.id, approver.trim() || undefined); setRun(r); refreshBiz();
+      } else { const r = await api.reject(run.id); setRun(r); refreshBiz(); }
     } catch (e) {
       toast.error((e as Error).message);
     } finally {
@@ -317,17 +322,21 @@ export default function AppPage() {
                   <>
                     <Button variant="outline" className="h-10 rounded-full px-4" onClick={() => act("reject")} disabled={busy}><X className="size-4" /> Reject</Button>
                     {run.mode === "agent" ? <Button variant="outline" className="h-10 rounded-full px-4" onClick={() => act("fix")} disabled={busy}><Wrench className="size-4" /> Ask the agent to fix it</Button> : null}
-                    <Button className="h-10 rounded-full px-4 sm:ml-auto" onClick={() => act("approve")} disabled={busy || critical || !attempt?.consequences.ok}>
+                    <input value={approver} onChange={(e) => setApprover(e.target.value)} placeholder="Your name (for the audit trail)" maxLength={80}
+                      aria-label="Approver name" className="h-10 min-w-0 flex-1 rounded-full border bg-background px-4 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring/50 sm:ml-auto sm:max-w-[240px]" disabled={critical} />
+                    <Button className="h-10 rounded-full px-4" onClick={() => act("approve")} disabled={busy || critical || !attempt?.consequences.ok}>
                       <Check className="size-4" /> {critical ? "Blocked by policy" : "Approve and apply"}
                     </Button>
                   </>
                 ) : null}
                 {run.status === "drifted" ? <Button className="h-10 rounded-full px-4" onClick={start} disabled={busy}><RotateCcw className="size-4" /> Rehearse again</Button> : null}
+                {!ACTIVE.has(run.status) && run.attempts.length ? <a href={`/api/runs/${run.id}/evidence`} className="ml-auto text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline">Download evidence ↓</a> : null}
               </ApprovalCard>
 
               {run.status === "applied" && run.apply_result ? (
                 <div className="animate-rise rounded-2xl border bg-card p-5">
-                  <div className="flex items-center gap-2 font-medium"><Check className="size-4" /> Applied for real</div>
+                  <div className="flex flex-wrap items-center justify-between gap-2"><div className="flex items-center gap-2 font-medium"><Check className="size-4" /> Applied for real</div>
+                    {run.approval ? <span className="font-mono text-[11px] text-muted-foreground">approved by {run.approval.approver} · plan {run.approval.plan_sha256.slice(0, 12)}</span> : null}</div>
                   <div className="mt-3 grid gap-2 font-mono text-[13px] sm:grid-cols-2">
                     {[["drift check", "passed"], ["database rows", num(run.apply_result.rows_written ?? 0)], ["BeanPay refunds", `${num(run.apply_result.refunds ?? 0)} · ${usd(run.apply_result.refund_total_cents ?? 0)}`], ["emails delivered", num(run.apply_result.emails_sent ?? 0)]].map(([k, v]) => (
                       <div key={k} className="flex justify-between gap-3 rounded-lg border bg-background px-3 py-2"><span className="text-muted-foreground">{k}</span><span>{v}</span></div>
