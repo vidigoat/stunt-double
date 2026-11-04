@@ -14,7 +14,7 @@ from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
-from . import agent, archive, beanpay, config, connectors, policy, sandbox, seed
+from . import agent, archive, beanpay, config, connectors, policy, rollback, sandbox, seed
 from . import apply as applier
 
 app = FastAPI(
@@ -400,6 +400,10 @@ def _apply_claimed(run: dict, att: dict, rid: str):
         return _public(run)
     with LOCK:
         run["apply_result"] = result
+        src = RUNS.get(run.get("rollback_of") or "")
+        if src:
+            src["rolled_back_by"] = run["id"]
+            _save(src)
     _emit(run, "applied", f"Applied: {result['refunds']} refunds (${result['refund_total_cents'] / 100:,.2f}), "
                           f"{result['emails_sent']} emails, {result.get('http_delivered', 0)} API calls, {result['rows_written']} rows")
     _status(run, "applied")
@@ -460,6 +464,46 @@ def put_policy(body: dict, req: Request):
         return {"policy": policy.save(body), "defaults": policy.DEFAULTS}
     except ValueError as e:
         raise HTTPException(422, str(e)) from e
+
+
+@app.post("/api/runs/{rid}/rollback")
+def rollback_run(rid: str, req: Request):
+    """Create a rollback run: the inverse of an applied run's data changes, awaiting approval like any change."""
+    _rate_limit(req)
+    src = _get(rid)
+    with LOCK:
+        if src["status"] != "applied":
+            raise HTTPException(409, "Only an applied run can be rolled back")
+        existing = src.get("rollback_run")
+        if existing and RUNS.get(existing, {}).get("status") in ("review", "applying", "applied"):
+            raise HTTPException(409, f"Rollback already exists: {existing}")
+    att = src["attempts"][-1]
+    run = _new_run(f"Undo: {src['task']}", "rollback")
+    db = sqlite3.connect(f"file:{config.PROD_DB}?mode=ro", uri=True)
+    rows_now = {t: db.execute(f'SELECT COUNT(*) FROM "{t}"').fetchone()[0]  # noqa: S608 - names from sqlite_master
+                for (t,) in db.execute("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'")}
+    db.close()
+    rb_id = "rb-" + run["id"][4:]
+    c, effects_path, effects_sha = rollback.build(att["effects_path"], config.RUNS_DIR / rb_id / "out", rb_id, rows_now)
+    flags = agent.red_flags(c)
+    irr = c["irreversible"]
+    if irr["refunds"] or irr["emails"] or irr["http"]:
+        flags.append({"rule": "irreversible", "severity": "medium", "title": "Some effects can't be undone",
+                      "detail": f"{irr['refunds']} refunds (${irr['refund_total_cents'] / 100:,.2f}), {irr['emails']} emails and {irr['http']} API calls "
+                                "already happened. Only the data changes are rolled back."})
+    code = f"# Rollback of {rid}: the inverse of its approved effects ({att.get('effects_sha256', '')[:12]})\n"
+    with LOCK:
+        run["rollback_of"] = rid
+        run["attempts"].append({"n": 1, "sandbox_id": rb_id, "code": code, "summary": f"Undo the data changes of {rid}", "consequences": c,
+                                "flags": flags, "effects_path": effects_path, "plan_sha256": hashlib.sha256(code.encode()).hexdigest(),
+                                "effects_sha256": effects_sha, "created_at": time.time()})
+        run["flags"] = flags
+        run["status"] = "review"
+        src["rollback_run"] = run["id"]
+        _save(run)
+        _save(src)
+    _emit(run, "sandbox", f"Built the inverse of {rid}'s approved changes", "updated rows go back, inserted rows are removed, deleted rows return")
+    return {"id": run["id"]}
 
 
 @app.get("/api/connectors")
