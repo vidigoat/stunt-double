@@ -111,10 +111,10 @@ Re-score after every milestone and log it below.
 | Tue Nov 3, 23:30 | 16.3 | Pitch, pricing + buyer on landing, 10-slide deck, cover, submission texts, video script. Still blocked on Vultr keys (gate G1–G3). |
 | Wed Nov 4, 07:15 | 17.4 | Agent robustness, policy engine, two-phase sandbox + adversarial tests, audit trail + SSE, MCP server, browser e2e in CI, README media, 11-slide deck. Gate G1–G3 still needs keys. |
 | Wed Nov 4, 19:25 | 17.9 | Platform depth: HTTP connectors (Slack, CRM) with server-side credentials, rehearsed undo, two-person rule, bring-your-own SQLite, policy simulator, every-row diff explorer, Python SDK + CLI, decision notes, CSV audit export, rehearsal expiry; security review 3 fixed. The score doesn't move: every remaining point needs the Vultr VM, real inference or the video. |
-| Wed Nov 4, 23:45 | 19.6 | Live on Vultr: VM with gVisor, real agent + verifier on Serverless Inference, judge mode, live AI stream. Eval on the live server: 16/16 bad plans caught, 0/8 false alarms. Remaining point: the video. |
+| Wed Nov 4, 23:45 | 19.6 | Live on Vultr: VM with gVisor, real agent + verifier on Serverless Inference, judge mode, live AI stream. Eval on the live server: 28/28 bad plans caught, 0/14 false alarms. Remaining point: the video. |
 
 ## Before submitting: claims to re-verify against live runs
-- [x] Deck and landing hero: the verifier headline is now a real live output ("Plan refunds 640 customers who were never double-charged", 4/4 runs)
+- [x] Deck and landing hero: the verifier headline is now a real live output ("Plan refunds 640 customers who were never double-charged", 7/7 runs)
 - [ ] Deck slide 7: VIP and crash rows reflect real verifier behaviour
 - [x] "gVisor (runsc)" everywhere: confirmed by `/api/health` → `sandbox_runtime: runsc` on the Vultr VM
 - [ ] Model names on slides match production (glm-5.3-flash agent + verifier, qwen3.8-flash-next fallback)

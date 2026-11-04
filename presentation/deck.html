@@ -169,7 +169,7 @@
   <table style="margin-top:64px">
     <tr><th style="width:30%">Mistake</th><th style="width:35%">Rules / allow-lists</th><th>Stunt Double</th></tr>
     <tr><td>DELETE FROM customers</td><td>✓ caught</td><td>✓ caught, plus <b style="font-weight:500">blocked by policy</b> and contained</td></tr>
-    <tr><td>Refunds 744 people, not 104</td><td class="red">✗ looks like a normal refund</td><td>✓ verifier investigates: “Plan refunds 640 customers who were never double-charged” (4/4 live runs)</td></tr>
+    <tr><td>Refunds 744 people, not 104</td><td class="red">✗ looks like a normal refund</td><td>✓ verifier investigates: “Plan refunds 640 customers who were never double-charged” (7/7 live runs)</td></tr>
     <tr><td>Emails 8 VIPs an apology for nothing</td><td class="red">✗ valid email call</td><td>✓ flagged with names and the reason</td></tr>
     <tr><td>Plan crashes halfway</td><td>partial damage</td><td>✓ crashes on the double; the agent fixes it and rehearses again</td></tr>
   </table>
