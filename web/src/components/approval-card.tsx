@@ -88,7 +88,7 @@ export function ApprovalCard({ view, children, className, label = "Approval requ
         </div>
         <div className="grid grid-cols-2 gap-2.5 md:grid-cols-4">
           <Stat label="Money out" value={<CountUp value={view.moneyCents} format="usd" />} hot={hot && view.moneyCents > 0} sub={`${num(view.refunds)} refunds`} />
-          <Stat label="Emails" value={<CountUp value={view.emails} />} sub={applied ? "delivered" : "would be sent"} />
+          <Stat label="Emails" value={<CountUp value={view.emails} />} sub={applied ? "approved" : "would be sent"} />
           <Stat label="Rows changed" value={<CountUp value={view.rowsChanged} />} hot={t === "danger" && view.rowsChanged > 0} sub={view.biggestChange} />
           <Stat label="Verdict" value={t === "ok" ? "Looks right" : t === "danger" ? "Critical" : t === "warn" ? "Check this" : "Rules pass"} hot={hot} small sub={view.verdict ? "verified by Stunt Double" : "policy checks only"} />
         </div>
@@ -103,7 +103,7 @@ export function ApprovalCard({ view, children, className, label = "Approval requ
                   <ul className="space-y-1.5 pt-1 text-sm">
                     {issues.slice(0, 5).map((c, i) => (
                       <li key={i} className="flex gap-2">
-                        {c.severity === "critical" || c.severity === "high" ? <span className="mt-1.5 size-1.5 shrink-0 rounded-full bg-damage" /> : <Info className="mt-0.5 size-3.5 shrink-0 text-muted-foreground" />}
+                        <span className={cn("mt-1.5 size-1.5 shrink-0 rounded-full", c.severity === "critical" || c.severity === "high" ? "bg-damage" : "bg-muted-foreground")} />
                         {c.severity === "critical" ? <span className="mt-0.5 shrink-0 self-start rounded bg-damage/10 px-1 py-px font-mono text-[10px] uppercase leading-4 text-damage">blocks</span> : null}
                         <span><span className="font-medium">{c.title}.</span> <span className="text-muted-foreground">{c.detail}</span></span>
                       </li>
