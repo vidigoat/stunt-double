@@ -1,5 +1,10 @@
 {$SITE_HOST} {
-	encode zstd gzip
+	# Compress normal responses only: compressing text/event-stream buffers it, and the live run stream would stall.
+	encode zstd gzip {
+		match {
+			header Content-Type text/html* text/css* text/plain* text/csv* application/json* application/javascript* image/svg+xml*
+		}
+	}
 	handle /api/* {
 		reverse_proxy api:8000
 	}
