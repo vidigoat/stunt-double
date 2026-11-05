@@ -16,7 +16,7 @@ Stunt Double: Let the Double Take the Hit
 Every AI agent now holds the keys to something real. Stunt Double lets it try every action on a perfect copy of your business first, on Vultr. Nothing real happens until a person says yes.
 ```
 
-## Step 1 · Long Description (600–2000 chars and 100+ words, this is 1473 chars, 266 words)
+## Step 1 · Long Description (600–2000 chars and 100+ words, this is 1594 chars, 287 words)
 ```
 In the movies, the star never jumps from the burning building. The stunt double does.
 
@@ -24,13 +24,13 @@ AI agents are becoming the stars of our businesses. They refund customers, send 
 
 Stunt Double gives every agent a double. Before any action touches the real world, it is rehearsed on a copy of the business, sealed inside a Vultr sandbox with no internet and no secrets. Then a second sandbox measures what truly changed, so the agent cannot hide a single thing.
 
-A jury of three AI models from different labs studies the result and asks one question: is this what the person actually meant? Ask it to refund everyone who was charged twice, and the jury notices that 640 of the 744 people never were. That is $32,268 saved before a single cent moves.
+Ask it to refund everyone who was charged twice. Before the agent writes a line, Stunt Double writes down what you meant: 104 refunds, and nothing else. The agent's plan refunds 744. A jury of three AI models from different labs agrees it is wrong. Stunt Double proves which line of the plan chose the 640 wrong people, cuts them out, and hands back exactly the 104. $32,268 saved, and every right customer still paid.
 
-Then a person sees the truth in plain words, not code: who gets paid, who gets emailed, what disappears. Only what they approve ever happens.
+A person sees it all in plain words, not code. Only what they approve ever happens, and every decision is sealed in a signed record that breaks if anyone changes a single byte.
 
-And it learns. Every mistake it catches becomes a rule, so the same mistake is stopped instantly the next time, without asking the AI at all.
+And it learns. Every mistake it catches becomes a rule, so the same mistake is stopped instantly next time, without asking the AI at all.
 
-Built on Vultr from end to end. In live tests it caught 48 of 48 bad plans, with no false alarms. One caught mistake pays for years of use.
+Built on Vultr from end to end. In live tests it caught 48 of 48 bad plans, with no false alarms.
 
 Agents should be bold. Businesses should be safe. Now they can be both.
 
@@ -59,7 +59,7 @@ Humans approve consequences, not code: "refunds $37,404 to 744 people, 640 of wh
 
 Every catch becomes a rule: the AI writes the SQL check it used, Stunt Double proves it would not block work the AI judged correct, and one click makes it a rule that blocks the same mistake instantly, without AI. Every approval is the human-oversight and change record the EU AI Act (Art. 14) and SOC 2 (CC8.1) ask for. Measured on Vultr: $0.02–0.044 per AI jury check, 73% gross margin at $49 per approver; one caught mistake pays for a seat for decades.
 
-On the live Vultr server it caught 48 of 48 bad plans with 0 false alarms on 26 correct ones. Agents connect over MCP, an SDK, a CLI or REST; there is no approve tool. Built on Vultr Cloud Compute, Serverless Inference and the Vultr API, with gVisor, FastAPI, Next.js and Playwright; 140 API tests and an end-to-end test that passes against production.
+On the live Vultr server it caught 48 of 48 bad plans with 0 false alarms on 26 correct ones. Agents connect over MCP, an SDK, a CLI or REST; there is no approve tool. Built on Vultr Cloud Compute, Serverless Inference and the Vultr API, with gVisor, FastAPI, Next.js and Playwright; 180 API tests and an end-to-end test that passes against production.
 ```
 
 
