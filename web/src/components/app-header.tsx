@@ -37,13 +37,13 @@ export function AppHeader({ right }: { right?: React.ReactNode }) {
       <div className="mx-auto flex h-14 max-w-7xl items-center justify-between gap-3 px-4 sm:px-6">
         <div className="flex min-w-0 items-center gap-6">
           <Link href="/" aria-label="Stunt Double home" className="shrink-0"><Wordmark /></Link>
-          <nav className="hidden items-center gap-1 text-sm md:flex">
+          <nav className="hidden items-center gap-0.5 text-sm md:flex">
             {NAV.map((n) => (
-              <Link key={n.href} href={n.href} className={cn("inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-muted-foreground hover:text-foreground", path === n.href && "bg-muted text-foreground")}>
+              <Link key={n.href} href={n.href} className={cn("inline-flex items-center gap-1.5 whitespace-nowrap rounded-full px-3 py-1.5 text-muted-foreground hover:text-foreground", path === n.href && "bg-muted text-foreground")}>
                 {n.label}{n.href === "/history" && pending ? <span className="rounded-full bg-foreground px-1.5 font-mono text-[10px] text-background" title={`${pending} waiting for approval`}>{pending}</span> : null}
               </Link>
             ))}
-            <a href="/mail/" target="_blank" rel="noreferrer" className="rounded-full px-3 py-1.5 text-muted-foreground hover:text-foreground">Inbox ↗</a>
+            <a href="/mail/" target="_blank" rel="noreferrer" className="whitespace-nowrap rounded-full px-3 py-1.5 text-muted-foreground hover:text-foreground">Inbox ↗</a>
           </nav>
         </div>
         <div className="flex items-center gap-2">{right}</div>

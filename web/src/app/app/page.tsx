@@ -266,9 +266,9 @@ export default function AppPage() {
     <div className="min-h-dvh">
       <AppHeader right={
         <>
-          <span className="hidden items-center gap-1.5 rounded-full border px-3 py-1 font-mono text-[11px] text-muted-foreground lg:inline-flex">
+          <span className="hidden items-center gap-1.5 whitespace-nowrap rounded-full border px-3 py-1 font-mono text-[11px] text-muted-foreground xl:inline-flex">
             <span className={cn("size-1.5 rounded-full", health?.inference_configured ? "bg-foreground" : "bg-damage")} />
-            {health ? `${health.agent_model} · sandbox ${health.sandbox_runtime === "runsc" ? "gVisor" : `${health.sandbox_runtime} (dev, no gVisor)`}` : "connecting…"}
+            {health ? `${health.agent_model} · sandbox ${health.sandbox_runtime === "runsc" ? "gVisor" : `${health.sandbox_runtime} (dev)`}` : "connecting…"}
           </span>
           {run ? <Button variant="outline" className="h-8 rounded-full px-3" onClick={() => setRun(null)} disabled={running}>New</Button> : null}
           <Button variant="outline" className="h-8 rounded-full px-3" onClick={reset} disabled={busy || running}><RotateCcw className="size-3.5" /> Reset demo</Button>
