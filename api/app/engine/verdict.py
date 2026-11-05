@@ -18,6 +18,9 @@ follows from them by fixed rules (no AI decides here; the jury is one layer amon
 from __future__ import annotations
 
 PASS, WARN, FAIL, SKIP = "pass", "warn", "fail", "skip"
+BLOCKED = {"measured": "Blocked: the plan crashed in the sandbox",
+           "proof": "Blocked: a change happened that no statement of the plan explains",
+           "contract": "Blocked: it breaks a promise made before the plan existed"}
 
 
 def _n(x: int, one: str, many: str | None = None) -> str:
@@ -135,13 +138,13 @@ def decide(run: dict) -> dict | None:
         decision = "cut"
         headline = f"Approve just the {offer['units_kept']:,} of {offer['units_total']:,} changes that pass the check"
     elif failed:
-        decision, headline = "blocked", f"Blocked: {failed[0]['title'].lower()} failed"
+        decision, headline = "blocked", BLOCKED.get(failed[0]["key"], "Blocked") if failed[0]["key"] != "rules" else f"Blocked by policy: {failed[0]['reason']}"
     elif jury_failed:
         decision, headline = "review", "The AI jury objected: approving needs a written reason"
     elif conflict:
         decision, headline = "review", "The contract and the AI jury disagree: strike the promise with a reason, or reject"
     elif warned:
-        decision, headline = "review", f"A person should decide: {', '.join(x['title'].lower() for x in warned)}"
+        decision, headline = "review", f"A person should decide. {warned[0]['reason']}"[:200]
     elif all(x["status"] == SKIP for x in layers if x["key"] in ("contract", "jury")):
         decision, headline = "review", "The rules pass, but nothing checked the meaning: a person should read it"
     else:

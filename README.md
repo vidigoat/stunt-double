@@ -275,7 +275,7 @@ Details in [SECURITY.md](SECURITY.md).
 | **12 / 12 · 8 / 8** | the Consequence Engine on the live server: bad plans stopped, correct plans approved, 0 false alarms, the refund trap cut to exactly the right 104 ([eval](docs/VERIFIER_EVAL.md)) |
 | **48 / 48** | bad plans caught by the AI jury alone, in earlier live runs, with **0 of 26** false alarms on correct ones ([eval](docs/VERIFIER_EVAL.md)) |
 | **3 of 3** | jurors from different labs independently caught every trap on production |
-| **187** | API tests in CI (tampered evidence, hidden connections and forged logs among them), plus a real MCP client and an end-to-end browser test against production |
+| **194** | API tests in CI (tampered evidence, hidden connections and forged logs among them), plus a real MCP client and an end-to-end browser test against production |
 | **1.8 s** | median two-phase rehearsal in gVisor ([benchmark](docs/BENCH.md)) |
 | **0** | lines of agent code ever run against production |
 

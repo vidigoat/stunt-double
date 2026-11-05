@@ -13,7 +13,7 @@ competitor will verify. Nobody else will **verify the verification**, **repair a
 
 ## Status: built, and measured on the live server
 
-All six milestones shipped, each with tests (`api/tests/test_engine_*.py`, 187 tests in the suite) and a production
+All six milestones shipped, each with tests (`api/tests/test_engine_*.py`, 194 tests in the suite) and a production
 run. The code is in [`api/app/engine/`](../api/app/engine): `graph`, `materialize`, `subsets`, `state`, `contracts`,
 `verdict`, `evidence`; Proof of Effect lives in the sandbox harness (`api/app/harness/runner.py`).
 
@@ -53,7 +53,8 @@ run. The code is in [`api/app/engine/`](../api/app/engine): `graph`, `materializ
   asks for the cut.
 - *Checks run on an indexed private copy.* Model-written checks scanned the raw data; on the VM, judge step 1 took
   42 s. One indexed copy per version of the data made each check ~100x faster: the whole demo moment now takes
-  8.6 s on production, offer to approvable subset.
+  8.6 s on production, offer to approvable subset, once the AI verdicts for it have been checked live (a live check
+  of the subset takes about 2 minutes).
 - *The contract and the jury are two independent readings.* Found by the golden-path e2e on production: shown the
   contract's results, the jury echoed a contract mistake (it had promised to keep a record of every server, so the
   correct cleanup "broke" it). Now the jury never sees the contract, and when the jury judges the outcome right but a

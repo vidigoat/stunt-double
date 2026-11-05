@@ -214,7 +214,7 @@ function Different() {
 
 const PROOF = [
   { n: "12/12 · 8/8", k: "live on Vultr: bad plans stopped, correct plans approved, 0 false alarms; the refund trap cut to exactly 104", href: `${GITHUB}/blob/main/docs/VERIFIER_EVAL.md` },
-  { n: "187", k: "API tests in CI, plus MCP and browser end-to-end", href: `${GITHUB}/tree/main/api/tests` },
+  { n: "194", k: "API tests in CI, plus MCP and browser end-to-end", href: `${GITHUB}/tree/main/api/tests` },
   { n: "3", k: "security reviews, from forged reports to lookalike approvers. Every finding fixed with a test", href: `${GITHUB}/blob/main/SECURITY.md` },
   { n: "0", k: "lines of agent code ever run against production", href: `${GITHUB}/blob/main/api/app/apply.py` },
 ];
