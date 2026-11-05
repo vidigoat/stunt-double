@@ -110,7 +110,7 @@ async function step(name, fn) {
     await page.getByRole("tab", { name: /Break it yourself/ }).click();
     await page.getByRole("button", { name: "Clean up idle Vultr servers", exact: true }).click();
     await page.getByRole("button", { name: "Rehearse it", exact: true }).click();
-    await page.getByText(/Would remove production: prod-db-replica, prod-backup-runner/).waitFor({ timeout: 120000 });
+    await page.getByText(/Would remove production: prod-db-replica, prod-backup-runner/).waitFor({ timeout: 300000 });   // a live three-model check can take ~2 min
     await page.getByRole("button", { name: "New" }).click();
     await page.getByRole("tab", { name: /Break it yourself/ }).click();
     await page.getByRole("button", { name: "✓ Clean up idle servers (safe)", exact: true }).click();
