@@ -139,13 +139,49 @@ decision and model fallback already handle that.)
 | The subset is itself wrong | it is re-rehearsed in a new sandbox and re-checked by every rule and the jury before it is offered |
 | A contract the AI writes is too loose or too strict | it must pass today's data, the human approves it in plain English, and it is shown beside every verdict |
 
-## Build order (1.5 days, then freeze)
+## The final plan
 
-| # | What | Why first | Est. |
-|---|---|---|---|
-| 1 | **Surgical approval** | the most visible demo moment; turns a "no" into a "yes, this much" | ~0.5 day |
-| 2 | **Proof of Effect** | deepens the core claim; makes every number clickable | ~0.5 day |
-| 3 | **Intent Contracts** | reuses the rules engine; completes the story (before, during, after) | ~0.5 day |
+### The demo moment (the 30 seconds the whole build serves)
 
-Each ships only with tests (including adversarial ones: a plan that disables the trace, opens a second connection, or
-hides a write in a trigger), the full suite green, and the production end-to-end test passing. Then the freeze.
+> A person types *"Refund everyone who was double-charged last week."*
+> **Before any agent writes a line**, Stunt Double shows the contract: *"104 orders need a refund. Only orders with two
+> charges may be refunded."* The person approves three plain sentences.
+> The agent's plan comes back: 744 refunds. The engine draws the **Effect Graph** (744 charges → 744 refunds → 744
+> emails), lights **640 nodes red**, and points at the exact line of the plan that caused them.
+> One button: **"Approve the 104 that keep the contract."** A fresh sandbox re-rehearses the cut. Obligation met:
+> 104 of 104. Money moves for exactly the right people.
+
+Every competitor shows an agent being blocked. This shows an agent being **understood, corrected and trusted**, in one
+screen, with every claim proven.
+
+### Architecture: `api/app/engine/`, the core every surface goes through
+
+| Module | What it is |
+|---|---|
+| `graph` | the **Effect Graph**: typed nodes (row change, refund, email, API call, server change) and edges (row → refund via `charge_id`, refund → customer → email, …). Built in trusted phase 2 from measured effects only |
+| `provenance` | **Proof of Effect**: statement log (a claim) → trusted replay on the "before" copy with a frozen clock and an authorizer → per-row attribution → "unexplained changes" |
+| `contracts` | **Intent Contracts**: compiled from the request and glossary by the jury; each promise classified as a **guard** or an **obligation** on today's data; enforced in phase 2; learned rules become contracts discovered after a mistake |
+| `subsets` | **surgical approval**: offending nodes → graph closure → the maximal safe subset → re-rehearsed in a new sandbox → re-checked → offered with its own fingerprint |
+| `verdict` | one decision object that combines contracts, rules, provenance and the jury, with a plain-English reason per part |
+| `evidence` | the signed record: request, contract, plan, graph, provenance, verdict and decision, hash-chained |
+
+The API, console, MCP server, SDK and CLI all call the engine; nothing decides outside it.
+
+### Milestones, each one shipped green (tests + production e2e) before the next
+
+| # | Milestone | You can see it when |
+|---|---|---|
+| M1 | **Effect Graph** in phase 2 + graph view in the console | every rehearsal draws its consequences as a graph |
+| M2 | **Surgical approval** end to end | the bad refund plan offers "approve the 104" and applies exactly 104 |
+| M3 | **Proof of Effect** | clicking any number shows the line that caused it; the hidden-connection plan is locked as unexplained |
+| M4 | **Intent Contracts** (rules folded in) | the contract card appears before the plan; guards and obligations are checked in phase 2 |
+| M5 | **Verdict + evidence** unified, hash-chained | one decision panel; the evidence bundle verifies end to end |
+| M6 | **The story**: an engine section on the landing page, the README extended, judge mode rebuilt around the demo moment | a judge sees the engine in the first minute |
+
+**Freeze: Sat ~05:00 IST.** After that only fixes for things that are broken.
+
+### Rules for the build
+- Every module has adversarial tests (a plan that disables the log, opens a second connection, games the subset, or
+  writes a contract-shaped lie).
+- Nothing on production regresses: the 11-step and new-features e2e suites pass after every milestone.
+- Inference spend stays small: contracts and jury verdicts are cached by identical facts, as today.
