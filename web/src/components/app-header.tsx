@@ -74,7 +74,7 @@ export function AppHeader({ right }: { right?: React.ReactNode }) {
         <div className="flex items-center gap-2">{right}</div>
       </div>
       <nav className="flex gap-1 overflow-x-auto border-t px-4 py-1.5 text-sm md:hidden">
-        {[...NAV, ...MORE.filter((m) => !m.href.startsWith("/mail"))].map((n) => (
+        {[...NAV, MORE[0]].map((n) => (
           <Link key={n.href} href={n.href} className={cn("shrink-0 rounded-full px-3 py-1 text-muted-foreground", path === n.href && "bg-muted text-foreground")}>{n.label}</Link>
         ))}
       </nav>

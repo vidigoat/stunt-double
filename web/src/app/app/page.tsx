@@ -442,8 +442,8 @@ export default function AppPage() {
                     setPreview({ status: "writing" });
                     try { setPreview(await api.previewContract(task.trim(), ws)); }
                     catch (e) { setPreview(null); toast.error((e as Error).message); }
-                  }} className="inline-flex items-center gap-1.5 text-sm font-medium text-signal hover:underline disabled:opacity-50">
-                    <FileSignature className="size-3.5" /> What does this mean? See the contract before any plan
+                  }} className="flex items-start gap-1.5 text-left text-sm font-medium text-signal hover:underline disabled:opacity-50">
+                    <FileSignature className="mt-0.5 size-3.5 shrink-0" /> What does this mean? See the contract before any plan
                   </button>
                 ) : null}
               </TabsContent>
