@@ -1,6 +1,7 @@
 // End-to-end for the Nov 5 features. Usage: BASE_URL=https://... node new-features.js
 // Instant (reused, labelled) AI verdict with a live re-check; real-fleet import refuses a bad key without echoing it;
-// SQL export of a rehearsal. Needs the judge presets to have been checked live once (the verdict cache).
+// SQL export of a rehearsal; the Consequence Engine's demo moment (contract, cut to 104, signed evidence that verifies).
+// Needs the judge presets to have been checked live once (the verdict cache).
 const { chromium } = require("playwright");
 const assert = require("assert");
 const BASE = process.env.BASE_URL || "http://localhost:3000";
@@ -53,6 +54,36 @@ async function step(name, fn) {
     const msg = await page.getByText(/Vultr rejected that key/).first().textContent({ timeout: 30000 });
     assert.ok(!msg.includes(fake), "the error never echoes the key");
   });
+
+  if (health.inference_configured) {
+    await step("the engine: a wrong plan becomes the right one, and the record verifies", async () => {
+      await page.goto(`${BASE}/app`, { waitUntil: "networkidle" });
+      await page.getByRole("button", { name: /Watch a wrong plan become/ }).click();
+      await page.waitForURL(/run=/, { timeout: 60000 });
+      const rid = new URL(page.url()).searchParams.get("run");
+      await page.getByText("Consequence engine · intent contract").first().waitFor({ timeout: 180000 });
+      const keep = page.getByRole("button", { name: /Keep just the 104/ });
+      await keep.waitFor({ timeout: 180000 });
+      await keep.click();
+      let run;
+      for (let i = 0; i < 240; i++) {
+        run = await fetch(`${BASE}/api/runs/${rid}`).then((r) => r.json());
+        if (run.attempts.length > 1 && run.status === "review" && run.decision) break;
+        await new Promise((r) => setTimeout(r, 1000));
+      }
+      const sub = run.attempts.at(-1).consequences;
+      assert.strictEqual(sub.payments.count, 104, "exactly the 104 real double charges");
+      assert.strictEqual(sub.payments.total_cents, 513600);
+      assert.ok((sub.contract?.promises ?? []).every((p) => p.status === "kept" || p.status === "met"), "the subset keeps every promise");
+      assert.strictEqual(run.decision.decision, "approve", run.decision.headline);
+      const ev = await fetch(`${BASE}/api/runs/${rid}/evidence`).then((r) => r.json());
+      const ok = await fetch(`${BASE}/api/evidence/verify`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(ev) }).then((r) => r.json());
+      assert.ok(ok.ok, `evidence verifies: ${ok.reason}`);
+      ev.chain.entries.find((e) => e.kind === "rehearsal").body.measured.payments.total_cents += 1;
+      const bad = await fetch(`${BASE}/api/evidence/verify`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(ev) }).then((r) => r.json());
+      assert.ok(!bad.ok, "one changed cent breaks it");
+    });
+  }
 
   assert.deepStrictEqual(errors, [], `page errors: ${errors.join(" | ")}`);
   await browser.close();
