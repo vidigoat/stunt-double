@@ -11,6 +11,43 @@ competitor will verify. Nobody else will **verify the verification**, **repair a
 
 ---
 
+## Status: built, and measured on the live server
+
+All six milestones shipped, each with tests (`api/tests/test_engine_*.py`, 181 tests in the suite) and a production
+run. The code is in [`api/app/engine/`](../api/app/engine): `graph`, `materialize`, `subsets`, `state`, `contracts`,
+`verdict`, `evidence`; Proof of Effect lives in the sandbox harness (`api/app/harness/runner.py`).
+
+**The demo moment on production** (Nov 5, the obvious refund plan, judge step 1):
+
+| Step | What happened |
+|---|---|
+| Contract | `qwen3.8-flash-next` wrote 4 promises from the request, glossary and schema alone: 2 pieces of work (104 refunds, 104 apology emails) and 2 guards |
+| Rehearsal | 744 refunds, 744 emails, 744 rows. Proof of Effect: 1,490 statements replayed, 744 of 744 changes reproduced |
+| Check | guard "only those extra charges are refunded" **broken by 640 rows**; both pieces of work met; jury 3 of 3 *dangerous* |
+| Decision | **cut**: "Approve just the 104 of 744 changes that pass the check", driven by the contract alone |
+| Subset | re-measured in a fresh sandbox: 104 refunds, 104 emails; all 4 promises kept; jury 3 of 3 *looks right*; decision **approve** |
+| Evidence | 7 entries (request → contract → rehearsal → rehearsal → surgical → jury → decision), Ed25519-signed, verifies |
+
+**What changed from the plan, and why**
+
+- *Promises read three views, not one.* A promise defined only on the after-state defeats itself: once the plan refunds
+  a double charge, the order no longer "has two successful charges". So each check sees the data **before** the plan
+  (`before.*`), **after** it, and what it **sent** (`sent.refunds`, `sent.emails`, `sent.requests`). With that, the
+  same model went from counting 58 or 72 orders to exactly 104.
+- *Dates are literal.* The model is given the business's "today" and the glossary's "last week"; a promise that uses
+  `'now'` is refused, because it would mean something different tomorrow.
+- *Unfair promises are withdrawn, not enforced.* A promise that a jury-approved plan for the same request fails is the
+  contract's mistake. Live, DeepSeek wrote one ("an apology contact is recorded in the database") that no correct plan
+  can meet; it was withdrawn automatically.
+- *A cut must pass every check that fired, and do some of the work.* Found on production: the lying "read-only audit"
+  broke two promises, and cutting around only the first left a subset that still broke the second. Now every learned
+  rule and broken promise is required on the subset, and a request that asks for no change gets no subset at all.
+- *The contract is shown, not yet approved by a person.* Editing promises before the plan runs is the next step.
+- *The decision is code, not AI.* Six layers give pass, warn or fail with one reason each; only deterministic layers
+  lock approval, and the jury's objection alone asks a person for a written reason.
+
+---
+
 ## 1. Surgical approval: the wrong plan becomes the right outcome
 
 **The moment.** The agent's refund plan is 86% wrong: 744 refunds, 640 of them to people never double-charged. Today
