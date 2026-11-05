@@ -265,3 +265,21 @@ def test_the_jury_reads_the_outcome_without_the_contract():
     assert "intent_contract" not in agent.compact_consequences(c, contract=False)  # the jury doesn't: two independent readings
     src = Path(agent.__file__).read_text()
     assert "compact_consequences(consequences, contract=False)" in src
+
+
+@needs_docker
+def test_the_agent_plans_against_the_contract(fresh_business, monkeypatch):
+    _ai(monkeypatch, [WORK, GUARD])
+    seen = {}
+
+    def fake_agent(task, rehearse, emit, feedback=None, history=None):
+        seen["task"] = task
+        rehearse(PLANS["good"]["code"], "refund the 104")
+        return "done", []
+    monkeypatch.setattr(main.agent, "ops_agent", fake_agent)
+    api = TestClient(main.app)
+    rid = api.post("/api/runs", json={"task": PLANS["good"]["task"]}).json()["id"]
+    run = _wait(api, rid)
+    assert WORK["text"] in seen["task"] and GUARD["text"] in seen["task"] and seen["task"].startswith(PLANS["good"]["task"])
+    assert run["task"] == PLANS["good"]["task"]                  # the jury still judges the person's own words
+    assert run["decision"]["layers"][2]["status"] == "pass"

@@ -71,6 +71,7 @@ export type Business = {
 export type RunSummary = {
   id: string; task: string; mode: "agent" | "manual" | "rollback"; status: RunStatus; approvals?: { name: string; at: number }[]; rollback_of?: string; rolled_back_by?: string; rollback_run?: string; created_at: number; attempts: number; verdict: Verdict["verdict"] | null;
   money_cents: number; emails: number; rows: number; blocked: boolean; plan_sha256: string | null; approval: Approval | null; apply_result: Run["apply_result"];
+  decision?: { decision: Decision["decision"]; headline: string } | null; cut?: { kept: number; total: number } | null;
 };
 export type Health = { ok: boolean; inference_configured: boolean; sandbox_ready?: boolean; sandbox_status?: string; agent_model: string; verifier_model: string; sandbox_runtime: string; docker: string | null; vm_isolation?: boolean; vm_plan?: string | null; sample_postgres?: boolean };
 

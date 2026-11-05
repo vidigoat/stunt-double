@@ -495,8 +495,17 @@ def _agent_job(run: dict, feedback: str | None = None) -> None:
     workspaces.use(run.get("workspace", workspaces.DEMO))
     try:
         _status(run, "planning")
+        task = run["task"]
+        ev = CONTRACT_READY.get(run["id"])
+        if not feedback and ev is not None:      # the agent signs before it writes: it plans against the contract
+            ev.wait(45)
+            promises = (run.get("contract") or {}).get("promises") if (run.get("contract") or {}).get("status") == "ready" else None
+            if promises:
+                task += ("\n\nBefore you started, Stunt Double wrote down what this request means. Your plan will be checked "
+                         "against these promises, by code, after it runs:\n" + "\n".join(f"- {p['text']}" for p in promises))
+                _emit(run, "agent", f"The agent plans against the contract ({len(promises)} promises)")
         _emit(run, "agent", "Ops agent is planning" if not feedback else "Ops agent is fixing the plan")
-        final, history = agent.ops_agent(run["task"], lambda code, s: _rehearse(run, code, s),
+        final, history = agent.ops_agent(task, lambda code, s: _rehearse(run, code, s),
                                          lambda k, t, d=None: _emit(run, k, t, d), feedback=feedback, history=HISTORY.get(run["id"]))
         HISTORY[run["id"]] = history
         with LOCK:

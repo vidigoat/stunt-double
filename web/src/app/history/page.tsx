@@ -16,7 +16,8 @@ function StatusPill({ r }: { r: RunSummary }) {
   return (
     <span className={cn("inline-flex items-center gap-1 whitespace-nowrap rounded-full border px-2 py-0.5 font-mono text-[11px]",
       r.status === "applied" && "border-foreground bg-foreground text-background", (r.blocked || r.status === "drifted" || r.status === "failed") && r.status !== "applied" && "border-damage/40 text-damage")}>
-      {icon}{r.blocked && r.status === "review" ? "blocked by policy" : LABEL[r.status] ?? r.status}
+      {icon}{r.cut && r.status !== "applied" && r.status !== "rejected" ? `cut to ${r.cut.kept} of ${r.cut.total}` : r.blocked && r.status === "review" ? "blocked by policy"
+        : r.status === "applied" && r.cut ? `applied: ${r.cut.kept} of ${r.cut.total}` : LABEL[r.status] ?? r.status}
     </span>
   );
 }
