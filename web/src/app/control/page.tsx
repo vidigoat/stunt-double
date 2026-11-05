@@ -6,7 +6,8 @@ import { Bot, Cloud, CreditCard, Database, Mail, MousePointerClick, ShieldCheck,
 import { Mark } from "@/components/brand";
 import { BrandLogo } from "@/components/brand-logos";
 import { cn } from "@/lib/utils";
-import { num, usd } from "@/lib/api";
+import { CountUp } from "@/components/count-up";
+import { usd } from "@/lib/api";
 
 type Row = {
   id: string; task: string; mode: string; status: string; created_at: number; verdict: string | null; blocked: boolean;
@@ -21,6 +22,28 @@ const KIND: Record<string, { icon: typeof Database; label: string }> = {
   data: { icon: Database, label: "database double" }, money: { icon: CreditCard, label: "payments double" }, email: { icon: Mail, label: "email double" },
   api: { icon: Webhook, label: "API double" }, browser: { icon: MousePointerClick, label: "browser double" }, cloud: { icon: Cloud, label: "Vultr fleet double" },
 };
+const STAGES = ["plan", "rehearse", "verify", "decide"] as const;
+function stageOf(r: Row): number {
+  if (r.status === "queued" || r.status === "planning") return 0;
+  if (r.status === "rehearsing") return 1;
+  if (r.status === "verifying") return 2;
+  return 3;
+}
+
+function Pipeline({ r, live }: { r: Row; live: boolean }) {
+  const at = stageOf(r);
+  const skippedAi = !live && r.blocked && !r.verdict;
+  return (
+    <div className="mt-1.5 flex items-center gap-1" aria-label={`stage: ${STAGES[at]}`}>
+      {STAGES.map((st, i) => (
+        <span key={st} className={cn("h-1 w-7 rounded-full transition-colors duration-500",
+          i < at ? (st === "verify" && skippedAi ? "bg-white/15" : "bg-white/45") : i === at ? (live ? "animate-pulse bg-[#5B8CFF]" : "bg-white/70") : "bg-white/10")} title={st} />
+      ))}
+      <span className="ml-1 whitespace-nowrap text-[10px] uppercase tracking-[0.14em] text-white/35">{live ? `${STAGES[at]}…` : skippedAi ? "rules · no AI" : r.verdict ? "AI checked" : "done"}</span>
+    </div>
+  );
+}
+
 const ACTIVE = new Set(["queued", "planning", "rehearsing", "verifying", "applying"]);
 
 function decision(r: Row): { label: string; tone: "run" | "bad" | "warn" | "ok" | "neutral" } {
@@ -65,8 +88,8 @@ export default function ControlPage() {
       </header>
 
       <div className="grid grid-cols-2 gap-px border-b border-white/10 bg-white/10 lg:grid-cols-4">
-        {[["rehearsals", num(stats?.rehearsals ?? 0)], ["stopped before damage", num(stats?.stopped ?? 0)], ["money kept", usd(stats?.money_prevented_cents ?? 0)], ["rows protected", num(stats?.rows_protected ?? 0)]].map(([k, v]) => (
-          <div key={k} className="bg-[#0A0A0B] px-6 py-5"><div className="font-mono text-3xl tabular">{v}</div><div className="mt-1 text-xs text-white/50">{k}</div></div>
+        {([["rehearsals", stats?.rehearsals ?? 0, "num"], ["stopped before damage", stats?.stopped ?? 0, "num"], ["money kept", stats?.money_prevented_cents ?? 0, "usd"], ["rows protected", stats?.rows_protected ?? 0, "num"]] as const).map(([k, v, f]) => (
+          <div key={k} className="bg-[#0A0A0B] px-6 py-5"><div className={cn("font-mono text-3xl tabular", k === "stopped before damage" && v ? "text-[#FF8A8F]" : k === "money kept" && v ? "text-[#3DD68C]" : "")}><CountUp value={v} format={f} /></div><div className="mt-1 text-xs text-white/50">{k}</div></div>
         ))}
       </div>
 
@@ -91,6 +114,7 @@ export default function ControlPage() {
                 <div className="min-w-0 font-mono text-[11px] leading-relaxed text-white/60">
                   <div className="text-white/85">{K.label}</div>
                   <div className="truncate">{r.sandbox?.id ?? "starting…"} · {r.sandbox?.runtime === "runsc" ? "gVisor" : r.sandbox?.runtime ?? "…"}{r.sandbox?.wall_ms ? ` · ${(r.sandbox.wall_ms / 1000).toFixed(1)} s` : ""}{r.sandbox?.id ? " · destroyed" : ""}</div>
+                  <Pipeline r={r} live={live} />
                 </div>
               </div>
               <div className="flex min-w-0 items-center gap-3">
