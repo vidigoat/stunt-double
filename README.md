@@ -87,6 +87,9 @@ what the engine does with it, on the live server:
 | 4 | **Surgical approval** | Every unit that breaks the contract is cut out, whole. What is left is rebuilt without running the plan again, re-measured in a fresh sandbox and checked again | **Keep 104 ($5,136), cut 640 ($32,268).** The subset keeps every promise and the jury agrees, 3 of 3 |
 | 5 | **One decision, signed** | Six layers (measured, proof, contract, rules, jury, sign-off) each give one plain reason; fixed rules combine them into *approve*, *review*, *blocked* or *cut*. Every step is sealed into a SHA-256 hash chain signed with Ed25519 | Change one refund, one promise or one approver's name and the record no longer verifies (`sd verify`) |
 
+<p align="center"><img src="docs/assets/console-engine.png" alt="The live console: the six-layer decision, the 104-of-744 surgical cut, and the contract with its broken promise and DeepSeek's cross-check" width="100%"></p>
+<p align="center"><sub>The live console on Vultr, judge step 1: the decision, the cut, and the contract written before the plan.</sub></p>
+
 Agents get all of it too: over MCP every rehearsal returns the decision, the contract and the proof, and
 `keep_only_what_is_right` asks for the cut (it approves nothing). The code is in [`api/app/engine/`](api/app/engine),
 the design and what production measured in [docs/ENGINE.md](docs/ENGINE.md).
