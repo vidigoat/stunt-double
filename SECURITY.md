@@ -100,6 +100,16 @@ regression tests in `api/tests/test_security3.py`:
 | Postgres import | leaking the connection string; pointing the server at internal services (SSRF); writing to the real database | the string is used once in memory, never stored, logged or echoed (errors name only the error class); private, loopback, link-local and reserved addresses are refused; the session is read-only with a statement timeout and row caps; approval on a Postgres double is refused, the only way back is a drift-guarded SQL script the owner runs | `test_pg_import` (real Postgres 16) |
 | Dedicated rehearsal VMs | cost runaway, a VM left running, a forged result | one VM at a time, daily cap, smallest plan, no new VM above a pending-charges ceiling, a reaper destroys any rehearsal VM older than 10 minutes, the VM is deleted in a `finally`; the plan runs as a user whose egress is rejected; bundle and result use one-time tokens; the result is only the database copy and intents (regular files, size-capped, unexpected paths ignored) and is measured in gVisor on our server | `test_vultr_vm` |
 
+## The Consequence Engine (Nov 5)
+
+| Surface | Risk | Control | Test |
+|---|---|---|---|
+| Proof of Effect | a plan hides a write: a second connection, the statement log switched off, a forged log entry | the log is a claim; trusted phase 2 replays it on the untouched copy with a frozen clock and seeded `random()` under an authorizer (no ATTACH, DDL, PRAGMA or writes to its own bookkeeping) and must reproduce every measured change; anything else is "a change the plan can't explain" and locks approval | `test_engine_provenance` (hidden connection, trace off, forged log, clock) |
+| Derived subsets | a plan claims to be an engine-cut subset to skip the replay | the marker that says "derived" is written by the host into phase 2's input only; a file the plan plants never reaches phase 2 | `test_engine_provenance::test_a_plan_cannot_claim_to_be_a_derived_subset` |
+| Surgical approval | cutting the wrong part, or keeping a part that is still wrong | flagged rows that can't be traced to the plan mean no offer; the subset must pass every learned rule and broken promise again, do some of the requested work, and is re-measured in a fresh sandbox and re-checked by the jury; it approves nothing by itself; one cut per run | `test_engine_surgical`, `test_engine_contracts::test_a_read_only_request_never_gets_a_subset_offer` |
+| Intent contracts | a request that injects instructions into the contract; a check that writes or runs forever; a wrong promise | the plan never sees the contract; each promise is one `SELECT`/`WITH` (no `;`, no `'now'`), run on a read-only, `query_only` view of private copies with a 20 s limit; a promise a jury-approved plan for the same request fails is withdrawn; a person can strike any promise, with their name and reason in the record | `test_engine_contracts` |
+| Signed evidence | editing the record after the fact | every step is an entry of a SHA-256 hash chain whose head is signed with the server's Ed25519 key (file mode 0600); changing, dropping or reordering any step, re-hashing a forged chain, or a different server's key all fail verification | `test_engine_verdict_evidence` |
+
 ## Known limitations (hackathon scope)
 - The API container talks to the host Docker daemon to start sandboxes; a compromise of the API process is host-level.
   Production deployments should use a dedicated sandbox host or a rootless/remote runtime.
@@ -111,5 +121,7 @@ regression tests in `api/tests/test_security3.py`:
 - The plan shares a process with phase 1, so it can erase its own *blocked network attempt* log. The container still
   has no network, and every measured effect comes from phase 2, so this only affects that informational flag.
 - BLOB columns would be serialized as strings in effects (the demo schema has none).
+- The evidence key lives on the server that signs. It proves a record wasn't changed after this server sealed it,
+  not that the server itself is honest; production would keep the key in a KMS and publish it out of band.
 - Recorded intents (refunds, emails) are only as complete as the connectors that expose them; unknown side effects
   fail closed because the sandbox has no network.
