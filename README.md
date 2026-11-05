@@ -42,18 +42,20 @@
 
 ## Judge it in 2 minutes
 
-Open **[the live demo](https://149-28-206-186.sslip.io/app)**. Judge mode is seven clicks; each one starts a real rehearsal
-in gVisor on the Vultr VM:
+Open **[the live demo](https://149-28-206-186.sslip.io/app)**. Judge mode is eight clicks; each one starts a real rehearsal
+in gVisor on the Vultr VM, and each answers in seconds (the AI verdicts were checked live once and are reused only for the
+identical request, effects and data, labelled, with **Re-check live**):
 
 | # | Click | What you should see |
 |---|---|---|
 | 1 | **Break it** | A plan deletes every customer. Sandbox: 1,300 → 0. Production: still 1,300. Approval locks. |
-| 2 | **Watch the AI catch what rules can't** | A refund plan passes every rule. The AI verifier (Vultr Serverless Inference) reads the data and objects: *"Plan refunds 640 customers who were never double-charged."* ([eval](docs/VERIFIER_EVAL.md)). If this exact check already ran live, the verdict appears instantly, labelled with when it ran; **Re-check live** runs the AI again. Then **Learn this rule**: the next identical mistake is blocked without AI. |
-| 3 | **Watch it work in a browser** | The agent cancels a subscription on a double of the admin site, in a real Chromium inside the sandbox. You see every screen; the AI vision check says *"Agent cancelled her original subscription, not the duplicate."* |
-| 4 | **Clean up the cloud** | "Delete idle Vultr servers": the obvious plan would also delete the failover database and the backup runner. The double of the fleet shows it; production servers are protected. |
-| 5 | **Approve a good one, then undo it** | 104 refunds ($5,136) and emails after a drift check. Then rehearse the undo, which needs two approvers. |
-| 6 | **Hand it to the agent** | The agent on Vultr Serverless Inference investigates, writes a plan and rehearses it. It fell for none of our traps on the live server ([eval](docs/EVAL.md)). |
-| 7 | **Try it on real infrastructure** | One click imports a read-only double of a PostgreSQL database and rehearses "deactivate accounts inactive for 90 days". The verifier spells out the cost (49 paying accounts, $3,451/month); approved changes leave as drift-guarded SQL keyed on the real primary key. |
+| 2 | **Try to fool it** | A "read-only audit" quietly refunds 300 charges, logs *"no changes were made"* and forges its own report file. The console sets the plan's claim against what a separate sandbox measured: **the plan lied; the measurement didn't.** |
+| 3 | **Watch the AI catch what rules can't, then teach it** | A refund plan passes every rule. An **AI jury** of three labs on Vultr Serverless Inference (GLM, DeepSeek, MiniMax) investigates the data independently: *"640 of 744 refunds went to customers never double-charged."* Then **Learn this rule** → **Try the same plan again**: blocked in milliseconds, no AI. |
+| 4 | **Watch it work in a browser** | The agent cancels a subscription on a double of the admin site, in a real Chromium inside the sandbox. The AI vision check sees it cancelled the wrong one. |
+| 5 | **Clean up the cloud** | "Delete idle Vultr servers" would also delete the failover database and the backup runner. Production servers are protected. |
+| 6 | **Approve a good one, then undo it** | 104 refunds ($5,136) and emails after a drift check. Then rehearse the undo, which needs two approvers. |
+| 7 | **Hand it to the agent** | The agent on Vultr Serverless Inference investigates, writes a plan and rehearses it ([eval](docs/EVAL.md)). |
+| 8 | **Try it on real infrastructure** | A read-only double of a PostgreSQL database; "deactivate accounts inactive for 90 days" is rehearsed, the verifier spells out the cost (49 paying accounts, $3,451/month), and approved changes leave as drift-guarded SQL. |
 
 Agents can do the same over MCP: `claude mcp add --transport http stunt-double https://149-28-206-186.sslip.io/mcp`.
 
@@ -63,7 +65,7 @@ Agents can do the same over MCP: `claude mcp add --transport http stunt-double h
 |---|---|
 | **Cloud Compute** (vc2-2c-4gb, San Jose) | The control plane: API, web app, MCP server and Caddy (HTTPS). It plans, dispatches every rehearsal to a sandbox, measures, and applies approved effects. Provisioned by `infra/provision.py` through the **Vultr API**, with a credit guard. |
 | **gVisor sandboxes on that VM** | Every rehearsal runs in two fresh containers on the `runsc` runtime (plan, then a trusted measurement): no network, no secrets, read-only root, memory/CPU/PID/time caps, destroyed after each run. Browser rehearsals use a Chromium profile with the same guards (median 1.8 s per code rehearsal, about 6 s with a browser). |
-| **Serverless Inference** | `glm-5.3-flash` is the ops agent and the verifier (with `qwen3.8-flash-next` as fallback). The verifier is multimodal: for browser runs it reads the screenshots. A verdict is reused only when the request, measured effects, data, policy and model are all identical, and always labelled with a one-click live re-check. |
+| **Serverless Inference** | `glm-5.3-flash` is the ops agent and the verifier (with `qwen3.8-flash-next` as fallback). The verifier is multimodal: for browser runs it reads the screenshots. An **AI jury** of models from two more labs (`deepseek-v4.1-flash-1017`, `minimax-m3.1-flash`) investigates every verification in parallel, each on its own; the jury can only make a verdict stricter (one "dangerous" or two objections rule out "looks right"), never more lenient. A verdict is reused only when the request, measured effects, data, policy and model are all identical, and always labelled with a one-click live re-check. |
 | **Vultr API** | Provisioning and teardown of the server. **Your real fleet:** paste a Vultr API key and Stunt Double reads your instances once (GET only), builds a double of your fleet and discards the key; agents rehearse deletes, halts and resizes against it, and production-tagged servers are protected. **Dedicated rehearsal VMs:** a high-risk rehearsal can run on a brand-new Cloud Compute instance created through the API for that one run and destroyed after (plan user's egress blocked, one-time tokens, spend ceiling, reaper); measurement stays in gVisor. Built and tested, and enabled once the server holds an API key. |
 
 The agent's use case: an operations agent for a small online business that does real work in its systems (refunds,
@@ -152,6 +154,8 @@ When the AI verifier catches a mistake, it also writes the check it used as one 
 rows that are wrong. **Learn this rule** turns it into a deterministic rule for that business:
 
 - it must return **0 rows on today's data** to be accepted (a bad rule can't lock everything);
+- it must flag **only the mistake**: Stunt Double rebuilds the end state of recent rehearsals the AI judged correct (today's
+  data plus their recorded row changes) and refuses a rule that would block any of them, naming the run it would break;
 - it runs in **phase 2 of every future rehearsal, inside the sandbox**, read-only against the double's after-state, with a time
   limit (never on the host, never on production);
 - a violation is a policy block, decided **without calling the AI** (instant and free).
@@ -303,7 +307,7 @@ python api/eval/run_eval.py --api https://<host> --runs 10      # real models: h
 
 | Suite | What it proves |
 |---|---|
-| `api/tests/` (132 tests) | engine, containment, adversarial attacks, policy + simulator, connectors + notifications, rollback, two-person rule, workspaces, diff explorer, SDK + CLI, agent loop, archive, security reviews, browser + cloud doubles, learned rules, autonomy, verdict reuse, Vultr fleet import, dedicated Vultr VMs, SQL export, Postgres round trip |
+| `api/tests/` (140 tests) | engine, containment, adversarial attacks, policy + simulator, connectors + notifications, rollback, two-person rule, workspaces, diff explorer, SDK + CLI, agent loop, archive, security reviews, browser + cloud doubles, learned rules, autonomy, verdict reuse, Vultr fleet import, dedicated Vultr VMs, SQL export, Postgres round trip, AI jury, rule safety |
 | `mcp/tests/test_mcp.py` | a real MCP client over stdio against the live API |
 | `e2e/golden-path.js` | a real browser: containment, approve + apply, two-person undo, Slack delivery, audit trail, phone layout |
 
@@ -328,10 +332,10 @@ docs/                      plan, design, pitch, rubric, go-live runbook, benchma
 
 ## Roadmap
 Shipped this hackathon: **browser doubles** (a real Chromium in gVisor plus a vision verifier on Vultr) · **cloud doubles**
-of a Vultr fleet · **catch → rule** (AI catches become deterministic invariants) · **graduated autonomy** budgets ·
-**Mission control**.
-Next (see [docs/VISION_10X.md](docs/VISION_10X.md)): dedicated throwaway Vultr VMs per high-risk rehearsal · an **AI jury**
-of three Vultr models · GitHub sign-in and Slack approvals · signed, hash-chained evidence.
+and a read-only double of **your real Vultr fleet** · **your real PostgreSQL** with drift-guarded SQL export · an **AI jury**
+of three labs on Vultr Inference · **catch → rule** with rule-safety checks · **graduated autonomy** · **Mission control**.
+Built and tested, off on the public demo: **a brand-new Vultr VM per high-risk rehearsal** (it needs an account key on the server).
+Next (see [docs/VISION_10X.md](docs/VISION_10X.md)): GitHub sign-in and Slack approvals · signed, hash-chained evidence.
 Later: Postgres/MySQL branches · Stripe, HubSpot, Zendesk connectors · policy packs per department.
 
 ## License

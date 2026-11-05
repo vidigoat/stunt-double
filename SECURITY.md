@@ -93,6 +93,8 @@ regression tests in `api/tests/test_security3.py`:
 
 | Surface | Risk | Control | Test |
 |---|---|---|---|
+| AI jury | a weaker model talking a verdict down | jurors (other labs' models) investigate independently in parallel; the jury can only make a verdict stricter, never more lenient; a juror that can't finish abstains | `test_jury` |
+| Learned rules | an over-broad rule that blocks correct work | a rule must pass today's data AND the rebuilt end state of recent rehearsals the AI judged correct, or it isn't offered or learned | `test_rule_safety` |
 | Reused AI verdicts | showing a verdict for different facts | reused only when the request, the SHA-256 of the measured effects, a hash of the full data, the policy and the model are all identical; always labelled with its time; "Re-check live" forces a fresh AI call; unfinished verdicts are never reused | `test_verdict_cache` |
 | Vultr fleet import | leaking or misusing the visitor's API key | GET requests only; the key is validated (alphanumeric, 20–64), used once in memory, never stored, logged, put in a run or sent to a sandbox; errors never echo it; approving on a fleet double is refused (it never changes a real account) | `test_vultr_import` |
 | Postgres import | leaking the connection string; pointing the server at internal services (SSRF); writing to the real database | the string is used once in memory, never stored, logged or echoed (errors name only the error class); private, loopback, link-local and reserved addresses are refused; the session is read-only with a statement timeout and row caps; approval on a Postgres double is refused, the only way back is a drift-guarded SQL script the owner runs | `test_pg_import` (real Postgres 16) |

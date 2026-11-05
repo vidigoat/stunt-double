@@ -16,17 +16,17 @@ Stunt Double: Rehearse AI Agent Actions on Vultr
 AI agents now move money, email customers and manage servers. Stunt Double runs every agent action on a throwaway double of your business in a gVisor sandbox on Vultr first, shows the consequences, and changes production only after a human approves.
 ```
 
-## Step 1 · Long Description (600–2000 chars and 100+ words, this is 1688 chars, 282 words)
+## Step 1 · Long Description (600–2000 chars and 100+ words, this is 1789 chars, 299 words)
 ```
 AI agents are starting to act on real systems: refunding customers, sending email, clicking through admin sites and deleting cloud servers. One wrong plan can do irreversible damage before anyone notices. Stunt Double makes every agent action a rehearsal first.
 
-The plan runs on a double of the business (database, payments, email, any HTTP API, a real Chromium browser, and Vultr servers, including read-only doubles of your own Postgres database and Vultr fleet) inside a fresh gVisor sandbox on Vultr Cloud Compute with no network and no secrets. A second, trusted container measures what actually changed, so the plan can't lie about what it did. Policy rules check the blast radius, and an AI verifier on Vultr Serverless Inference investigates the data with read-only SQL and reads browser screenshots.
+The plan runs on a double of the business (database, payments, email, any HTTP API, a real Chromium browser, and Vultr servers, including read-only doubles of your own Postgres database and Vultr fleet) inside a fresh gVisor sandbox on Vultr Cloud Compute with no network and no secrets. A second, trusted container measures what actually changed, so the plan can't lie about what it did. Policy rules check the blast radius, and an AI jury of three labs' models on Vultr Serverless Inference investigates the data independently with read-only SQL (and reads browser screenshots).
 
 Humans approve consequences, not code: "refunds $37,404 to 744 people, 640 of whom were never double-charged." Approval replays exactly the recorded effects after a drift check. Big changes and every undo need two people, and each approval is bound to a SHA-256 of the plan and its effects.
 
-Every catch becomes a rule: the AI writes the SQL check it used, and one click makes it a rule that blocks the same mistake instantly, without AI. Small, clean, AI-confirmed changes can apply on their own within a budget.
+Every catch becomes a rule: the AI writes the SQL check it used, Stunt Double proves it would not block work the AI judged correct, and one click makes it a rule that blocks the same mistake instantly, without AI. Small, clean, AI-confirmed changes can apply on their own within a budget.
 
-On the live Vultr server it caught 48 of 48 bad plans with 0 false alarms on 26 correct ones. Agents connect over MCP, a Python SDK, a CLI or REST, and there is no approve tool. Built on Vultr Cloud Compute, Serverless Inference and the Vultr API, with gVisor, FastAPI, Next.js and Playwright; 132 API tests and an end-to-end test that passes against production.
+On the live Vultr server it caught 48 of 48 bad plans with 0 false alarms on 26 correct ones. Agents connect over MCP, a Python SDK, a CLI or REST, and there is no approve tool. Built on Vultr Cloud Compute, Serverless Inference and the Vultr API, with gVisor, FastAPI, Next.js and Playwright; 140 API tests and an end-to-end test that passes against production.
 ```
 
 ## Step 1 · Participation Mode
@@ -40,7 +40,7 @@ Vultr · Vultr Cloud Compute · Vultr Serverless Inference · Vultr API · gViso
 MCP · SQLite · GLM
 
 ## Links
-- Application URL: https://149-28-206-186.sslip.io (judge mode: open /app, seven one-click steps; Mission control at /control)
+- Application URL: https://149-28-206-186.sslip.io (judge mode: open /app, eight one-click steps; Mission control at /control)
 - MCP endpoint: https://149-28-206-186.sslip.io/mcp
 - Repo: https://github.com/vidigoat/stunt-double
 
