@@ -81,7 +81,7 @@ MCP · SQLite · GLM
 - Repo: https://github.com/vidigoat/stunt-double
 
 ## Files
-- Slides PDF: `presentation/stunt-double-deck.pdf`
+- Slides PDF: being made by hand (the generated deck was removed)
 - Cover (16:9): `presentation/cover.png`
 - Video: required. The official page sets no length limit; Challenge 01 requires it to show at least one containment
   moment (judge step 1 does: sandbox 0, production 1,300, approval locked). Shot list: docs/DEMO_1MIN.md.

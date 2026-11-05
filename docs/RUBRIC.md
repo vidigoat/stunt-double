@@ -53,7 +53,7 @@ Criterion score (1–5) = `1 + 4 × (points earned / points possible)`, rounded 
 | Public live URL judges can use | 2 | 2 | https://149-28-206-186.sslip.io |
 | Judges can trigger the wow moment themselves | 2 | 2 | Judge mode on the live site: four one-click rehearsals, live AI investigation stream |
 | Demo video, 4–5 min, golden path rehearsed | 1 | 2 | 30 s recorded demo (GIF/MP4) in README; narrated 4-min video still Day 4 |
-| Slide deck (8–10 slides) | 2 | 2 | `presentation/stunt-double-deck.pdf`, 10 slides |
+| Slide deck (8–10 slides) | 2 | 0 | being made by hand |
 | Cover image + lablab texts | 2 | 2 | `presentation/cover.png`, `docs/SUBMISSION.md` (lengths checked) |
 | **Total** | **13** | **14** | **→ 4.6 / 5** |
 
