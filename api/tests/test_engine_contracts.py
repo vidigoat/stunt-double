@@ -236,7 +236,7 @@ def test_an_ambiguous_request_is_flagged_before_anyone_trusts_either_reading(fre
         time.sleep(0.25)
         run = api.get(f"/api/runs/{rid}").json()
     cc = run["contract"]["cross_check"]
-    assert cc == {"model": "b", "status": "disagree", "ours": 104, "theirs": 58}
+    assert cc == {"model": "b", "status": "disagree", "ours": 104, "theirs": 58, "second_reading": 58}   # it reproduced
     assert run["decision"]["layers"][2]["status"] == "warn" and "104 to do, or 58" in run["decision"]["layers"][2]["reason"]
     assert run["decision"]["decision"] == "review"           # the correct plan, but the request itself needs a person
 
@@ -283,3 +283,27 @@ def test_the_agent_plans_against_the_contract(fresh_business, monkeypatch):
     assert WORK["text"] in seen["task"] and GUARD["text"] in seen["task"] and seen["task"].startswith(PLANS["good"]["task"])
     assert run["task"] == PLANS["good"]["task"]                  # the jury still judges the person's own words
     assert run["decision"]["layers"][2]["status"] == "pass"
+
+
+
+@needs_docker
+def test_a_disagreement_that_does_not_reproduce_is_noise(fresh_business, monkeypatch):
+    seven_days = {"text": "Every extra charge from the last seven days is refunded.",
+                  "sql": WORK["sql"].replace("created_at >= '2026-10-26'", "created_at >= '2026-10-29'")}
+    readings = iter([[seven_days, GUARD], [WORK, GUARD]])             # b misreads once, then reads it like a
+    a = FakeModel([WORK, GUARD])
+    b = SimpleNamespace(create=lambda **kw: FakeModel(next(readings)).create(**kw))
+    client = SimpleNamespace(chat=SimpleNamespace(completions=SimpleNamespace(create=lambda **kw: (a if kw["model"] == "a" else b).create(**kw))))
+    _ai(monkeypatch, [])
+    monkeypatch.setattr(config, "CONTRACT_MODELS", ["a", "b"])
+    monkeypatch.setattr(main.agent, "client", lambda: client)
+    api = TestClient(main.app)
+    rid = api.post("/api/runs/manual", json={"task": PLANS["good"]["task"], "code": PLANS["good"]["code"]}).json()["id"]
+    run = _wait(api, rid)
+    for _ in range(40):
+        if (run.get("contract") or {}).get("cross_check"):
+            break
+        time.sleep(0.25)
+        run = api.get(f"/api/runs/{rid}").json()
+    assert run["contract"]["cross_check"] == {"model": "b", "status": "agree", "ours": 104, "theirs": 104, "first_reading": 58}
+    assert run["decision"]["decision"] == "approve"

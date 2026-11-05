@@ -228,10 +228,18 @@ def _contract_cross_check(run: dict, contract: dict, base, ws: str) -> None:
     second = next((m for m in config.CONTRACT_MODELS if m != contract.get("model")), None)
     if not second:
         return
+    args = (run["task"], policy.load().get("glossary") or [], base, [second], agent.client(), config.DATA_DIR)
+    today = config.DEMO_TODAY if ws == workspaces.DEMO else None
     try:
-        theirs = engine_contracts.compile_contract(run["task"], policy.load().get("glossary") or [], base, [second], agent.client(),
-                                                   config.DATA_DIR, today=config.DEMO_TODAY if ws == workspaces.DEMO else None)
+        theirs = engine_contracts.compile_contract(*args, today=today)
         cc = {"model": second, **engine_contracts.cross_check(contract["promises"], theirs["promises"])}
+        if cc["status"] == "disagree":   # a disagreement counts only if it reproduces: the same model reads it once more
+            again = engine_contracts.compile_contract(*args, today=today, fresh=True)
+            cc2 = engine_contracts.cross_check(contract["promises"], again["promises"])
+            if cc2["status"] == "agree":
+                cc = {"model": second, **cc2, "first_reading": cc["theirs"]}
+            else:
+                cc["second_reading"] = cc2["theirs"]
     except Exception as e:  # noqa: BLE001
         cc = {"model": second, "status": "failed", "reason": str(e)[:200]}
     with LOCK:
@@ -239,7 +247,9 @@ def _contract_cross_check(run: dict, contract: dict, base, ws: str) -> None:
             contract["cross_check"] = cc
             _save(run)
     if cc["status"] == "agree":
-        _emit(run, "contract", f"Cross-checked: {second} read the request the same way ({cc['ours']:,} to do)")
+        _emit(run, "contract", f"Cross-checked: {second} read the request the same way ({cc['ours']:,} to do)",
+              f"Its first reading found {cc['first_reading']:,}; read again, it agreed. A disagreement counts only if it reproduces."
+              if cc.get("first_reading") is not None else None)
     elif cc["status"] == "disagree":
         _emit(run, "contract", f"Two models read this request differently: {cc['ours']:,} to do, or {cc['theirs']:,}",
               "The request is ambiguous. A glossary entry for the term they disagree on settles it for every future run.")

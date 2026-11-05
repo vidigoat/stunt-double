@@ -144,7 +144,7 @@ def _cache_path(data_dir: Path) -> Path:
 
 
 def compile_contract(task: str, glossary: list[dict], db_path: str | Path, models: list[str], client, data_dir: Path,
-                     today: str | None = None) -> dict:
+                     today: str | None = None, fresh: bool = False) -> dict:
     """The contract for a request: from the cache when the request, glossary, schema, models and date are identical."""
     schema, sig = schema_text(db_path)
     gloss = "\n".join(f"- {g.get('term')}: {g.get('definition')}" for g in glossary) or "- (none)"
@@ -153,7 +153,7 @@ def compile_contract(task: str, glossary: list[dict], db_path: str | Path, model
     cache = _cache_path(data_dir)
     with _LOCK:
         try:
-            hit = json.loads(cache.read_text()).get(key)
+            hit = None if fresh else json.loads(cache.read_text()).get(key)
         except (OSError, ValueError):
             hit = None
     if hit:
