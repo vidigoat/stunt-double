@@ -19,6 +19,8 @@ export type Contract = { status: "writing" | "ready" | "failed"; promises?: Pled
   cached?: { at: number; ms?: number | null }; reason?: string };
 export type ContractResult = { status: "checked" | "late" | "unknown"; model?: string; broken?: number; unmet?: number;
   promises: (Pledge & { status: "kept" | "broken" | "met" | "unmet" | "unknown"; after: number | null; why?: string })[] };
+export type DecisionLayer = { key: "measured" | "proof" | "contract" | "rules" | "jury" | "approval"; title: string; status: "pass" | "warn" | "fail" | "skip"; reason: string };
+export type Decision = { decision: "approve" | "review" | "blocked" | "cut"; headline: string; attempt: number; layers: DecisionLayer[]; failed: string[]; warned: string[] };
 export type Consequences = {
   provenance?: Provenance; graph?: GraphSummary; contract?: ContractResult;
   ok: boolean; error: { message: string; traceback?: string } | null; stdout?: string; logs?: string[]; duration_ms?: number;
@@ -51,6 +53,7 @@ export type Run = {
   promoted_rule?: string;
   surgical?: Surgical;
   contract?: Contract;
+  decision?: Decision | null;
   apply_result: null | { rows_written?: number; refunds?: number; refund_total_cents?: number; emails_sent?: number; emails_failed?: number; http_delivered?: number; http_failed?: number; drift_count?: number; drifted?: unknown[]; error?: string };
 };
 export type SurgicalCounts = { rows: number; refunds: number; money_cents: number; emails: number; api_calls: number };

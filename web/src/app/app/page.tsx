@@ -10,6 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { SurgicalCard } from "@/components/surgical-card";
 import { ProofPanel } from "@/components/proof-panel";
 import { ContractCard } from "@/components/contract-card";
+import { DecisionPanel } from "@/components/decision-panel";
 import { ApprovalCard, viewFromAttempt } from "@/components/approval-card";
 import { CloudDiff, cloudChanged } from "@/components/cloud-diff";
 import { Filmstrip } from "@/components/filmstrip";
@@ -599,6 +600,7 @@ export default function AppPage() {
                   }}><RotateCcw className="size-3.5" /> Re-check live</Button>
                 </div>
               ) : null}
+              {run.decision && !ACTIVE.has(run.status) ? <DecisionPanel decision={run.decision} /> : null}
               <ApprovalCard view={view} label={run.status === "applied" ? "Applied" : run.status === "rejected" ? "Rejected" : run.status === "drifted" ? "Drift detected" : run.status === "failed" ? "Failed" : critical ? "Blocked by policy" : "Approval required"}
                 applied={run.status === "applied" && run.apply_result ? appliedSentence(run) : undefined}>
                 {run.status === "review" ? (
@@ -640,7 +642,7 @@ export default function AppPage() {
                   <span className="flex w-full flex-wrap justify-end gap-x-4 gap-y-1 text-sm text-muted-foreground">
                     {attempt?.consequences.ok && Object.values(attempt.consequences.tables).some((t) => t.updated + t.deleted + t.inserted > 0)
                       ? <a href={`/api/runs/${run.id}/effects.sql`} title="The measured row changes as a portable SQL script (PostgreSQL, MySQL, SQLite), guarded against drift" className="underline-offset-4 hover:text-foreground hover:underline">Export as SQL ↓</a> : null}
-                    {run.status !== "review" ? <a href={`/api/runs/${run.id}/evidence`} className="underline-offset-4 hover:text-foreground hover:underline">Download evidence ↓</a> : null}
+                    {run.status !== "review" ? <a href={`/api/runs/${run.id}/evidence`} className="underline-offset-4 hover:text-foreground hover:underline">Download signed evidence ↓</a> : null}
                   </span>
                 ) : null}
               </ApprovalCard>

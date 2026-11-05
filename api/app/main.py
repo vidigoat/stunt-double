@@ -18,7 +18,7 @@ from pydantic import BaseModel, Field
 
 from . import agent, archive, beanpay, config, connectors, policy, rollback, pg_import, rules, sandbox, seed, sql_export, vultr_import, vultr_vm, workspaces
 from . import apply as applier
-from .engine import contracts as engine_contracts, graph as engine_graph, subsets as engine_subsets
+from .engine import contracts as engine_contracts, evidence as engine_evidence, graph as engine_graph, subsets as engine_subsets, verdict as engine_verdict
 
 app = FastAPI(
     title="Stunt Double API",
@@ -472,7 +472,7 @@ def _manual_job(run: dict, code: str) -> None:
         if learned:  # a rule learned from an earlier AI catch already blocks it: deterministic, instant, no AI call
             with LOCK:
                 run["flags"] = run["attempts"][-1]["flags"]
-                run["verdict"] = {"verdict": "dangerous", "headline": learned[0]["title"], "concerns": [],
+                run["verdict"] = {"verdict": "dangerous", "headline": learned[0]["title"], "concerns": [], "source": "learned_rule",
                                   "summary": "Blocked by a rule this business learned from an earlier AI catch. It ran deterministically in the sandbox; no AI was needed."}
             _emit(run, "verify", f"{learned[0]['title']} (no AI needed)", learned[0]["detail"])
             _surgical_offer(run)
@@ -611,6 +611,7 @@ def _get(rid: str) -> dict:
 def _public(run: dict) -> dict:
     out = dict(run)
     out["attempts"] = [{k: v for k, v in a.items() if k != "effects_path"} for a in run["attempts"]]
+    out["decision"] = engine_verdict.decide(run)
     return out
 
 
@@ -1249,22 +1250,58 @@ CONTROLS = {
     "SOC 2 CC8.1 (change management)": "Each change was tested before production (attempts[].consequences, measured in a separate "
         "sandbox), authorized (approval, two people above thresholds) and applied exactly as approved (effects_sha256 bound to "
         "the approval; drift-checked apply_result).",
+    "Tamper evidence": "Every step is one entry of a SHA-256 hash chain (chain.entries) whose head is signed with the server's "
+        "Ed25519 key (chain.signature). Changing, removing or reordering anything breaks verification: POST /api/evidence/verify, "
+        "or verify_evidence() in the Python SDK, with the public key from GET /api/evidence/key.",
 }
+
+
+def _evidence_steps(run: dict) -> list[tuple[str, object]]:
+    """The run as an ordered list of steps, for the hash chain."""
+    steps: list[tuple[str, object]] = [("request", {k: run.get(k) for k in ("id", "task", "mode", "workspace", "created_at", "agent_model", "verifier_model")})]
+    if run.get("contract"):
+        steps.append(("contract", {k: run["contract"].get(k) for k in ("status", "model", "today", "promises", "withdrawn", "reason")}))
+    for a in run["attempts"]:
+        c = a["consequences"]
+        steps.append(("rehearsal", {
+            "n": a["n"], "sandbox_id": a["sandbox_id"], "plan": a["code"], "plan_sha256": a.get("plan_sha256"),
+            "effects_sha256": a.get("effects_sha256"), "surgical_of": a.get("surgical_of"), "flags": a["flags"],
+            "measured": {k: c.get(k) for k in ("ok", "error", "tables", "row_counts", "payments", "emails", "blocked", "audit", "sandbox", "measured_by")},
+            "graph": c.get("graph"), "proof_of_effect": c.get("provenance"), "contract": c.get("contract")}))
+    if run.get("surgical"):
+        steps.append(("surgical", {k: v for k, v in run["surgical"].items() if k != "offer"} | {"offer": {k: v for k, v in ((run["surgical"].get("offer") or {}).items()) if k != "dropped_units"}}))
+    if run.get("verdict"):
+        steps.append(("jury", run["verdict"]))
+    decision = engine_verdict.decide(run)
+    if decision:
+        steps.append(("decision", decision))
+    if run.get("approval") or run.get("rejection"):
+        steps.append(("sign_off", {"approval": run.get("approval"), "rejection": run.get("rejection"), "approvals": run.get("approvals")}))
+    if run.get("apply_result"):
+        steps.append(("applied", run["apply_result"]))
+    return steps
+
+
+_EVIDENCE_KEYS = ("ok", "error", "tables", "row_counts", "payments", "emails", "blocked", "audit", "sandbox", "measured_by", "provenance", "graph", "contract")
 
 
 def _evidence(run: dict) -> dict:
     with LOCK:
-        return {
-            "evidence_version": 1, "generated_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+        steps = _evidence_steps(run)
+        out = {
+            "evidence_version": 2, "generated_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
             "run": {k: run.get(k) for k in ("id", "task", "mode", "status", "created_at", "agent_model", "verifier_model", "error")},
             "attempts": [{"n": a["n"], "sandbox_id": a["sandbox_id"], "plan_sha256": a.get("plan_sha256"), "effects_sha256": a.get("effects_sha256"),
                           "plan": a["code"], "summary": a["summary"], "flags": a["flags"],
-                          "consequences": {k: a["consequences"].get(k) for k in ("ok", "error", "tables", "row_counts", "payments", "emails", "blocked", "audit", "sandbox", "measured_by")}}
+                          "consequences": {k: a["consequences"].get(k) for k in _EVIDENCE_KEYS}}
                          for a in run["attempts"]],
-            "verdict": run.get("verdict"), "approval": run.get("approval"), "apply_result": run.get("apply_result"),
+            "contract": run.get("contract"), "verdict": run.get("verdict"), "decision": engine_verdict.decide(run),
+            "approval": run.get("approval"), "apply_result": run.get("apply_result"),
             "timeline": run["events"],
             "controls": CONTROLS,
         }
+    out["chain"] = engine_evidence.seal(steps, config.DATA_DIR)
+    return out
 
 
 def _archive_async(run: dict) -> None:
@@ -1371,6 +1408,18 @@ def evidence(rid: str):
     approval (who, when, policy in force) and what was applied."""
     from fastapi.responses import JSONResponse
     return JSONResponse(_evidence(_get(rid)), headers={"Content-Disposition": f'attachment; filename="stunt-double-evidence-{rid}.json"'})
+
+
+@app.get("/api/evidence/key")
+def evidence_key():
+    """The public key that signs every evidence record from this server."""
+    return engine_evidence.public_key(config.DATA_DIR)
+
+
+@app.post("/api/evidence/verify")
+def verify_evidence(body: dict):
+    """Check a downloaded evidence record: every entry of the chain, and the signature, against this server's key."""
+    return engine_evidence.verify(body, engine_evidence.public_key(config.DATA_DIR)["public_key"])
 
 
 @app.get("/api/policy")

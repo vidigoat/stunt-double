@@ -4,6 +4,7 @@
   sd status <run_id>                                      current status and consequences
   sd wait <run_id> [--timeout 3600]                       block until a human decides; exit 0 only if applied
   sd connectors                                           APIs plans may call
+  sd verify evidence.json                                 check a signed evidence record against the server's key
 
 Server: --url or $STUNT_DOUBLE_URL (default http://localhost:8000).
 """
@@ -49,6 +50,9 @@ def main(argv: list[str] | None = None, http=None) -> int:
     w.add_argument("run_id")
     w.add_argument("--timeout", type=float, default=3600)
     sub.add_parser("connectors")
+    v = sub.add_parser("verify", help="verify a downloaded evidence record (hash chain + Ed25519 signature)")
+    v.add_argument("file", type=Path)
+    v.add_argument("--public-key", help="the key you trust (default: fetched from --url)")
     a = ap.parse_args(argv)
     sd = StuntDouble(a.url, http=http)
     try:
@@ -63,6 +67,13 @@ def main(argv: list[str] | None = None, http=None) -> int:
             final = sd.wait_for_decision(a.run_id, timeout=a.timeout)
             print(final)
             return 0 if final == "applied" else 3
+        if a.cmd == "verify":
+            from .evidence import verify_evidence
+            key = a.public_key or sd._get("/api/evidence/key")["public_key"]
+            res = verify_evidence(json.loads(a.file.read_text()), key)
+            print(json.dumps(res, indent=2) if a.json else
+                  f"verified  {res['entries']} entries, head {res['head'][:16]}…, signed by key {res['key_id']}" if res["ok"] else f"TAMPERED  {res['reason']}")
+            return 0 if res["ok"] else 4
         if a.cmd == "connectors":
             for c in sd.connectors():
                 print(f"{c['name']:10} {', '.join(c['methods']):12} https://{c['host']}/…   {c['description']}")
