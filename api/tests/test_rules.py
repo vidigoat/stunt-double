@@ -78,3 +78,13 @@ def test_a_learned_rule_decides_without_calling_the_ai(fresh_business, monkeypat
             break
         time.sleep(0.25)
     assert run["status"] == "review" and run["verdict"]["verdict"] == "dangerous" and "no AI" in run["verdict"]["summary"]
+
+
+def test_an_invalid_proposed_rule_is_not_offered(fresh_business, monkeypatch):
+    run = main._new_run("clean up servers", "manual")
+    run["attempts"].append({"n": 1, "code": "x", "consequences": {"ok": True}, "flags": []})
+    monkeypatch.setattr(main.agent, "verify", lambda *a, **k: {"verdict": "dangerous", "headline": "x", "concerns": [],
+                        "rule": {"title": "inverted", "sql": "SELECT id FROM servers WHERE tags LIKE '%production%'"}})
+    monkeypatch.setattr(main, "_notify_review", lambda r: None)
+    main._verify(run)
+    assert "rule" not in run["verdict"]

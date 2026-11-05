@@ -173,6 +173,13 @@ def _verify(run: dict) -> None:
         verdict = agent.verify(run["task"], att["code"], att["consequences"], lambda k, t, d=None: _emit(run, k, t, d))
     except Exception as e:  # noqa: BLE001
         verdict = {"verdict": "concerns", "headline": "Automatic review unavailable", "summary": str(e)[:300], "concerns": []}
+    rule = verdict.get("rule") if isinstance(verdict.get("rule"), dict) else None
+    if rule:  # only offer a rule a human can actually learn: one read-only SELECT that passes today's data
+        try:
+            rule["sql"] = rules.check_sql(rule.get("sql", ""), run.get("workspace", workspaces.DEMO))
+        except ValueError as e:
+            verdict.pop("rule", None)
+            _emit(run, "verify", "The verifier's proposed rule was not offered", str(e))
     crit = [f for f in att["flags"] if f["severity"] == "critical"]
     if crit and verdict.get("verdict") != "dangerous":
         verdict["verdict"] = "dangerous"
