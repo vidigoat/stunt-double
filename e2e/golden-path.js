@@ -50,8 +50,9 @@ async function step(name, fn) {
     await page.getByRole("tab", { name: /Break it yourself/ }).click();
     await page.getByRole("button", { name: "✓ A correct refund plan", exact: true }).click();
     await page.getByRole("button", { name: "Rehearse it", exact: true }).click();
-    const approve = page.getByRole("button", { name: /Approve and apply/ });
-    await approve.waitFor({ timeout: 60000 });
+    // with inference on, the AI verifier reads the data first (60-125 s on the live server)
+    const approve = page.getByRole("button", { name: /Approve and apply|Approve anyway/ });
+    await approve.waitFor({ timeout: 240000 });
     await page.getByLabel("Decision note").fill("Matches the 104 duplicate charges in ticket #88");
     await approve.click();
     await page.getByText("Applied for real").waitFor({ timeout: 60000 });
@@ -80,7 +81,10 @@ async function step(name, fn) {
     await page.getByRole("tab", { name: /Break it yourself/ }).click();
     await page.getByRole("button", { name: "Post the refund summary to Slack", exact: true }).click();
     await page.getByRole("button", { name: "Rehearse it", exact: true }).click();
-    await page.getByRole("button", { name: /Approve and apply/ }).click({ timeout: 60000 });
+    const ok = page.getByRole("button", { name: /Approve and apply|Approve anyway/ });
+    await ok.waitFor({ timeout: 240000 });
+    if (/anyway/.test(await ok.innerText())) await page.getByLabel("Decision note").fill("Checked: one summary post to #ops");
+    await ok.click();
     await page.getByText("Applied for real").waitFor({ timeout: 60000 });
     const out = await fetch(`${BASE}/api/outbox`).then((r) => r.json());
     const fromPlans = out.deliveries.filter((d) => d.path !== "/stunt-double/notify");

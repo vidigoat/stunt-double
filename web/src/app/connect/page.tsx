@@ -16,7 +16,7 @@ function Snippet({ title, body, code, logos = [] }: { title: string; body: strin
       </div>
       <p className="mt-1 text-sm text-muted-foreground">{body}</p>
       <div className="relative mt-3">
-        <pre className="overflow-x-auto rounded-xl bg-foreground p-4 pr-12 font-mono text-[13px] leading-relaxed text-background">{code}</pre>
+        <pre className="overflow-x-auto whitespace-pre-wrap break-words rounded-xl bg-foreground p-4 pr-12 font-mono text-[13px] leading-relaxed text-background">{code}</pre>
         <button aria-label="Copy" onClick={async () => { try { await navigator.clipboard.writeText(code); setCopied(true); setTimeout(() => setCopied(false), 1500); } catch { toast.error("Couldn't copy"); } }}
           className="absolute right-2 top-2 rounded-lg p-2 text-background/70 hover:bg-background/10 hover:text-background">{copied ? <Check className="size-4" /> : <Copy className="size-4" />}</button>
       </div>
