@@ -7,10 +7,10 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
+  --font-sans: var(--font-ui-sans);
   --font-mono: var(--font-geist-mono);
   --font-heading: var(--font-serif);
-  --font-serif: var(--font-instrument-serif);
+  --font-serif: var(--font-display-serif);
   --color-damage: var(--damage);
   --color-safe: var(--safe);
   --color-signal: var(--signal);
@@ -145,7 +145,7 @@
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     text-rendering: optimizeLegibility;
-    font-feature-settings: "ss01", "cv11";   /* Geist: single-storey a off, straight-sided alternates */
+    font-feature-settings: "kern", "liga";
   }
   html {
     @apply font-sans;
@@ -156,8 +156,8 @@
   code, pre, kbd, .font-mono { font-feature-settings: "zero", "ss02"; }
 }
 @layer utilities {
-  .font-display { font-family: var(--font-instrument-serif), ui-serif, Georgia, serif; letter-spacing: -0.025em; font-weight: 400; font-kerning: normal; font-feature-settings: "liga", "dlig"; }
-  .font-display em, em.font-display { font-style: italic; letter-spacing: -0.035em; }
+  .font-display { font-family: var(--font-display-serif), ui-serif, Georgia, serif; letter-spacing: -0.02em; font-weight: 400; font-kerning: normal; font-feature-settings: "liga", "kern"; }
+  .font-display em, em.font-display { font-style: italic; letter-spacing: -0.015em; }
   /* A highlighter stroke in the accent color, used sparingly on the hero's key words. */
   .mark-signal { background: linear-gradient(transparent 80%, color-mix(in oklch, var(--signal) 30%, transparent) 80%, color-mix(in oklch, var(--signal) 30%, transparent) 90%, transparent 90%); padding: 0 .04em; -webkit-box-decoration-break: clone; box-decoration-break: clone; }
   .card-lift { transition: border-color .2s ease, box-shadow .2s ease, transform .2s ease; }

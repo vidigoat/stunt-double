@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowRight, ArrowUpRight, Ban, Check, Cpu, FileLock2, KeyRound, MemoryStick, Network, Play, Trash2 } from "lucide-react";
+import { ArrowRight, Ban, Check, Cpu, FileLock2, KeyRound, MemoryStick, Network, Play, Trash2 } from "lucide-react";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { buttonVariants } from "@/components/ui/button";
 import { ApprovalCard, type ApprovalView } from "@/components/approval-card";
@@ -305,26 +305,54 @@ function Faq() {
   );
 }
 
+const FOOTER: { title: string; links: [string, string][] }[] = [
+  { title: "Product", links: [["Judge mode (live demo)", "/app"], ["Audit trail", "/history"], ["Policy", "/policy"], ["Outbox", "/ledger"], ["Connect an agent", "/connect"]] },
+  { title: "How it works", links: [["Plan, dispatch, verify", "#how"], ["The platform", "#platform"], ["Containment", "#containment"], ["Built for agents (MCP)", "#mcp"], ["Pricing", "#pricing"]] },
+  { title: "Proof", links: [["Live eval: 36/36 caught", `${GITHUB}/blob/main/docs/VERIFIER_EVAL.md`], ["Agent eval", `${GITHUB}/blob/main/docs/EVAL.md`], ["Security reviews", `${GITHUB}/blob/main/SECURITY.md`], ["gVisor benchmark", `${GITHUB}/blob/main/docs/BENCH.md`]] },
+  { title: "Project", links: [["GitHub", GITHUB], ["Python SDK", `${GITHUB}/tree/main/sdk/python`], ["Vultr: Agent Rush", "https://lablab.ai/ai-hackathons/vultr-hackathon"], ["MIT license", `${GITHUB}/blob/main/LICENSE`]] },
+];
+
 function Closing() {
   return (
     <footer className="overflow-hidden">
       <div className="mx-auto max-w-6xl px-4 py-24 text-center sm:px-6">
-        <Mark className="mx-auto size-10" />
-        <h2 className="mt-6 font-display text-5xl sm:text-7xl">Let the double <em>take the hit.</em></h2>
+        <h2 className="font-display text-5xl sm:text-7xl">Let the double <em>take the hit.</em></h2>
         <div className="mt-8 flex flex-wrap justify-center gap-3">
           <Link href="/app" className={pill()}>Try the live demo <ArrowRight className="size-4" /></Link>
           <a href={GITHUB} target="_blank" rel="noreferrer" className={pill("outline")}><GithubIcon /> Star on GitHub</a>
         </div>
       </div>
-      <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-4 border-t px-4 py-6 text-sm text-muted-foreground sm:px-6">
-        <span>© 2026 Stunt Double · MIT licensed</span>
-        <div className="flex gap-6">
-          <Link href="/app" className="hover:text-foreground">Demo</Link>
-          <a href={GITHUB} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 hover:text-foreground">GitHub <ArrowUpRight className="size-3.5" /></a>
-          <a href="https://lablab.ai/ai-hackathons/vultr-hackathon" target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 hover:text-foreground">Vultr Agent Rush <ArrowUpRight className="size-3.5" /></a>
+      <div className="mx-auto grid max-w-6xl grid-cols-2 gap-x-6 gap-y-10 px-4 pb-16 sm:px-6 lg:grid-cols-4">
+        {FOOTER.map((col) => (
+          <div key={col.title}>
+            <div className="text-sm text-muted-foreground">{col.title}</div>
+            <ul className="mt-4 space-y-2.5">
+              {col.links.map(([label, href]) => {
+                const ext = href.startsWith("http");
+                return (
+                  <li key={label}>
+                    <a href={href} {...(ext ? { target: "_blank", rel: "noreferrer" } : {})} className="text-[15px] text-foreground/90 underline-offset-4 hover:underline">{label}</a>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        ))}
+      </div>
+      {/* The sign-off: the mark and the name, as big as the page allows. */}
+      <div aria-hidden className="mx-auto flex max-w-[1400px] select-none items-center justify-center gap-[3vw] px-4 sm:px-6">
+        <Mark className="size-[17vw] shrink-0" />
+        <span className="whitespace-nowrap font-display text-[13.5vw] leading-none tracking-[-0.03em]">Stunt <em>Double</em></span>
+      </div>
+      <div className="mx-auto mt-10 flex max-w-6xl flex-wrap items-center justify-between gap-4 px-4 pb-10 text-sm text-muted-foreground sm:px-6">
+        <span>© 2026 Stunt Double · Team Dragon · MIT licensed</span>
+        <div className="flex items-center gap-5">
+          <a href={GITHUB} target="_blank" rel="noreferrer" aria-label="GitHub" className="hover:text-foreground"><BrandLogo name="github" className="size-5" /></a>
+          <a href="https://www.vultr.com" target="_blank" rel="noreferrer" aria-label="Runs on Vultr" className="hover:text-foreground"><BrandLogo name="vultr" className="size-5" /></a>
+          <Link href="/connect" aria-label="MCP" className="hover:text-foreground"><BrandLogo name="mcp" className="size-5" /></Link>
+          <a href={`${GITHUB}/tree/main/sdk/python`} target="_blank" rel="noreferrer" aria-label="Python SDK" className="hover:text-foreground"><BrandLogo name="python" className="size-5" /></a>
         </div>
       </div>
-      <div aria-hidden className="select-none whitespace-nowrap text-center font-display text-[22vw] leading-[0.8] text-transparent [-webkit-text-stroke:1px_var(--border)]">Stunt Double</div>
     </footer>
   );
 }

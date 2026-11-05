@@ -1,11 +1,13 @@
 import type { Metadata, Viewport } from "next";
-import { Geist, Geist_Mono, Instrument_Serif } from "next/font/google";
+import { EB_Garamond, Figtree, Geist_Mono } from "next/font/google";
 import { Toaster } from "@/components/ui/sonner";
 import "./globals.css";
 
-const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
+// Figtree for the interface (soft, geometric, very legible), EB Garamond for display (a classic old-style serif with a
+// beautiful italic), Geist Mono for numbers and machine text.
+const uiSans = Figtree({ variable: "--font-ui-sans", subsets: ["latin"] });
 const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] });
-const instrumentSerif = Instrument_Serif({ variable: "--font-instrument-serif", subsets: ["latin"], weight: "400", style: ["normal", "italic"] });
+const displaySerif = EB_Garamond({ variable: "--font-display-serif", subsets: ["latin"], weight: ["400", "500"], style: ["normal", "italic"] });
 
 const SITE = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
 
@@ -26,7 +28,7 @@ export const viewport: Viewport = { themeColor: [{ media: "(prefers-color-scheme
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en" className={`${geistSans.variable} ${geistMono.variable} ${instrumentSerif.variable}`}>
+    <html lang="en" className={`${uiSans.variable} ${geistMono.variable} ${displaySerif.variable}`}>
       <body className="antialiased">
         {children}
         <Toaster position="bottom-center" />
