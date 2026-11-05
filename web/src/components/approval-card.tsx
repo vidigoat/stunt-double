@@ -111,7 +111,7 @@ export function ApprovalCard({ view, children, className, label = "Approval requ
           <Stat label="Emails" value={<CountUp value={view.emails} />} sub={applied ? "approved" : "would be sent"} />
           <Stat label="Rows changed" value={<CountUp value={view.rowsChanged} />} hot={t === "danger" && view.rowsChanged > 0} sub={view.biggestChange} />
           {view.checking && !hot ? <Stat label="Verdict" value="Checking…" small sub="AI verifier at work" />
-            : <Stat label="Verdict" value={t === "ok" ? "Looks right" : t === "danger" ? "Critical" : t === "warn" ? "Check this" : "Rules pass"} hot={hot} good={!hot} small sub={view.verdict ? "verified by Stunt Double" : "policy checks only"} />}
+            : <Stat label="Verdict" value={t === "ok" ? "Looks right" : t === "danger" ? "Critical" : t === "warn" ? "Check this" : "Rules pass"} hot={hot} good={!hot} small sub={view.verdict ? "checked by the AI" : "policy checks only"} />}
         </div>
         {view.verdict || issues.length ? (
           <div className={cn("rounded-xl border p-4", hot ? "border-damage/30 bg-damage/[0.04]" : "bg-background")}>
