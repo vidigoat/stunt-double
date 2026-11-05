@@ -9,7 +9,7 @@ jobs:
       - uses: actions/setup-python@v5
         with: { python-version: "3.12" }
       - run: pip install -r api/requirements.txt -r api/requirements-dev.txt ruff==0.8.6
-      - run: ruff check --config api/ruff.toml api mcp infra presentation/video sdk
+      - run: ruff check --config api/ruff.toml api mcp infra sdk
       - run: cd api && python -m pytest -q tests
   mcp:
     name: MCP server (real MCP client over stdio against the live API)
