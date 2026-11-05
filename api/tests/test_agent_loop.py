@@ -205,6 +205,7 @@ def test_named_approval_and_evidence_bundle(fresh_business, monkeypatch):
     assert a["plan"] == CORRECT and len(a["plan_sha256"]) == 64 and ev["approval"]["plan_sha256"] == a["plan_sha256"]
     assert ev["apply_result"]["refunds"] == 104
     assert a["consequences"]["payments"]["count"] == 104 and a["consequences"]["measured_by"] == "trusted-phase-2"
+    assert {"EU AI Act Art. 14 (human oversight)", "EU AI Act Art. 12 (record-keeping)", "SOC 2 CC8.1 (change management)"} <= set(ev["controls"])
 
 
 class ObsessiveVerifier:

@@ -81,6 +81,18 @@ AI agents now refund money, email customers and edit production data. When they 
 (in July 2025 an AI agent deleted a company's production database during a code freeze), and today's "human in the
 loop" shows a manager code they can't read. Stunt Double makes it safe to say *yes* to an agent.
 
+## The business case ([details](docs/BUSINESS.md))
+
+| | |
+|---|---|
+| **Buyer** | Heads of Ops, Support and Finance Ops at mid-market SaaS and e-commerce companies giving agents write access; the platform engineer wires it in with one MCP line |
+| **Why now** | Agents act now, and compliance asks for this record: human oversight (EU AI Act Art. 14), automatic logs (Art. 12), tested and approved changes (SOC 2 CC8.1). Every run's evidence export maps its parts to those controls |
+| **ROI** | One caught mistake from the demo ($32,268 of wrong refunds) pays for a $49 Team seat for almost 55 years |
+| **Unit economics (measured)** | ≈ $0.00003 per rehearsal (1.8 s on a $20/month Vultr VM) · $0.020–0.044 per three-model AI jury check (real tokens × Vultr prices) · $0 for identical re-checks and learned rules · **73% gross margin** on a Team seat at full use · all the AI this project used: **$1.95** |
+| **Pricing** | Free (self-host on your Vultr, MIT) · Team $49/approver/month with 2,000 rehearsals + 300 jury checks, then $0.005 / $0.10 · Enterprise (SSO, audit export, a Vultr VM per rehearsal) |
+| **Distribution** | Open core: one command deploys it on your own Vultr account; one line adds it to Claude Code or Cursor; works on your real Postgres and Vultr fleet on day one |
+| **Moat** | Every catch becomes a rule the business owns, so it gets stricter, faster and cheaper the longer a team uses it |
+
 ## What it does
 
 | Step | What happens |

@@ -1020,6 +1020,18 @@ def schema(ws: str = workspaces.DEMO):
     return {"workspace": ws, "tables": agent.get_schema(), "plan_api": agent.CTX_DOC}
 
 
+# Which part of this evidence record serves which control (for auditors; not legal advice).
+CONTROLS = {
+    "EU AI Act Art. 14 (human oversight)": "A named person decided on the measured consequences before anything happened "
+        "(approval.approver, approval.notes); critical findings lock approval; overruling the AI verifier needs a written reason.",
+    "EU AI Act Art. 12 (record-keeping)": "The timeline logs every step automatically: rehearsal, measurement, checks, verdicts, "
+        "decision and apply, with timestamps.",
+    "SOC 2 CC8.1 (change management)": "Each change was tested before production (attempts[].consequences, measured in a separate "
+        "sandbox), authorized (approval, two people above thresholds) and applied exactly as approved (effects_sha256 bound to "
+        "the approval; drift-checked apply_result).",
+}
+
+
 def _evidence(run: dict) -> dict:
     with LOCK:
         return {
@@ -1031,6 +1043,7 @@ def _evidence(run: dict) -> dict:
                          for a in run["attempts"]],
             "verdict": run.get("verdict"), "approval": run.get("approval"), "apply_result": run.get("apply_result"),
             "timeline": run["events"],
+            "controls": CONTROLS,
         }
 
 
