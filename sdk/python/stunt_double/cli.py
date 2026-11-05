@@ -5,6 +5,7 @@
   sd wait <run_id> [--timeout 3600]                       block until a human decides; exit 0 only if applied
   sd connectors                                           APIs plans may call
   sd verify evidence.json                                 check a signed evidence record against the server's key
+  sd mean "Refund double charges"                         what the request means, before any plan exists
 
 Server: --url or $STUNT_DOUBLE_URL (default http://localhost:8000).
 """
@@ -52,6 +53,8 @@ def main(argv: list[str] | None = None, http=None) -> int:
     w.add_argument("run_id")
     w.add_argument("--timeout", type=float, default=3600)
     sub.add_parser("connectors")
+    mn = sub.add_parser("mean", help="what a request means: its intent contract, before any plan exists")
+    mn.add_argument("task")
     v = sub.add_parser("verify", help="verify a downloaded evidence record (hash chain + Ed25519 signature)")
     v.add_argument("file", type=Path)
     v.add_argument("--public-key", help="the key you trust (default: fetched from --url)")
@@ -69,6 +72,18 @@ def main(argv: list[str] | None = None, http=None) -> int:
             final = sd.wait_for_decision(a.run_id, timeout=a.timeout)
             print(final)
             return 0 if final == "applied" else 3
+        if a.cmd == "mean":
+            c = sd.what_does_this_mean(a.task)
+            if a.json:
+                print(json.dumps(c, indent=2))
+                return 0
+            for p in c.get("promises", []):
+                tag = f"to do ({p['today']:,} today)" if p["kind"] == "obligation" else "must hold"
+                print(f"{tag:22} {p['text']}")
+            cc = c.get("cross_check") or {}
+            if cc.get("status"):
+                print(f"\ncross-check {cc['model']}: {cc['status']}" + (f" ({cc.get('ours')} vs {cc.get('theirs')})" if cc["status"] == "disagree" else ""))
+            return 0
         if a.cmd == "verify":
             from .evidence import verify_evidence
             key = a.public_key or sd._get("/api/evidence/key")["public_key"]

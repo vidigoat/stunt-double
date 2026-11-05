@@ -96,6 +96,13 @@ class StuntDouble:
     def status(self, run_id: str) -> Rehearsal:
         return self._rehearsal(self._get(f"/api/runs/{run_id}"))
 
+    def what_does_this_mean(self, task: str) -> dict:
+        """The promises any correct plan for this request must keep, written before any plan exists, and a second
+        model's reading of the same request (if they disagree, the request is ambiguous)."""
+        r = self.http.post("/api/contract/preview", json={"task": task, "workspace": self.workspace}, timeout=200)
+        r.raise_for_status()
+        return r.json()
+
     def keep_only_what_is_right(self, run_id: str, wait_seconds: float = 180) -> Rehearsal:
         """When the decision is "cut", re-rehearse just the part of the plan that passes every check. Approves nothing."""
         before = len(self._get(f"/api/runs/{run_id}").get("attempts") or [])
