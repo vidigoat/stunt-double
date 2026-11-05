@@ -65,6 +65,8 @@ const FAQ = [
   { q: "What can it rehearse today?", a: "Database changes, refunds, emails, calls to any HTTP API, clicks in a real browser on a double of your admin site, and changes to your Vultr servers (delete, stop, resize) on a double of your fleet. Each one is measured, shown to you in plain English, and applied only after you approve." },
   { q: "How is the AI involved, and can I trust it?", a: "Two ways. An agent on Vultr Serverless Inference writes plans, and a separate AI verifier checks the measured outcome against what you asked for, reading the data and, for browser runs, the screenshots. On the live server it caught 36 of 36 bad plans with 0 false alarms on 18 good ones. Deterministic rules run first and can't be overruled by the AI; overruling the AI needs a written reason." },
   { q: "Can an agent approve its own plan?", a: "No. There is no approve tool in the MCP server and no approve method in the SDK. Big changes need two different people, approvals are bound to a fingerprint of the exact effects, and a rehearsal expires after 24 hours." },
+  { q: "Does it get better over time?", a: "Yes. When the AI verifier catches a mistake, it also writes the SQL check it used. Stunt Double proves that check passes on today's data, and one click turns it into a rule that runs on every future rehearsal in milliseconds, without any AI. The same mistake is then blocked instantly, every time." },
+  { q: "Can safe changes skip the human?", a: "Only if you turn it on. Graduated autonomy lets a change apply by itself when no rule fired, the AI verifier says it looks right, it needs a single approver, and it stays inside your money and row budget. Emails can be excluded. Everything else still waits for a person, and auto-applied runs are labelled in the audit trail." },
 ];
 
 function Nav() {
@@ -263,14 +265,14 @@ function Features() {
 
 const PROOF = [
   { n: "48/48", k: "bad plans caught on the live Vultr server, 0 of 26 false alarms on correct ones", href: `${GITHUB}/blob/main/docs/VERIFIER_EVAL.md` },
-  { n: "101", k: "API tests in CI, plus MCP and browser end-to-end", href: `${GITHUB}/tree/main/api/tests` },
+  { n: "117", k: "API tests in CI, plus MCP and browser end-to-end", href: `${GITHUB}/tree/main/api/tests` },
   { n: "3", k: "security reviews, from forged reports to lookalike approvers. Every finding fixed with a test", href: `${GITHUB}/blob/main/SECURITY.md` },
   { n: "0", k: "lines of agent code ever run against production", href: `${GITHUB}/blob/main/api/app/apply.py` },
 ];
 
 function Proof() {
   return (
-    <section className="mx-auto max-w-6xl px-4 pb-24 sm:px-6">
+    <section className="mx-auto max-w-6xl px-4 pb-24 pt-20 sm:px-6">
       <div className="grid gap-px overflow-hidden rounded-2xl border bg-border sm:grid-cols-2 lg:grid-cols-4">
         {PROOF.map((p) => (
           <a key={p.k} href={p.href} target="_blank" rel="noreferrer" className="group bg-card p-6 hover:bg-background">
@@ -314,7 +316,7 @@ function Faq() {
 }
 
 const FOOTER: { title: string; links: [string, string][] }[] = [
-  { title: "Product", links: [["Judge mode (live demo)", "/app"], ["Audit trail", "/history"], ["Policy", "/policy"], ["Outbox", "/ledger"], ["Connect an agent", "/connect"]] },
+  { title: "Product", links: [["Judge mode (live demo)", "/app"], ["Mission control", "/control"], ["Audit trail", "/history"], ["Policy", "/policy"], ["Outbox", "/ledger"], ["Connect an agent", "/connect"]] },
   { title: "How it works", links: [["Plan, dispatch, verify", "#how"], ["The platform", "#platform"], ["Containment", "#containment"], ["Built for agents (MCP)", "#mcp"], ["Pricing", "#pricing"]] },
   { title: "Proof", links: [["Live eval: 48/48 caught", `${GITHUB}/blob/main/docs/VERIFIER_EVAL.md`], ["Agent eval", `${GITHUB}/blob/main/docs/EVAL.md`], ["Security reviews", `${GITHUB}/blob/main/SECURITY.md`], ["gVisor benchmark", `${GITHUB}/blob/main/docs/BENCH.md`]] },
   { title: "Project", links: [["GitHub", GITHUB], ["Python SDK", `${GITHUB}/tree/main/sdk/python`], ["Vultr: Agent Rush", "https://lablab.ai/ai-hackathons/vultr-hackathon"], ["MIT license", `${GITHUB}/blob/main/LICENSE`]] },

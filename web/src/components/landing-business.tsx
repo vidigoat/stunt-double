@@ -21,7 +21,7 @@ export function Business() {
     <>
       <section id="who" className="mx-auto max-w-6xl scroll-mt-20 px-4 py-24 sm:px-6">
         <div className="max-w-2xl">
-          <div className="font-mono text-xs uppercase tracking-wider text-muted-foreground">Who it&apos;s for</div>
+          <div className="eyebrow">Who it&apos;s for</div>
           <h2 className="mt-3 font-display text-4xl sm:text-5xl">For the people who <em>sign off.</em></h2>
           <p className="mt-3 text-[15px] leading-relaxed text-muted-foreground">Gartner expects 15% of day-to-day work decisions to be made by AI agents by 2028. Someone still has to say yes. Stunt Double makes that yes informed.</p>
         </div>
@@ -37,7 +37,7 @@ export function Business() {
       <section id="pricing" className="border-t bg-card">
         <div className="mx-auto max-w-6xl scroll-mt-20 px-4 py-24 sm:px-6">
           <div className="max-w-2xl">
-            <div className="font-mono text-xs uppercase tracking-wider text-muted-foreground">Pricing</div>
+            <div className="eyebrow">Pricing</div>
             <h2 className="mt-3 font-display text-4xl sm:text-5xl">Pay per rehearsal, <em>not per disaster.</em></h2>
           </div>
           <div className="mt-10 grid gap-4 md:grid-cols-3">

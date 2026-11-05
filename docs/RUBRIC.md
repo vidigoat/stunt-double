@@ -35,7 +35,7 @@ Criterion score (1–5) = `1 + 4 × (points earned / points possible)`, rounded 
 | gVisor runtime on Vultr | 2 | 2 | `runsc` live on the Vultr VM; every rehearsal runs in it |
 | Uses Vultr meaningfully (VM + Inference + API) | 2 | 2 | VM (gVisor), Serverless Inference (agent + verifier), Vultr API for credit-guarded provisioning |
 | Production-grade apply (drift check, idempotency, policy) | 2 | 2 | Tested |
-| Engineering quality (tests, CI, commits across the event) | 2 | 2 | 50+ commits, 101 API tests + MCP client test + 10-step browser e2e, 4 CI jobs green |
+| Engineering quality (tests, CI, commits across the event) | 2 | 2 | 50+ commits, 117 API tests + MCP client test + 11-step browser e2e, 4 CI jobs green |
 | Defence in depth beyond the brief | 2 | 2 | Two-phase measurement (the plan can't lie), O_NOFOLLOW copies, ulimits, integrity hash, policy engine, 6 adversarial tests |
 | Works with any agent | 2 | 2 | MCP server (stdio + HTTP), tested with a real MCP client in CI; Connect page in the app |
 | Independent security review, all findings fixed with regression tests | 2 | 2 | Three rounds: 1 critical, 5 high, 11 medium, ~12 low; all fixed with tests (`test_security3.py` covers round 3); see SECURITY.md |
