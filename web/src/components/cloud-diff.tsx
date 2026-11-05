@@ -53,9 +53,9 @@ function ServerCard({ s, state, to }: { s: CloudServer; state: "deleted" | "stop
         <span className={cn("truncate font-mono text-[12px] font-medium", state === "deleted" && "line-through decoration-damage/70")}>{s.label}</span>
       </div>
       <div className="mt-1 truncate text-muted-foreground" title={s.purpose}>{s.purpose}</div>
-      <div className="mt-2 flex items-center justify-between font-mono text-[11px] tabular text-muted-foreground">
-        <span>{s.region} · {state === "resized" && to ? `${to.from_plan} → ${s.plan}` : s.plan}</span>
-        <span>CPU {s.cpu_avg_7d}%</span>
+      <div className="mt-2 flex flex-wrap items-center justify-between gap-x-2 font-mono text-[11px] tabular text-muted-foreground">
+        <span className="whitespace-nowrap">{s.region} · {state === "resized" && to ? `${to.from_plan} → ${s.plan}` : s.plan}</span>
+        <span className="whitespace-nowrap">CPU {s.cpu_avg_7d}%</span>
       </div>
       <div className="mt-2 flex items-center justify-between">
         <span className={cn("rounded px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wider",
