@@ -76,9 +76,11 @@ Vultr · Vultr Cloud Compute · Vultr Serverless Inference · Vultr API · gViso
 MCP · SQLite · GLM
 
 ## Links
-- Application URL: https://149-28-206-186.sslip.io (judge mode: open /app, eight one-click steps; Mission control at /control)
-- MCP endpoint: https://149-28-206-186.sslip.io/mcp
-- Repo: https://github.com/vidigoat/stunt-double
+Three places, nothing else needed:
+- Application URL (paste this one): https://149-28-206-186.sslip.io
+- The console, judge mode: https://149-28-206-186.sslip.io/app (step 1 is the engine's demo moment, about 7 s)
+- Mission control: https://149-28-206-186.sslip.io/control
+- Repo: https://github.com/vidigoat/stunt-double (agents connect over MCP at https://149-28-206-186.sslip.io/mcp)
 
 ## Files
 - Slides PDF: being made by hand (the generated deck was removed)
