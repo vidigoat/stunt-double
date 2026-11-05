@@ -223,6 +223,9 @@ sd wait <run_id>                                                         # exit 
 |---|---|
 | Two-person rule | payout > $10,000, more than 1,000 rows, and every rollback (names compared after Unicode normalisation, so "Alice" and "Ａlice" are one person) |
 | Rehearsal expiry | a rehearsal older than 24 h can't be approved; rehearse again |
+| Learned rules | AI catches promoted to deterministic checks (see "It learns"); a violation blocks without calling the AI |
+| Graduated autonomy (opt-in, off by default) | a change applies without a human only if it has **no flags at all**, the AI verifier says looks right, one approver would suffice, and it stays within the budget (default ≤ $50, ≤ 20 rows, no email unless allowed, no API calls, no server changes) |
+| Production servers | servers tagged `production` are never deleted, stopped or resized by an agent; > 5 deletions in one run need review |
 | Current policy at approval | rules are re-checked when someone clicks Approve; a policy tightened after the rehearsal still applies |
 | Protected tables | `customers`: any delete, or rewriting > 20% of rows, blocks |
 | Delete limit | > 5% of any table blocks |
