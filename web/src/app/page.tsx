@@ -105,8 +105,7 @@ function Hero() {
                 <span className="ml-auto font-mono text-xs text-muted-foreground">Approving over the AI needs a written reason</span>
               </ApprovalCard>
               <a href="#engine" className="group mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 rounded-2xl border border-safe/30 bg-card px-4 py-3 text-left text-sm shadow-[0_20px_40px_-30px_rgba(20,60,30,.6)] hover:border-safe/60">
-                <Scissors className="size-4 shrink-0 text-safe" />
-                <span className="min-w-0 flex-1"><span className="font-medium"><span className="text-safe">104</span> of these 744 changes are right.</span> <span className="text-muted-foreground">The engine proves which line chose the other 640, cuts them, and lets you approve just the 104.</span></span>
+                <span className="w-full min-w-0 sm:w-auto sm:flex-1"><Scissors className="mr-1.5 inline size-4 align-[-3px] text-safe" /><span className="font-medium"><span className="text-safe">104</span> of these 744 changes are right.</span> <span className="text-muted-foreground">The engine proves which line chose the other 640, cuts them, and lets you approve just the 104.</span></span>
                 <span className="font-mono text-[12px]"><span className="text-safe">keep $5,136</span> · <span className="text-damage">cut $32,268</span></span>
                 <span className="inline-flex items-center gap-1 font-medium text-safe">Keep just the 104 <ArrowRight className="size-3.5 transition group-hover:translate-x-0.5" /></span>
               </a>
