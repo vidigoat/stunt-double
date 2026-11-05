@@ -1050,7 +1050,8 @@ def _summary(r: dict) -> dict:
             "blocked": any(f["severity"] == "critical" for f in (a or {}).get("flags", [])),
             "plan_sha256": (a or {}).get("plan_sha256"), "approval": r.get("approval"), "apply_result": r.get("apply_result"),
             "headline": (r.get("verdict") or {}).get("headline"),
-            "top_flag": next((f["title"] for f in (a or {}).get("flags", []) if f["severity"] == "critical"), None),
+            "top_flag": next((f["title"] for f in sorted((a or {}).get("flags", []), key=lambda f: f.get("rule") == "contract")
+                              if f["severity"] == "critical"), None),   # a concrete policy finding reads faster than a promise
             "sandbox": {k: (c.get("sandbox") or {}).get(k) for k in ("id", "runtime", "wall_ms", "profile", "isolation")} if a else None,
             "kind": _kind(c) if a else None, "workspace_kind": workspaces.kind(r.get("workspace", workspaces.DEMO)),
             "decision": {k: d[k] for k in ("decision", "headline")} if (d := engine_verdict.decide(r)) else None,
