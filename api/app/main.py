@@ -325,8 +325,8 @@ def _verdict_key(run: dict, att: dict) -> str | None:
         con.close()
     except sqlite3.Error:
         return None
-    facts = [run["task"].strip(), att["effects_sha256"], h.hexdigest(), json.dumps(policy.load(), sort_keys=True), config.VERIFIER_MODEL,
-             ",".join(config.JURY_MODELS), "jury-independent-of-contract"]
+    facts = [run["task"].strip(), att["effects_sha256"], att.get("plan_sha256"), h.hexdigest(), json.dumps(policy.load(), sort_keys=True),
+             config.VERIFIER_MODEL, ",".join(config.JURY_MODELS), "jury-independent-of-contract"]   # the jury reads the code: it's a fact too
     return hashlib.sha256(json.dumps(facts).encode()).hexdigest()
 
 
@@ -635,8 +635,12 @@ def _surgical_job(run: dict, offer: engine_subsets.Offer, check: dict) -> None:
               "The subset is rebuilt by trusted code and measured by phase 2 like any rehearsal; no plan code runs.")
         with SANDBOX_SLOTS:
             res = sandbox.measure_effects(offer.effects, f"Surgical subset of attempt {prev['n']}")
-        code = (f"# Surgical subset of attempt {prev['n']}: kept {offer.units_kept} of {offer.units_total} units of work.\n"
-                f"# Cut by {check['source']}: {check['title']}\n" + prev["code"])
+        code = (f"# SURGICAL SUBSET of attempt {prev['n']}. THIS CODE DOES NOT RUN AGAIN.\n"
+                f"# The Consequence Engine took the measured effects of the plan below and removed {offer.units_dropped} of "
+                f"{offer.units_total} units of work (cut by {check['source']}: {check['title']}).\n"
+                f"# The {offer.units_kept} that are left were rebuilt by trusted code and re-measured in a fresh sandbox. Approving "
+                f"applies exactly those measured consequences, nothing else.\n"
+                f"# Judge the measured consequences. The original plan is shown only for context:\n\n" + prev["code"])
         _add_attempt(run, res, code, f"Surgical subset: kept {offer.units_kept:,} of {offer.units_total:,}",
                      surgical_of=prev["n"], surgical={"check": check, "offer": offer.public()})
         with LOCK:

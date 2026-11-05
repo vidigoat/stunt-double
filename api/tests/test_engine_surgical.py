@@ -48,6 +48,7 @@ def test_the_wrong_plan_becomes_the_right_outcome(fresh_business, monkeypatch):
     run = _wait(api, rid)
     sub = run["attempts"][-1]
     assert sub["surgical_of"] == 1 and sub["consequences"]["sandbox"]["profile"] == "subset"
+    assert sub["code"].startswith("# SURGICAL SUBSET of attempt 1. THIS CODE DOES NOT RUN AGAIN.")   # so the jury judges effects, not code
     assert sub["consequences"]["payments"]["count"] == 104 and sub["consequences"]["emails"]["count"] == 104
     assert sub["consequences"]["graph"]["units"] == 104
     assert run["verdict"]["verdict"] == "looks_right" and not any(f["severity"] == "critical" for f in sub["flags"])

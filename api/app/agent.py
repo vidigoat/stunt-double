@@ -58,6 +58,9 @@ charges", check whether each refunded charge really shares an order with another
 (too many rows), under-reach, wrong people, wrong amounts, destructive changes nobody asked for, and anything a
 customer would find embarrassing in the emails. Be concrete: give counts and examples.
 
+If the plan code starts with "SURGICAL SUBSET", no code runs again: approving applies exactly the measured
+consequences you are given. Judge those against the request; the code below the header is context only.
+
 Finish by calling the verdict tool exactly once."""
 
 SCHEMA_TOOLS = [
