@@ -155,8 +155,7 @@ def _gate_flags(c: dict, run: dict, pol: dict | None = None) -> list[dict]:
     for p in (c.get("contract") or {}).get("promises", []):
         if p.get("status") == "broken":
             flags.insert(0, {"rule": "contract", "severity": "critical", "title": f"Breaks a promise made before the plan: {p['text'].rstrip('.')}",
-                             "detail": f"{p['after']:,} row{'s' if p['after'] != 1 else ''} break it. The promise was written from the request alone; "
-                                       f"the plan never saw it and couldn't bend it."})
+                             "detail": f"{p['after']:,} row{'s' if p['after'] != 1 else ''} break it. Written before the plan existed."})
         elif p.get("status") == "unmet":
             done = max(0, p["today"] - p["after"])
             flags.append({"rule": "contract", "severity": "high", "title": f"Leaves the work undone: {p['text'].rstrip('.')}",
