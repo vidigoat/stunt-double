@@ -56,6 +56,12 @@ async function step(name, fn) {
   });
 
   if (health.inference_configured) {
+    await step("what does this mean: the contract appears before any plan", async () => {
+      await page.goto(`${BASE}/app`, { waitUntil: "networkidle" });
+      await page.getByRole("button", { name: /What does this mean/ }).click();
+      await page.getByText("Consequence engine · intent contract").first().waitFor({ timeout: 180000 });
+      await page.getByText(/to do/).first().waitFor();
+    });
     await step("the engine: a wrong plan becomes the right one, and the record verifies", async () => {
       await page.goto(`${BASE}/app`, { waitUntil: "networkidle" });
       await page.getByRole("button", { name: /Watch a wrong plan become/ }).click();
@@ -79,6 +85,10 @@ async function step(name, fn) {
       const ev = await fetch(`${BASE}/api/runs/${rid}/evidence`).then((r) => r.json());
       const ok = await fetch(`${BASE}/api/evidence/verify`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(ev) }).then((r) => r.json());
       assert.ok(ok.ok, `evidence verifies: ${ok.reason}`);
+      await page.getByRole("button", { name: /Verify it in your browser/ }).click();
+      await page.getByText(/Verified: \d+ steps/).waitFor({ timeout: 30000 });
+      await page.getByRole("button", { name: /change one cent/ }).click();
+      await page.getByText(/One cent changed: step \d+ \(rehearsal\) was changed/).waitFor({ timeout: 30000 });
       ev.chain.entries.find((e) => e.kind === "rehearsal").body.measured.payments.total_cents += 1;
       const bad = await fetch(`${BASE}/api/evidence/verify`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(ev) }).then((r) => r.json());
       assert.ok(!bad.ok, "one changed cent breaks it");
