@@ -1,13 +1,17 @@
 import type { Metadata, Viewport } from "next";
-import { EB_Garamond, Figtree, Geist_Mono } from "next/font/google";
+import localFont from "next/font/local";
 import { Toaster } from "@/components/ui/sonner";
 import "./globals.css";
 
 // Figtree for the interface (soft, geometric, very legible), EB Garamond for display (a classic old-style serif with a
 // beautiful italic), Geist Mono for numbers and machine text.
-const uiSans = Figtree({ variable: "--font-ui-sans", subsets: ["latin"] });
-const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] });
-const displaySerif = EB_Garamond({ variable: "--font-display-serif", subsets: ["latin"], weight: ["400", "500"], style: ["normal", "italic"] });
+// Self-hosted (SIL OFL) so builds never depend on fetching from Google Fonts.
+const uiSans = localFont({ variable: "--font-ui-sans", src: "./fonts/Figtree-normal.woff2", weight: "300 900", display: "swap" });
+const geistMono = localFont({ variable: "--font-geist-mono", src: "./fonts/GeistMono-normal.woff2", weight: "100 900", display: "swap" });
+const displaySerif = localFont({
+  variable: "--font-display-serif", display: "swap",
+  src: [{ path: "./fonts/EBGaramond-normal.woff2", weight: "400 500", style: "normal" }, { path: "./fonts/EBGaramond-italic.woff2", weight: "400 500", style: "italic" }],
+});
 
 const SITE = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
 
