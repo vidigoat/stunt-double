@@ -154,15 +154,15 @@ def _gate_flags(c: dict, run: dict, pol: dict | None = None) -> list[dict]:
     flags = agent.red_flags(c, pol)
     for p in (c.get("contract") or {}).get("promises", []):
         if p.get("status") == "broken":
-            flags.insert(0, {"rule": "contract", "severity": "critical", "title": f"Breaks a promise made before the plan: {p['text']}",
+            flags.insert(0, {"rule": "contract", "severity": "critical", "title": f"Breaks a promise made before the plan: {p['text'].rstrip('.')}",
                              "detail": f"{p['after']:,} row{'s' if p['after'] != 1 else ''} break it. The promise was written from the request alone; "
                                        f"the plan never saw it and couldn't bend it."})
         elif p.get("status") == "unmet":
             done = max(0, p["today"] - p["after"])
-            flags.append({"rule": "contract", "severity": "high", "title": f"Leaves the work undone: {p['text']}",
+            flags.append({"rule": "contract", "severity": "high", "title": f"Leaves the work undone: {p['text'].rstrip('.')}",
                           "detail": f"{p['after']:,} of {p['today']:,} still to do after this plan ({done:,} done)."})
         elif p.get("status") == "unknown":
-            flags.append({"rule": "contract", "severity": "medium", "title": f"Couldn't check a promise: {p['text']}",
+            flags.append({"rule": "contract", "severity": "medium", "title": f"Couldn't check a promise: {p['text'].rstrip('.')}",
                           "detail": f"Its check didn't finish on this rehearsal ({p.get('why') or 'unknown reason'}). Judge this part yourself."})
     if run.get("workspace", workspaces.DEMO) != workspaces.DEMO and (c.get("payments", {}).get("count") or c.get("emails", {}).get("count")):
         flags.insert(0, {"rule": "workspace_side_effects", "severity": "critical", "title": "Refunds and email aren't connected for this workspace",

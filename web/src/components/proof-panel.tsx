@@ -78,7 +78,7 @@ export function ProofPanel({ runId, attempt, summary, highlight = [] }: { runId:
               <Sql sql={x.statements > 1 ? x.shape : x.example} className="max-h-32 overflow-auto rounded-lg bg-muted/60 px-3 py-2 text-foreground/90" />
             </div>
           ))}
-          {list.length ? <button className="text-sm text-signal hover:underline" onClick={() => setOpen((v) => !v)}>{open ? "Hide the individual statements" : `Show the ${num(list.length)} individual statements`}</button> : null}
+          {list.length ? <button className="text-sm text-signal hover:underline" onClick={() => setOpen((v) => !v)}>{open ? "Hide the individual statements" : (summary.statements ?? 0) > list.length ? `Show the ${num(list.length)} statements that changed the most rows (of ${num(summary.statements ?? 0)})` : `Show the ${num(list.length)} individual statements`}</button> : null}
           {open ? (
             <ol className="max-h-80 space-y-1 overflow-auto rounded-xl border bg-background p-2">
               {list.map((x) => <li key={x.i} className="flex gap-3 rounded px-2 py-1 font-mono text-[11px] hover:bg-muted"><span className="w-12 shrink-0 text-muted-foreground">#{x.i}</span><span className="min-w-0 flex-1 truncate">{x.sql}</span><span className="shrink-0 text-muted-foreground">{x.rows}</span></li>)}

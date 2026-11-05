@@ -499,15 +499,15 @@ export default function AppPage() {
               <p className="mt-1 max-w-md text-sm text-muted-foreground">Everything runs on a throwaway copy of Bean There Coffee Co., inside gVisor on a Vultr VM. Production only changes when you approve. Each click starts a real rehearsal.</p>
               <ol className="mt-6 space-y-3">
                 {[
-                  { n: "1", t: "Break it", d: "A plan that deletes every customer. It hits only the double; approval locks.", preset: "Delete every customer", task: "Clean up the customer table" },
-                  { n: "2", t: "Try to fool it", d: "A \"read-only audit\" quietly refunds 300 charges, says it changed nothing and forges its own report. A separate sandbox measures the truth.", preset: "A plan that lies about what it did" },
-                  { n: "3", t: "Watch the AI catch what rules can't, then teach it", d: "A refund plan passes every rule but would send $37,404 to 744 people. Three models from different labs on Vultr Inference investigate the data on their own. Then one click turns the catch into a rule.", preset: "Obvious refund plan (rules miss it)" },
+                  { n: "1", t: "Watch a wrong plan become the right one", featured: true, d: "\"Refund everyone who was double-charged.\" Before the plan runs, the engine writes down what that means: 104 refunds, nothing else. The plan refunds 744. It proves which line chose the 640 wrong ones, cuts them, and offers you exactly the 104.", preset: "Obvious refund plan (rules miss it)" },
+                  { n: "2", t: "Break it", d: "A plan that deletes every customer. It hits only the double; approval locks.", preset: "Delete every customer", task: "Clean up the customer table" },
+                  { n: "3", t: "Try to fool it", d: "A \"read-only audit\" quietly refunds 300 charges, says it changed nothing and forges its own report. A separate sandbox measures the truth.", preset: "A plan that lies about what it did" },
                   { n: "4", t: "Watch it work in a browser", d: "The agent cancels a subscription on the double of the admin site, in a real Chromium. Every screen is captured, and the AI vision check sees it cancelled the wrong one.", preset: "Cancel the duplicate subscription (in a browser)" },
                   { n: "5", t: "Clean up the cloud", d: "\"Delete idle Vultr servers\": the obvious plan would delete the failover database and the backup runner. The double of the fleet shows it; approval locks.", preset: "Clean up idle Vultr servers" },
                   { n: "6", t: "Approve a good one, then undo it", d: "104 real refunds and apology emails after a drift check. Then rehearse the undo.", preset: "✓ A correct refund plan" },
                   { n: "7", t: "Hand it to the agent", d: "The AI agent on Vultr Serverless Inference investigates, writes a plan and rehearses it.", agent: true },
                   ...(health?.sample_postgres ? [{ n: "8", t: "Try it on real infrastructure", d: "Imports a read-only double of a PostgreSQL database and rehearses \"deactivate accounts inactive for 90 days\". The verifier spells out the cost; approved changes leave as drift-guarded SQL.", pg: true }] : []),
-                ].map((s: { n: string; t: string; d: string; preset?: string; task?: string; agent?: boolean; pg?: boolean }) => (
+                ].map((s: { n: string; t: string; d: string; preset?: string; task?: string; agent?: boolean; pg?: boolean; featured?: boolean }) => (
                   <li key={s.n}>
                     <button disabled={busy || running} onClick={() => {
                       if (s.agent) { setMode("agent"); setTask(EXAMPLES[0]); void start({ mode: "agent", task: EXAMPLES[0] }); return; }
@@ -524,9 +524,11 @@ export default function AppPage() {
                       }
                       const b = BREAK_IT.find((x) => x.label === s.preset)!; const t = s.task ?? b.task;
                       setMode("break"); setCode(b.code); setBreakTask(t); void start({ mode: "break", task: t, code: b.code });
-                    }} className="group flex w-full items-start gap-4 rounded-xl border border-black/5 bg-card/95 p-4 text-left shadow-[0_12px_30px_-22px_rgba(20,30,80,.6)] transition hover:-translate-y-px hover:border-signal disabled:opacity-60">
+                    }} className={cn("group flex w-full items-start gap-4 rounded-xl border bg-card/95 p-4 text-left shadow-[0_12px_30px_-22px_rgba(20,30,80,.6)] transition hover:-translate-y-px hover:border-signal disabled:opacity-60",
+                      s.featured ? "border-signal/60 ring-4 ring-signal/10" : "border-black/5")}>
                       <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-signal font-mono text-xs text-white">{s.n}</span>
                       <span className="min-w-0">
+                        {s.featured ? <span className="mb-1 inline-block rounded-full bg-signal-soft px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider text-signal">The consequence engine · start here</span> : null}
                         <span className="block font-medium">{s.t} <span className="text-muted-foreground transition group-hover:text-foreground">→</span></span>
                         <span className="mt-0.5 block text-sm text-muted-foreground">{s.d}</span>
                       </span>
