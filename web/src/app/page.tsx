@@ -95,7 +95,7 @@ function Hero() {
           Let the double<br /><em className="mark-signal">take the hit.</em>
         </h1>
         <p className="animate-rise mx-auto mt-6 max-w-xl text-balance text-lg text-muted-foreground [animation-delay:120ms]">
-          Every action your AI agent takes (database, payments, email, any API) is rehearsed on a throwaway copy of your business first. You approve <span className="text-foreground">consequences</span>, not code.
+          Every action your AI agent takes (database, payments, email, APIs, a browser, your cloud) is rehearsed on a throwaway copy of your business first. You approve <span className="text-foreground">consequences</span>, not code.
         </p>
         <div className="animate-rise mt-8 flex flex-wrap items-center justify-center gap-3 [animation-delay:180ms]">
           <Link href="/app" className={pill()}><Play className="size-4 fill-current" /> Try it: judge mode, 2 min</Link>

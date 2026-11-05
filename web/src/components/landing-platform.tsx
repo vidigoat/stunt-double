@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Database, FileCheck2, KeyRound, Mail, Scale, Undo2, Users, Webhook, CreditCard } from "lucide-react";
+import { Cloud, Database, FileCheck2, KeyRound, Mail, MousePointerClick, Scale, Undo2, Users, Webhook, CreditCard } from "lucide-react";
 import { num, usd } from "@/lib/api";
 import { BrandLogo, type LogoName } from "@/components/brand-logos";
 import { Code } from "@/components/code";
@@ -11,6 +11,8 @@ const CONNECTORS: { icon: typeof Database; name: string; line: string; logos?: L
   { icon: CreditCard, name: "Payments", line: "Refunds are recorded, checked against the real charge and the ledger, and paid once per charge. Never twice." },
   { icon: Mail, name: "Email", line: "One real customer per message, no broken templates, no leaked data, and unsubscribes are respected." },
   { icon: Webhook, logos: ["slack"], name: "Any HTTP API", line: "Slack, your CRM, anything. Calls are recorded in the sandbox and delivered through a connector after approval." },
+  { icon: MousePointerClick, name: "A real browser", line: "Agents click through your admin site in a real Chromium, on the double. Every screen is captured, and an AI vision check reads them." },
+  { icon: Cloud, logos: ["vultr"], name: "Your Vultr cloud", line: "Delete, stop or resize servers on a double of your fleet first. See the blast radius and the bill change; production servers are protected." },
 ];
 
 const CONTROLS = [
@@ -30,8 +32,9 @@ export function Platform() {
       <div className="max-w-2xl">
         <div className="eyebrow">The platform</div>
         <h2 className="mt-3 font-display text-4xl sm:text-5xl">Everything your agent touches. <em>Rehearsed.</em></h2>
+        <p className="mt-3 text-[15px] leading-relaxed text-muted-foreground">Data, money, email, any API, a real browser, and your cloud. Each gets a double inside the Vultr sandbox; humans approve what would happen.</p>
       </div>
-      <div className="mt-10 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="mt-10 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {CONNECTORS.map((c) => (
           <div key={c.name} className="card-lift rounded-2xl border bg-card p-6">
             <div className="flex items-center gap-2">
