@@ -65,6 +65,7 @@ def test_rules_alone_never_mean_approve():
 
 def test_nothing_to_decide_while_running():
     assert verdict.decide(_run(status="verifying")) is None
+    assert verdict.decide(_run(status="failed")) is None          # interrupted before it was judged: no decision
 
 
 # ---- the evidence chain ---------------------------------------------------------------------------------------

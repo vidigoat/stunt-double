@@ -104,8 +104,8 @@ def _jury(v: dict | None) -> dict:
 
 def decide(run: dict) -> dict | None:
     """The decision for the run's latest rehearsal, or None while there is nothing to decide."""
-    if not run.get("attempts") or run.get("status") in ("queued", "planning", "rehearsing", "verifying"):
-        return None
+    if not run.get("attempts") or run.get("status") in ("queued", "planning", "rehearsing", "verifying", "failed"):
+        return None                     # nothing to decide yet, or the run broke before it could be judged
     att = run["attempts"][-1]
     c = att.get("consequences") or {}
     need = att.get("approvals_required") or 1
