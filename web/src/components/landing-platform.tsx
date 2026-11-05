@@ -1,19 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Cloud, Database, FileCheck2, KeyRound, Mail, MousePointerClick, Scale, Undo2, Users, Webhook, CreditCard } from "lucide-react";
+import { FileCheck2, KeyRound, Scale, Undo2, Users, Webhook } from "lucide-react";
 import { num, usd } from "@/lib/api";
 import { BrandLogo, type LogoName } from "@/components/brand-logos";
 import { Code } from "@/components/code";
+import { DoublesShowcase } from "@/components/doubles-showcase";
 
-const CONNECTORS: { icon: typeof Database; name: string; line: string; logos?: LogoName[] }[] = [
-  { icon: Database, logos: ["sqlite"], name: "Your database", line: "Every changed row is measured on a clone and replayed only if nobody touched it since. Upload your own SQLite to try it on your schema." },
-  { icon: CreditCard, name: "Payments", line: "Refunds are recorded, checked against the real charge and the ledger, and paid once per charge. Never twice." },
-  { icon: Mail, name: "Email", line: "One real customer per message, no broken templates, no leaked data, and unsubscribes are respected." },
-  { icon: Webhook, logos: ["slack"], name: "Any HTTP API", line: "Slack, your CRM, anything. Calls are recorded in the sandbox and delivered through a connector after approval." },
-  { icon: MousePointerClick, name: "A real browser", line: "Agents click through your admin site in a real Chromium, on the double. Every screen is captured, and an AI vision check reads them." },
-  { icon: Cloud, logos: ["vultr"], name: "Your Vultr cloud", line: "Delete, stop or resize servers on a double of your fleet first. See the blast radius and the bill change; production servers are protected." },
-];
 
 const CONTROLS = [
   { icon: Scale, name: "Policy simulator", line: "Change a rule and see which recent rehearsals it would have blocked or sent to two approvers, before you save it." },
@@ -34,18 +27,7 @@ export function Platform() {
         <h2 className="mt-3 font-display text-4xl sm:text-5xl">Everything your agent touches. <em>Rehearsed.</em></h2>
         <p className="mt-3 text-[15px] leading-relaxed text-muted-foreground">Data, money, email, any API, a real browser, and your cloud. Each gets a double inside the Vultr sandbox; humans approve what would happen.</p>
       </div>
-      <div className="mt-10 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        {CONNECTORS.map((c) => (
-          <div key={c.name} className="card-lift rounded-2xl border bg-card p-6">
-            <div className="flex items-center gap-2">
-              <span className="flex size-9 items-center justify-center rounded-xl bg-signal-soft text-signal"><c.icon className="size-[18px]" /></span>
-              {c.logos?.map((l) => <span key={l} className="flex size-9 items-center justify-center rounded-xl border bg-background"><BrandLogo name={l} tone="brand" className="size-[18px]" /></span>)}
-            </div>
-            <div className="mt-5 font-display text-2xl">{c.name}</div>
-            <p className="mt-1.5 text-[15px] leading-relaxed text-muted-foreground">{c.line}</p>
-          </div>
-        ))}
-      </div>
+      <DoublesShowcase />
       <div className="mt-4 flex items-start gap-3 rounded-2xl border bg-foreground p-6 text-background">
         <KeyRound className="mt-0.5 size-5 shrink-0" />
         <p className="text-[15px] leading-relaxed"><span className="font-medium">The sandbox never sees a secret.</span> <span className="opacity-75">Plans describe API calls; real credentials are injected on the server only after a human approves, and only for configured connectors. A call to anywhere else locks approval.</span></p>
