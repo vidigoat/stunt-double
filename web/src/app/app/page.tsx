@@ -620,6 +620,13 @@ export default function AppPage() {
                 </div>
               ) : null}
               {run.decision && !ACTIVE.has(run.status) ? <div id="eng-decision" className="scroll-mt-24 transition"><DecisionPanel decision={run.decision}><EvidenceCheck runId={run.id} /></DecisionPanel></div> : null}
+              {run.status === "review" && run.surgical?.offer && !attempt?.surgical_of ? (
+                <div id="eng-cut" className="scroll-mt-24 transition"><SurgicalCard offer={run.surgical.offer} check={run.surgical.check} busy={busy || running} onCut={async () => {
+                  setBusy(true);
+                  try { await api.surgical(run.id); setRun({ ...run, status: "rehearsing" }); toast.success("Re-rehearsing just the part that's right, in a fresh sandbox."); }
+                  catch (e) { toast.error((e as Error).message); } finally { setBusy(false); }
+                }} /></div>
+              ) : null}
               <div id="eng-plan" className="scroll-mt-24 transition"><ApprovalCard view={view} label={run.status === "applied" ? "Applied" : run.status === "rejected" ? "Rejected" : run.status === "drifted" ? "Drift detected" : run.status === "failed" ? "Failed" : critical ? "Blocked by policy" : "Approval required"}
                 applied={run.status === "applied" && run.apply_result ? appliedSentence(run) : undefined}>
                 {run.status === "review" ? (
@@ -690,13 +697,6 @@ export default function AppPage() {
                     try { const r = await api.strike(run.id, i, reason, approver.trim() || undefined); setRun(r); toast.success("Struck. The rehearsal was re-checked against what's left."); }
                     catch (e) { toast.error((e as Error).message); throw e; }
                   } : undefined} /></div>
-              ) : null}
-              {run.status === "review" && run.surgical?.offer && !attempt?.surgical_of ? (
-                <div id="eng-cut" className="scroll-mt-24 transition"><SurgicalCard offer={run.surgical.offer} check={run.surgical.check} busy={busy || running} onCut={async () => {
-                  setBusy(true);
-                  try { await api.surgical(run.id); setRun({ ...run, status: "rehearsing" }); toast.success("Re-rehearsing just the part that's right, in a fresh sandbox."); }
-                  catch (e) { toast.error((e as Error).message); } finally { setBusy(false); }
-                }} /></div>
               ) : null}
               {attempt?.surgical_of && run.surgical?.offer ? (
                 <div className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-xl border border-safe/30 bg-safe-soft/60 px-4 py-3 text-sm">
