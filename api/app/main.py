@@ -16,7 +16,7 @@ from fastapi.responses import Response, StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
-from . import agent, archive, beanpay, config, connectors, policy, rollback, rules, sandbox, seed, sql_export, vultr_import, vultr_vm, workspaces
+from . import agent, archive, beanpay, config, connectors, policy, rollback, pg_import, rules, sandbox, seed, sql_export, vultr_import, vultr_vm, workspaces
 from . import apply as applier
 
 app = FastAPI(
@@ -481,6 +481,30 @@ def import_vultr_fleet(body: VultrImportIn, req: Request):
     return {**entry, "servers": len(instances), "monthly_cost_cents": cost}
 
 
+class PgImportIn(BaseModel):
+    url: str = Field(min_length=12, max_length=500)
+    schema_name: str = Field(default="public", max_length=63, pattern=r"^[A-Za-z_][A-Za-z0-9_]*$")
+    name: str = Field(default="My Postgres", max_length=60)
+
+
+@app.post("/api/workspaces/postgres")
+def import_postgres(body: PgImportIn, req: Request):
+    """Rehearse against a double of YOUR PostgreSQL database: one read-only copy; the connection string is never kept."""
+    _rate_limit(req, per_hour=6, kind="Postgres import")
+    try:
+        data, meta = pg_import.import_db(body.url, body.schema_name)
+    except pg_import.PgImportError as e:
+        raise HTTPException(400, str(e)) from None
+    except Exception:  # noqa: BLE001 - never echo anything that could include the connection string
+        raise HTTPException(502, "Couldn't import that database") from None
+    try:
+        entry = workspaces.create(body.name, data, kind="postgres", extra={"pks": meta["pks"], "types": meta["types"]},
+                                  description=f"{meta['server']} · {meta['tables']} tables, {meta['rows']:,} rows · imported read-only")
+    except ValueError as e:
+        raise HTTPException(400, str(e)) from None
+    return {k: v for k, v in entry.items() if k not in ("pks", "types")}
+
+
 @app.delete("/api/workspaces/{ws}")
 def delete_workspace(ws: str):
     if ws == workspaces.DEMO or not workspaces.exists(ws):
@@ -814,6 +838,9 @@ def approve_run(rid: str, body: ApproveIn | None = None):
         if workspaces.kind(run.get("workspace", workspaces.DEMO)) == "vultr":
             raise HTTPException(409, "This is a double of your Vultr fleet. The public demo never holds your key, so it can't change "
                                      "your account: use the rehearsal to decide, then act in Vultr.")
+        if workspaces.kind(run.get("workspace", workspaces.DEMO)) == "postgres":
+            raise HTTPException(409, "This is a double of your Postgres database. The public demo never keeps your connection string: "
+                                     "apply with 'Export as SQL' (drift-guarded) through your own pipeline.")
         if any(f["severity"] == "critical" for f in att["flags"]):
             raise HTTPException(409, "Blocked by policy: critical blast radius. Ask the agent to fix it or reject.")
         if run["mode"] != "rollback":  # policy may have changed since the rehearsal: the stricter result wins
@@ -984,7 +1011,9 @@ def effects_sql(rid: str):
         effects = _effects_cached(att["effects_path"], att.get("effects_sha256") or "")
     except (OSError, ValueError) as e:
         raise HTTPException(404, "effects not available") from e
-    meta = {"run_id": rid, "status": run["status"], "task": run["task"], "plan_sha256": att.get("plan_sha256"), "effects_sha256": att.get("effects_sha256")}
+    ws = workspaces.entry(run.get("workspace", workspaces.DEMO))
+    meta = {"run_id": rid, "status": run["status"], "task": run["task"], "plan_sha256": att.get("plan_sha256"), "effects_sha256": att.get("effects_sha256"),
+            "pks": ws.get("pks") or {}, "types": ws.get("types") or {}}
     return Response(sql_export.export(effects, meta), media_type="text/plain; charset=utf-8",
                     headers={"Content-Disposition": f'attachment; filename="stunt-double-{rid}.sql"'})
 

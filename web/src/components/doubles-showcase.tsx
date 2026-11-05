@@ -10,7 +10,7 @@ type Item = { key: string; icon: typeof Database; name: string; line: string; vi
 const ROWS = [["#18", "charges", "status", "succeeded", "refunded"], ["#93", "charges", "status", "succeeded", "refunded"], ["#240", "charges", "refunded_at", "—", "2026-11-05"]];
 
 const ITEMS: Item[] = [
-  { key: "db", icon: Database, name: "Your database", line: "Every changed row is measured on a clone and replayed only if nobody touched it since.",
+  { key: "db", icon: Database, name: "Your database", line: "Your SQLite or PostgreSQL data, cloned. Every changed row is measured and replayed only if nobody touched it since.",
     visual: () => (
       <div className="w-full max-w-md rounded-xl border bg-card p-4 shadow-sm">
         <div className="font-mono text-[11px] uppercase tracking-wider text-muted-foreground">Rows · 104 updated in charges</div>

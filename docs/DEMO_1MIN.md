@@ -1,8 +1,9 @@
 # The one-minute demo (shot list)
 
 Everything below is live on https://149-28-206-186.sslip.io. Press **Reset demo** (top right of the console) before
-recording. Each click starts a real rehearsal in gVisor on the Vultr VM. Cut the AI's "investigating" waits in the edit
-(the live SQL panel is good b-roll for 1–2 s).
+recording. Each click starts a real rehearsal in gVisor on the Vultr VM. The AI catches for the judge steps come back in
+about 4 seconds: each was checked live once and the verdict is reused for the identical request, effects and data, with a
+visible label and a **Re-check live** button (press it if you want to film the AI investigating; that takes 60–120 s).
 
 | Time | Screen | Click | Say (or caption) |
 |---|---|---|---|
@@ -14,7 +15,8 @@ recording. Each click starts a real rehearsal in gVisor on the Vultr VM. Cut the
 | 0:48–0:56 | `/control` (Mission control) | (none; start step 2 in another tab first so a live row lights its blue "verify" stage and the counters tick) | "Every agent action, live: the request, its double on Vultr, the decision. Nothing real happens until a human approves the consequences." |
 | 0:56–1:00 | Landing closing card | (none) | "Stunt Double. Let the double take the hit." |
 
-Optional extra beats if there is time: step 5 (approve a good plan, then rehearse the undo with two approvers), step 6
+Optional extra beats if there is time: **Your Vultr fleet ↗** (top-left card) imports a read-only double of a real Vultr
+account from an API key that is never stored, then "Delete every server" shows the blast radius on your own fleet; step 5 (approve a good plan, then rehearse the undo with two approvers), step 6
 (the agent on Vultr Inference doing the task itself), the MCP tab on the landing ("works with any agent").
 
 Numbers you can say (all measured on the live server, see docs/VERIFIER_EVAL.md):

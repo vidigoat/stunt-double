@@ -38,7 +38,7 @@ export type Run = {
   promoted_rule?: string;
   apply_result: null | { rows_written?: number; refunds?: number; refund_total_cents?: number; emails_sent?: number; emails_failed?: number; http_delivered?: number; http_failed?: number; drift_count?: number; drifted?: unknown[]; error?: string };
 };
-export type Workspace = { id: string; name: string; kind: "demo" | "upload" | "vultr"; description: string };
+export type Workspace = { id: string; name: string; kind: "demo" | "upload" | "vultr" | "postgres"; description: string };
 export type Business = {
   name: string; workspace?: string; tables?: Record<string, number>; counts: Record<string, number>;
   refunded: { count: number; total_cents: number }; recent_tickets: { id: number; customer: string; subject: string; created_at: string }[];
@@ -75,6 +75,7 @@ export const api = {
     if (!res.ok) throw new Error((data as { detail?: string }).detail || "Upload failed");
     return data as Workspace;
   },
+  importPostgres: (url: string, schema_name = "public", name = "My Postgres") => req<Workspace>("/workspaces/postgres", { url, schema_name, name }),
   importVultr: (api_key: string, name = "My Vultr fleet") => req<Workspace & { servers: number; monthly_cost_cents: number }>("/workspaces/vultr", { api_key, name }),
   deleteWorkspace: async (id: string) => {
     const res = await fetch(`/api/workspaces/${encodeURIComponent(id)}`, { method: "DELETE" });

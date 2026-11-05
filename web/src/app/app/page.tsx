@@ -140,6 +140,8 @@ export default function AppPage() {
   const [ownVm, setOwnVm] = useState(false);
   const [vultrOpen, setVultrOpen] = useState(false);
   const [vultrKey, setVultrKey] = useState("");
+  const [pgOpen, setPgOpen] = useState(false);
+  const [pgUrl, setPgUrl] = useState("");
   const [breakTask, setBreakTask] = useState(BREAK_IT[0].task);
   const touchedMode = useRef(false);
   const [run, setRun] = useState<Run | null>(null);
@@ -215,6 +217,7 @@ export default function AppPage() {
   const attempt = run?.attempts.at(-1);
   const view = useMemo(() => (run && attempt ? { ...viewFromAttempt(run.task, attempt, run.verdict, run.flags.length ? run.flags : attempt.flags), checking: run.status === "verifying" } : null), [run, attempt]);
   const critical = !!attempt?.flags.some((f) => f.severity === "critical");
+  const imported = (() => { const k = spaces.find((w) => w.id === ws)?.kind; return k === "postgres" || k === "vultr" ? k : null; })();
   const aiObjected = !!run?.verdict && ["concerns", "dangerous"].includes(run.verdict.verdict) && run.verdict.headline !== "Verifier could not finish";
   const needed = attempt?.approvals_required ?? 1;
   const approvalsSoFar = (run?.approvals ?? []);
@@ -311,14 +314,16 @@ export default function AppPage() {
                 <Link href="/ledger" className="underline-offset-4 hover:text-foreground hover:underline">Outbox →</Link>
                 <a href="/mail/" target="_blank" rel="noreferrer" className="underline-offset-4 hover:text-foreground hover:underline">Inbox →</a>
               </> : <>
-                <span>{spaces.find((w) => w.id === ws)?.kind === "vultr" ? "A double of your Vultr fleet · imported read-only · your account is never changed" : `Your database · ${Object.keys(biz?.tables ?? {}).length} tables · rehearsals never touch it until you approve`}</span>
+                <span>{spaces.find((w) => w.id === ws)?.kind === "vultr" ? "A double of your Vultr fleet · imported read-only · your account is never changed"
+                  : spaces.find((w) => w.id === ws)?.kind === "postgres" ? "A double of your Postgres · imported read-only · apply with Export as SQL" : `Your database · ${Object.keys(biz?.tables ?? {}).length} tables · rehearsals never touch it until you approve`}</span>
                 <button disabled={running} className="underline-offset-4 hover:text-foreground hover:underline" onClick={async () => {
                   if (!window.confirm("Delete this uploaded database from the server? The demo business isn't affected.")) return;
                   try { await api.deleteWorkspace(ws); setSpaces((cur) => cur.filter((w) => w.id !== ws)); setWs("demo"); setRun(null); toast.success("Deleted your database from the server."); }
                   catch (err) { toast.error((err as Error).message); }
                 }}>Delete it</button>
               </>}
-              <button className="ml-auto underline-offset-4 hover:text-foreground hover:underline" onClick={() => setVultrOpen((v) => !v)}>Your Vultr fleet ↗</button>
+              <button className="ml-auto underline-offset-4 hover:text-foreground hover:underline" onClick={() => { setPgOpen((v) => !v); setVultrOpen(false); }}>Your Postgres ↗</button>
+              <button className="underline-offset-4 hover:text-foreground hover:underline" onClick={() => { setVultrOpen((v) => !v); setPgOpen(false); }}>Your Vultr fleet ↗</button>
               <label className={cn("cursor-pointer underline-offset-4 hover:text-foreground hover:underline", uploading && "opacity-50")}>
                 {uploading ? "Uploading…" : "Use your own SQLite DB ↑"}
                 <input type="file" accept=".db,.sqlite,.sqlite3,application/octet-stream" className="sr-only" disabled={uploading} onChange={async (e) => {
@@ -333,6 +338,26 @@ export default function AppPage() {
                 }} />
               </label>
             </div>
+            {pgOpen ? (
+              <form className="mt-3 space-y-2 rounded-xl border bg-background p-3" onSubmit={async (e) => {
+                e.preventDefault();
+                setUploading(true);
+                try {
+                  const w = await api.importPostgres(pgUrl);
+                  setPgUrl(""); setPgOpen(false);
+                  setSpaces((cur) => [...cur, w]); setWs(w.id); setRun(null); setMode("break");
+                  toast.success(`${w.description}. Your connection string was not kept.`);
+                } catch (err) { toast.error((err as Error).message); } finally { setUploading(false); }
+              }}>
+                <div className="text-sm font-medium">Rehearse on a double of your PostgreSQL database</div>
+                <div className="flex gap-2">
+                  <input type="password" autoComplete="off" spellCheck={false} value={pgUrl} onChange={(e) => setPgUrl(e.target.value.trim())} placeholder="postgresql://user:password@host:5432/db"
+                    aria-label="Postgres connection string" className="h-9 min-w-0 flex-1 rounded-lg border bg-card px-3 font-mono text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring/50" />
+                  <Button type="submit" className="h-9 rounded-lg px-3" disabled={uploading || pgUrl.length < 12}>{uploading ? "Reading…" : "Import"}</Button>
+                </div>
+                <p className="text-xs leading-relaxed text-muted-foreground">One read-only copy of the public schema (up to 50,000 rows a table), then the connection string is discarded. Nothing is ever written to your database: approved changes download as drift-guarded SQL for your own pipeline. Use a read-only user.</p>
+              </form>
+            ) : null}
             {vultrOpen ? (
               <form className="mt-3 space-y-2 rounded-xl border bg-background p-3" onSubmit={async (e) => {
                 e.preventDefault();
@@ -540,8 +565,8 @@ export default function AppPage() {
                     ) : run.mode === "agent" ? <Button variant="outline" className="h-10 rounded-full px-4" onClick={() => act("fix")} disabled={busy}><Wrench className="size-4" /> Ask the agent to fix it</Button> : null}
                     {!critical ? <input value={approver} onChange={(e) => setApprover(e.target.value)} placeholder="Your name (for the audit trail)" maxLength={80}
                       aria-label="Approver name" className="h-10 min-w-0 flex-1 rounded-full border bg-background px-4 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring/50 sm:ml-auto sm:max-w-[240px]" /> : <span className="sm:ml-auto" />}
-                    <Button className="h-10 rounded-full px-4" onClick={() => act("approve")} disabled={busy || critical || !attempt?.consequences.ok || (aiObjected && note.trim().length < 10)}>
-                      {critical ? <><Lock className="size-4" /> Blocked by policy</> : needed > 1 && approvalsSoFar.length === 0 ? <><Users className="size-4" /> First approval (1 of 2)</>
+                    <Button className="h-10 rounded-full px-4" onClick={() => act("approve")} disabled={busy || critical || !!imported || !attempt?.consequences.ok || (aiObjected && note.trim().length < 10)}>
+                      {critical ? <><Lock className="size-4" /> Blocked by policy</> : imported === "postgres" ? <>Apply with Export as SQL ↓</> : imported === "vultr" ? <>Rehearsal only: act in Vultr</> : needed > 1 && approvalsSoFar.length === 0 ? <><Users className="size-4" /> First approval (1 of 2)</>
                         : aiObjected ? <><Check className="size-4" /> {needed > 1 && approvalsSoFar.length ? "Second approval anyway" : "Approve anyway"}</>
                         : needed > 1 ? <><Check className="size-4" /> Second approval and apply</> : <><Check className="size-4" /> Approve and apply</>}
                     </Button>

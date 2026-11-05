@@ -47,3 +47,5 @@ VM_PLAN = os.environ.get("SD_VM_PLAN", "vc2-1c-1gb")
 VM_REGION = os.environ.get("SD_VM_REGION", "sjc")
 VM_DAILY_LIMIT = int(os.environ.get("SD_VM_DAILY_LIMIT", "20"))
 VM_SPEND_CEILING_USD = float(os.environ.get("SD_VM_SPEND_CEILING_USD", "30"))
+# Postgres import: refuse private/internal hosts (tests and local development can allow them).
+PG_ALLOW_PRIVATE = os.environ.get("SD_PG_ALLOW_PRIVATE", "") == "1"
