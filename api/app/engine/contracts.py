@@ -156,6 +156,8 @@ def compile_contract(task: str, glossary: list[dict], db_path: str | Path, model
             hit = None if fresh else json.loads(cache.read_text()).get(key)
         except (OSError, ValueError):
             hit = None
+    if hit and hit.get("failed"):      # these models already failed on this exact request, schema and date
+        raise RuntimeError(hit["failed"])
     if hit:
         promises = classify(hit["raw"], db_path)        # re-sorted on today's data: obligations shrink as work is done
         return {"promises": [p.public() for p in promises], "model": hit["model"], "today": today,
@@ -192,6 +194,14 @@ def compile_contract(task: str, glossary: list[dict], db_path: str | Path, model
             data = dict(sorted(data.items(), key=lambda kv: kv[1]["at"])[-200:])
             cache.write_text(json.dumps(data))
         return {"promises": [p.public() for p in promises], "model": model, "today": today, "ms": ms, "key": key[:16]}
+    with _LOCK:                        # remember the failure, so the next visitor isn't kept waiting for the same answer
+        try:
+            data = json.loads(cache.read_text())
+        except (OSError, ValueError):
+            data = {}
+        data[key] = {"failed": last_err, "at": time.time()}
+        data = dict(sorted(data.items(), key=lambda kv: kv[1]["at"])[-200:])
+        cache.write_text(json.dumps(data))
     raise RuntimeError(last_err)
 
 

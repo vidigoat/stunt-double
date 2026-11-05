@@ -929,8 +929,9 @@ def _compile(task: str, base, ws: str, models: list[str], **kw) -> dict:
     today = config.DEMO_TODAY if ws == workspaces.DEMO else None
     try:
         return engine_contracts.compile_contract(*args, today=today, cache_only=True, **kw)
-    except RuntimeError:
-        pass
+    except RuntimeError as e:
+        if "budget" not in str(e):        # a remembered failure: say so now, don't spend budget on it again
+            raise
     if not _contract_budget():
         raise RuntimeError("today's budget for new contracts on this public demo is used up; requests seen before still work")
     return engine_contracts.compile_contract(*args, today=today, **kw)

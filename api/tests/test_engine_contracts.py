@@ -340,3 +340,13 @@ def test_new_contracts_have_a_daily_budget_and_seen_requests_stay_free(fresh_bus
     calls = (a.calls, b.calls)
     assert api.post("/api/contract/preview", json={"task": PLANS["bad"]["task"]}).status_code == 200    # seen before: still free
     assert (a.calls, b.calls) == calls
+
+
+def test_a_failed_reading_is_remembered_not_paid_for_again(fresh_business, tmp_path):
+    bad = FakeModel([{"text": "x", "sql": "DELETE FROM charges"}])         # never a valid promise
+    for _ in range(2):
+        try:
+            contracts.compile_contract(PLANS["bad"]["task"], [], fresh_business, ["fake"], bad, tmp_path, today="Tuesday 2026-11-03")
+        except RuntimeError as e:
+            assert "no valid promises" in str(e)
+    assert bad.calls == 1
