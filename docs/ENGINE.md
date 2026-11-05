@@ -17,6 +17,11 @@ All six milestones shipped, each with tests (`api/tests/test_engine_*.py`, 196 t
 run. The code is in [`api/app/engine/`](../api/app/engine): `graph`, `materialize`, `subsets`, `state`, `contracts`,
 `verdict`, `evidence`; Proof of Effect lives in the sandbox harness (`api/app/harness/runner.py`).
 
+**Live eval** ([VERIFIER_EVAL.md](VERIFIER_EVAL.md)): bad plans stopped 12/12, correct plans approved 8/8, 0 false
+alarms, the refund trap cut to exactly 104 every time. **On the live console**, judge step 1 goes from click to an
+approvable 104 in about 8 s; anyone can ask *What does this mean?* before a plan exists, and verify any run's signed
+record in their own browser.
+
 **The demo moment on production** (Nov 5, the obvious refund plan, judge step 1):
 
 | Step | What happened |
