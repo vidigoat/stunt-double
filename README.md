@@ -27,7 +27,7 @@
 
 <table>
   <tr>
-    <td width="50%"><img src="docs/assets/ai-catch.png" alt="The AI verifier catches a refund plan that passes every rule"><br><sub><b>What rules can't see.</b> A plan passes every rule; the AI verifier on Vultr Inference reads the data and objects.</sub></td>
+    <td width="50%"><img src="docs/assets/ai-catch.png" alt="An AI jury of three labs on Vultr Inference catches a refund plan that passes every rule"><br><sub><b>What rules can't see.</b> A plan passes every rule; an AI jury of three labs on Vultr Inference investigates the data and objects, 3 of 3.</sub></td>
     <td width="50%"><img src="docs/assets/browser.png" alt="The agent in a real browser inside the sandbox; the AI vision check catches the wrong cancellation"><br><sub><b>A real browser, on the double.</b> Every screen captured in gVisor; the AI vision check sees the wrong row.</sub></td>
   </tr>
   <tr>
@@ -36,7 +36,10 @@
   </tr>
   <tr>
     <td width="50%"><img src="docs/assets/containment.png" alt="Containment: sandbox 0 customers, production 1,300"><br><sub><b>Containment.</b> Deleting every customer hits only the double; approval locks.</sub></td>
-    <td width="50%"><img src="docs/assets/control.png" alt="Mission control: every rehearsal from request to double to decision, live"><br><sub><b>Mission control.</b> Every agent action on the server, live: the request, its double on Vultr, the decision.</sub></td>
+    <td width="50%"><img src="docs/assets/lie.png" alt="A plan claims it changed nothing; a separate sandbox measured 300 changed rows"><br><sub><b>The plan can't lie.</b> It claims "no changes" and forges its report; a separate sandbox measured 300 rows.</sub></td>
+  </tr>
+  <tr>
+    <td colspan="2"><img src="docs/assets/control.png" alt="Mission control: every rehearsal from request to double to decision, live"><br><sub><b>Mission control.</b> Every agent action on the server, live: the request, its double on Vultr, the decision.</sub></td>
   </tr>
 </table>
 
