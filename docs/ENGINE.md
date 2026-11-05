@@ -59,6 +59,12 @@ run. The code is in [`api/app/engine/`](../api/app/engine): `graph`, `materializ
   correct cleanup "broke" it). Now the jury never sees the contract, and when the jury judges the outcome right but a
   promise is broken, neither wins: the decision says they disagree, approving needs a written reason (or the person
   strikes the promise), and only when both object, or the jury didn't run, does a broken promise lock approval.
+- *See the contract before any plan.* "What does this mean?" in the console shows a typed request's contract and
+  its cross-read (`POST /api/contract/preview`); the run that follows reuses it.
+- *Verify the record in your own browser.* The decision panel re-hashes every step and checks the Ed25519 signature
+  with WebCrypto, then changes one cent to show the chain breaking at that step. Sealed bodies carry no floats, so
+  Python and JavaScript hash them byte for byte the same.
+- *A five-step guide.* When a run has a contract and a cut, a strip at the top tells its story and jumps to each card.
 - *The agent signs before it writes.* In agent mode, the ops agent gets the promises with the request.
 - *The decision is code, not AI.* Six layers give pass, warn or fail with one reason each; only deterministic layers
   lock approval, and the jury's objection alone asks a person for a written reason.
