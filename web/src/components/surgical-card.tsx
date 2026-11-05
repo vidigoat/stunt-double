@@ -6,19 +6,18 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { num, usd, type SurgicalOffer } from "@/lib/api";
 
-/** The plan, drawn as its units of work: one thin bar each, the ones the engine would cut in red. */
+/** The plan, drawn as its units of work: one square each, the ones the engine would cut in red. */
 export function UnitStrip({ total, dropped, className }: { total: number; dropped: number[]; className?: string }) {
   const cut = useMemo(() => new Set(dropped), [dropped]);
-  const n = Math.min(total, 1200);
+  const n = Math.min(total, 1200);        // above 1,200 units, each square stands for a few (red if any of them is cut)
   const scale = total / n;
   return (
-    <div className={cn("flex h-10 w-full items-stretch gap-px overflow-hidden rounded-md", className)} role="img"
-      aria-label={`${total} units of work, ${dropped.length} cut`}>
+    <div className={cn("flex flex-wrap gap-[2px]", className)} role="img" aria-label={`${total} units of work, ${dropped.length} cut`}>
       {Array.from({ length: n }, (_, i) => {
         const lo = Math.floor(i * scale), hi = Math.max(lo + 1, Math.floor((i + 1) * scale));
         let bad = false;
         for (let k = lo; k < hi && !bad; k++) bad = cut.has(k);
-        return <span key={i} className={cn("min-w-px flex-1", bad ? "bg-damage/80" : "bg-safe")} />;
+        return <span key={i} className={cn("size-[6px] rounded-[1.5px]", bad ? "bg-damage/85" : "bg-safe")} />;
       })}
     </div>
   );
@@ -41,9 +40,9 @@ export function SurgicalCard({ offer, check, busy, onCut }: { offer: SurgicalOff
           {offer.caused_by?.length === 1 ? <> Every cut row was {offer.caused_by[0].how === "chose" ? "chosen" : "written"} by <b className="font-semibold">statement {offer.caused_by[0].i}</b> of the plan (shown below, proven by replay).</>
             : offer.caused_by?.length ? <> The cut rows came from statements <b className="font-semibold">{offer.caused_by.map((c) => c.i).join(", ")}</b> of the plan (shown below, proven by replay).</> : null}
         </p>
-        <UnitStrip total={offer.units_total} dropped={offer.dropped_units} className="mt-4 shadow-[0_10px_30px_-18px_rgba(20,60,30,.6)]" />
+        <UnitStrip total={offer.units_total} dropped={offer.dropped_units} className="mt-4 rounded-xl bg-card/80 p-3" />
         <div className="mt-1.5 flex justify-between font-mono text-[11px] text-foreground/60">
-          <span>each bar is one unit of work: a charge, its refund and its email</span>
+          <span>each square is one unit of work: a charge, its refund and its email</span>
           <span><span className="text-safe">■</span> keep {num(offer.units_kept)} · <span className="text-damage">■</span> cut {num(offer.units_dropped)}</span>
         </div>
       </div>

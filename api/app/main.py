@@ -161,6 +161,9 @@ def _gate_flags(c: dict, run: dict, pol: dict | None = None) -> list[dict]:
             done = max(0, p["today"] - p["after"])
             flags.append({"rule": "contract", "severity": "high", "title": f"Leaves the work undone: {p['text']}",
                           "detail": f"{p['after']:,} of {p['today']:,} still to do after this plan ({done:,} done)."})
+        elif p.get("status") == "unknown":
+            flags.append({"rule": "contract", "severity": "medium", "title": f"Couldn't check a promise: {p['text']}",
+                          "detail": f"Its check didn't finish on this rehearsal ({p.get('why') or 'unknown reason'}). Judge this part yourself."})
     if run.get("workspace", workspaces.DEMO) != workspaces.DEMO and (c.get("payments", {}).get("count") or c.get("emails", {}).get("count")):
         flags.insert(0, {"rule": "workspace_side_effects", "severity": "critical", "title": "Refunds and email aren't connected for this workspace",
                          "detail": "Uploaded databases can change rows and call connectors. Payments and email only exist for the demo business."})
@@ -214,14 +217,14 @@ def _contract_start(run: dict) -> None:
 
 def _contract_check(run: dict, c: dict, effects_path: str | None, wait_s: float = 120) -> None:
     """Check the measured effects against the run's contract and put the result into the consequences. No AI."""
-    ev = CONTRACT_READY.get(run["id"])
-    if ev is None or not c.get("ok") or not effects_path:
+    if not c.get("ok") or not effects_path or not run.get("contract"):
         return
-    if not ev.is_set():
+    ev = CONTRACT_READY.get(run["id"])         # None after a restart: then the contract on the run is all there is
+    if ev is not None and not ev.is_set():
         _emit(run, "contract", "Waiting for the contract to be finished before judging the plan")
-    if not ev.wait(wait_s):
-        c["contract"] = {"status": "late", "promises": []}
-        return
+        if not ev.wait(wait_s):
+            c["contract"] = {"status": "late", "promises": []}
+            return
     contract = run.get("contract") or {}
     if contract.get("status") != "ready":
         return

@@ -57,14 +57,18 @@ def _contract(c: dict, contract: dict | None) -> dict:
         return {"status": SKIP, "reason": f"No contract: {why}."[:240]}
     broken = [p for p in ps if p["status"] == "broken"]
     unmet = [p for p in ps if p["status"] == "unmet"]
+    unknown = [p for p in ps if p["status"] not in ("kept", "met", "broken", "unmet")]
     if broken:
         p = broken[0]
         return {"status": FAIL, "reason": f"Breaks “{p['text']}” ({_n(p['after'], 'row')}).", "promises": len(ps), "broken": len(broken)}
     if unmet:
         p = unmet[0]
         return {"status": WARN, "reason": f"Leaves {p['after']:,} of {p['today']:,} undone: “{p['text']}”.", "promises": len(ps), "unmet": len(unmet)}
+    if unknown:
+        return {"status": WARN, "reason": f"Couldn't check {_n(len(unknown), 'promise')} of {len(ps)}: “{unknown[0]['text']}”.", "promises": len(ps)}
     work = sum(p["today"] for p in ps if p["kind"] == "obligation")
-    return {"status": PASS, "reason": f"Keeps all {len(ps)} promises" + (f" and finishes the work ({work:,} of {work:,})." if work else "."), "promises": len(ps)}
+    keeps = "Keeps its one promise" if len(ps) == 1 else f"Keeps all {len(ps)} promises"
+    return {"status": PASS, "reason": keeps + (f" and finishes the work ({work:,} of {work:,})." if work else "."), "promises": len(ps)}
 
 
 def _rules(flags: list[dict]) -> dict:

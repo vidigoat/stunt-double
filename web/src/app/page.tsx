@@ -10,6 +10,7 @@ import { Business } from "@/components/landing-business";
 import { ForAgents, Platform } from "@/components/landing-platform";
 import { TryIt } from "@/components/try-it";
 import { Showcase } from "@/components/showcase";
+import { Engine } from "@/components/landing-engine";
 
 const GITHUB = "https://github.com/vidigoat/stunt-double";
 const pill = (variant: "default" | "outline" = "default") =>
@@ -62,6 +63,7 @@ function Nav() {
         <Link href="/" aria-label="Stunt Double home"><Wordmark /></Link>
         <div className="hidden items-center gap-7 text-sm text-muted-foreground md:flex">
           <a href="#how" className="hover:text-foreground">How it works</a>
+          <a href="#engine" className="hover:text-foreground">The engine</a>
           <a href="#different" className="hover:text-foreground">Why it&apos;s different</a>
           <a href="#mcp" className="hover:text-foreground">For agents</a>
           <a href="#pricing" className="hover:text-foreground">Pricing</a>
@@ -324,6 +326,7 @@ export default function Home() {
       <Hero />
       <Statement />
       <How />
+      <Engine />
       <TryIt />
       <Different />
       <Platform />

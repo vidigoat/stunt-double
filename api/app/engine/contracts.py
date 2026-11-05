@@ -29,6 +29,9 @@ from . import state
 from .materialize import Drift, materialize
 
 MAX_PROMISES = 4
+MIN_PROMISES = 2       # fewer valid promises than this and the next model is asked
+QUERY_SECONDS = 20     # per promise; a slow VM must not silently drop one
+VERSION = 2
 _LOCK = threading.Lock()
 
 TOOL = {"type": "function", "function": {
@@ -89,7 +92,7 @@ def _single_select(sql: str) -> str:
 
 
 def _count(view: sqlite3.Connection, sql: str, cap: int = 100_000) -> int:
-    return len(state.run_check(view, sql, cap, seconds=3)[1])
+    return len(state.run_check(view, sql, cap, seconds=QUERY_SECONDS)[1])
 
 
 def schema_text(db_path: str | Path) -> tuple[str, str]:
@@ -146,7 +149,7 @@ def compile_contract(task: str, glossary: list[dict], db_path: str | Path, model
     schema, sig = schema_text(db_path)
     gloss = "\n".join(f"- {g.get('term')}: {g.get('definition')}" for g in glossary) or "- (none)"
     today = today or datetime.now(UTC).strftime("%A %Y-%m-%d")
-    key = hashlib.sha256(json.dumps([task.strip(), gloss, sig, models, today, PROMPT]).encode()).hexdigest()
+    key = hashlib.sha256(json.dumps([VERSION, task.strip(), gloss, sig, models, today, PROMPT]).encode()).hexdigest()
     cache = _cache_path(data_dir)
     with _LOCK:
         try:
@@ -158,7 +161,7 @@ def compile_contract(task: str, glossary: list[dict], db_path: str | Path, model
         return {"promises": [p.public() for p in promises], "model": hit["model"], "today": today,
                 "cached": {"at": hit["at"], "ms": hit.get("ms")}, "key": key[:16]}
     prompt = PROMPT.format(task=task.replace('"', "'"), today=today, n=MAX_PROMISES, glossary=gloss, schema=schema)
-    last_err = "no model answered"
+    last_err, best = "no model answered", None
     for model in models:
         t0 = time.time()
         try:
@@ -172,7 +175,12 @@ def compile_contract(task: str, glossary: list[dict], db_path: str | Path, model
         if not promises:
             last_err = f"{model} wrote no valid promises"
             continue
-        ms = int((time.time() - t0) * 1000)
+        if best is None or len(promises) > len(best[1]):
+            best = (model, promises, int((time.time() - t0) * 1000))
+        if len(promises) >= MIN_PROMISES:
+            break
+    if best:
+        model, promises, ms = best
         with _LOCK:
             try:
                 data = json.loads(cache.read_text())

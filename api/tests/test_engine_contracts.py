@@ -61,6 +61,22 @@ def test_the_same_request_is_never_compiled_twice(fresh_business, tmp_path):
     assert again.calls == 0 and c["cached"] and len(c["promises"]) == 2
 
 
+def test_a_thin_contract_asks_the_next_model(fresh_business, tmp_path):
+    thin, full = FakeModel([WORK]), FakeModel([WORK, GUARD])
+    client = SimpleNamespace(chat=SimpleNamespace(completions=SimpleNamespace(
+        create=lambda **kw: (thin if kw["model"] == "a" else full).create(**kw))))
+    c = contracts.compile_contract(PLANS["bad"]["task"], [], fresh_business, ["a", "b"], client, tmp_path, today="Tuesday 2026-11-03")
+    assert c["model"] == "b" and len(c["promises"]) == 2 and thin.calls == full.calls == 1
+
+
+def test_an_unchecked_promise_is_never_counted_as_kept():
+    from app.engine import verdict
+    run = {"status": "review", "verdict": None, "attempts": [{"n": 1, "flags": [], "consequences": {"ok": True, "contract": {"promises": [
+        {"text": "Nothing else", "kind": "guard", "today": 0, "after": None, "status": "unknown"}]}}}]}
+    layer = verdict.decide(run)["layers"][2]
+    assert layer["status"] == "warn" and "Couldn't check" in layer["reason"]
+
+
 def test_a_promise_a_correct_plan_fails_is_withdrawn(fresh_business, tmp_path):
     c, _ = _compile(fresh_business, tmp_path, [WORK, GUARD, UNFAIR])
     db = sqlite3.connect(fresh_business)
@@ -108,6 +124,7 @@ def test_the_bad_plan_breaks_its_contract_and_the_contract_cuts_it(fresh_busines
 
     assert run["surgical"]["check"]["source"] == "intent contract"   # no learned rule, so the contract's guard does the cut
     assert run["surgical"]["offer"]["units_kept"] == 104
+    main.CONTRACT_READY.clear()                                     # as after a restart: the contract on the run still counts
     api.post(f"/api/runs/{rid}/surgical")
     run = _wait(api, rid)
     after = {p["text"]: p["status"] for p in run["attempts"][-1]["consequences"]["contract"]["promises"]}
