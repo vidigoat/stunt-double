@@ -11,7 +11,7 @@ recording. Each click starts a real rehearsal in gVisor on the Vultr VM. Cut the
 | 0:14–0:26 | step 2 **Watch the AI catch what rules can't** | one click, then cut to the verdict | "This refund plan passes every rule, but the AI verifier on Vultr Serverless Inference reads the data: it refunds 640 people who were never double-charged." Then click **Learn this rule**: "One click and that catch becomes a rule. Next time it's blocked instantly, without AI." |
 | 0:26–0:38 | step 3 **Watch it work in a browser** | one click | "Now the agent works in a real browser, on a double of the admin site. Every screen is captured, and the AI vision check sees it cancelled the wrong subscription." |
 | 0:38–0:48 | step 4 **Clean up the cloud** | one click, scroll to the fleet | "'Delete idle Vultr servers' would also delete the failover database and the backup runner. The double of the fleet shows the blast radius and the bill; production is protected." |
-| 0:48–0:56 | `/control` (Mission control) | (none) | "Every agent action, live: the request, its double on Vultr, the decision. Nothing real happens until a human approves the consequences." |
+| 0:48–0:56 | `/control` (Mission control) | (none; start step 2 in another tab first so a live row lights its blue "verify" stage and the counters tick) | "Every agent action, live: the request, its double on Vultr, the decision. Nothing real happens until a human approves the consequences." |
 | 0:56–1:00 | Landing closing card | (none) | "Stunt Double. Let the double take the hit." |
 
 Optional extra beats if there is time: step 5 (approve a good plan, then rehearse the undo with two approvers), step 6
