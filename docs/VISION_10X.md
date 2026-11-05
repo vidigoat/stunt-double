@@ -14,6 +14,7 @@ everything an AI agent touches**: databases, payments, email, SaaS APIs, web app
 | Can a real Chromium run inside our sandbox rules? | **Yes.** `--network none`, read-only root, non-root, 1 GB, `cap-drop ALL`: launched, clicked, screenshotted in **0.9 s**; `goto` to the internet → `ERR_INTERNET_DISCONNECTED`; environment nearly empty. (Tested on runc; **gVisor run on the VM is Thursday's first task**.) |
 | Does the Vultr API expose what a cloud double needs? | **Yes.** Instances (plan, region, power, tags, firewall group), firewalls, snapshots, block storage, reserved IPs and load balancers are all readable; plans carry `monthly_cost`. |
 | Is there a vision model on Vultr? | **Yes.** `glm-5.3-flash` is natively multimodal; `qwen3.8-27b` is a vision-language model. Safety: `nemotron-3.5-content-safety`. |
+| Can it catch the browser trap from a screenshot? | **Yes, in 3.2 s.** Given "cancel #4411" and the after-screen, `glm-5.3-flash` answered: *"No — the agent cancelled the wrong one: it set the first row (Sub #4141, Nora Dubois…) to 'Cancelled,' while the requested subscription #4411 in the second row is still 'Active.'"* |
 
 ---
 
