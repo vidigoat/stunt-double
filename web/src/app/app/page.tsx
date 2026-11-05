@@ -488,8 +488,8 @@ export default function AppPage() {
         {/* RIGHT: consequences */}
         <div className="min-w-0 space-y-5">
           {!run ? (
-            <div className="rounded-2xl border border-dashed bg-card/50 p-6 sm:p-8">
-              <FlaskConical className="size-7 text-muted-foreground" />
+            <div className="grain backdrop-blue rounded-[22px] p-6 sm:p-8 [&>*]:relative [&>*]:z-[2]">
+              <FlaskConical className="size-7 text-signal" />
               <div className="mt-4 font-display text-3xl">Judge mode: eight clicks</div>
               <p className="mt-1 max-w-md text-sm text-muted-foreground">Everything runs on a throwaway copy of Bean There Coffee Co., inside gVisor on a Vultr VM. Production only changes when you approve. Each click starts a real rehearsal.</p>
               <ol className="mt-6 space-y-3">
@@ -519,7 +519,7 @@ export default function AppPage() {
                       }
                       const b = BREAK_IT.find((x) => x.label === s.preset)!; const t = s.task ?? b.task;
                       setMode("break"); setCode(b.code); setBreakTask(t); void start({ mode: "break", task: t, code: b.code });
-                    }} className="group flex w-full items-start gap-4 rounded-xl border bg-background p-4 text-left transition hover:border-signal disabled:opacity-60">
+                    }} className="group flex w-full items-start gap-4 rounded-xl border border-black/5 bg-card/95 p-4 text-left shadow-[0_12px_30px_-22px_rgba(20,30,80,.6)] transition hover:-translate-y-px hover:border-signal disabled:opacity-60">
                       <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-signal font-mono text-xs text-white">{s.n}</span>
                       <span className="min-w-0">
                         <span className="block font-medium">{s.t} <span className="text-muted-foreground transition group-hover:text-foreground">→</span></span>
