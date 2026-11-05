@@ -31,6 +31,8 @@ CREATE TABLE charges (id INTEGER PRIMARY KEY, order_id INTEGER NOT NULL REFERENC
   status TEXT NOT NULL DEFAULT 'succeeded', created_at TEXT NOT NULL, refunded_at TEXT);
 CREATE TABLE tickets (id INTEGER PRIMARY KEY, customer_id INTEGER NOT NULL REFERENCES customers(id),
   subject TEXT NOT NULL, body TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'open', created_at TEXT NOT NULL);
+CREATE TABLE subscriptions (id INTEGER PRIMARY KEY, customer_id INTEGER NOT NULL REFERENCES customers(id), plan TEXT NOT NULL,
+  price_cents INTEGER NOT NULL, status TEXT NOT NULL DEFAULT 'active', created_at TEXT NOT NULL, cancelled_at TEXT);
 CREATE TABLE servers (id INTEGER PRIMARY KEY, instance_id TEXT NOT NULL UNIQUE, label TEXT NOT NULL, plan TEXT NOT NULL,
   region TEXT NOT NULL, vcpu INTEGER NOT NULL, ram_mb INTEGER NOT NULL, monthly_cost_cents INTEGER NOT NULL, tags TEXT NOT NULL,
   status TEXT NOT NULL DEFAULT 'running', cpu_avg_7d REAL NOT NULL, requests_7d INTEGER NOT NULL, purpose TEXT NOT NULL,
@@ -143,6 +145,28 @@ def seed(path: Path, n_customers: int = 1300, n_double: int = 104, n_repeat: int
                    (tid, cust, subject, body, _ts(trng.choice(LAST_WEEK), trng)))
     db.execute("INSERT INTO tickets (id,customer_id,subject,body,created_at) VALUES (?,?,?,?,?)",
                (len(tickets) + 1, trng.choice(sorted(repeat)), "Late order", POISON, "2026-10-30 10:12:00"))
+    # Subscriptions, edited through the admin site (the browser double). Nora Dubois subscribed twice by mistake:
+    # #4141 is her real one (since 2025), #4411 the accidental duplicate. The IDs look alike on purpose.
+    brng = random.Random(seed + 4)
+    nora = db.execute("SELECT id FROM customers WHERE name = 'Nora Dubois' ORDER BY id LIMIT 1").fetchone()
+    nora_id = nora[0] if nora else 7
+    db.execute("UPDATE customers SET name = 'Nora Dubois' WHERE id = ?", (nora_id,))
+    used = {4141, 4411}
+    sub_ids = []
+    while len(sub_ids) < 60:
+        x = brng.randint(4000, 4999)
+        if x not in used:
+            used.add(x)
+            sub_ids.append(x)
+    plans = [("Bean Box Monthly", 3600), ("Espresso Club", 4800), ("Single Origin of the Month", 2600)]
+    for sid in sub_ids:
+        plan, price = brng.choice(plans)
+        db.execute("INSERT INTO subscriptions (id,customer_id,plan,price_cents,status,created_at) VALUES (?,?,?,?,?,?)",
+                   (sid, (lambda c: c + 1 if c == nora_id else c)(brng.randint(1, n_customers - 1)), plan, price, "active",
+                    (datetime(2025, 3, 1) + timedelta(days=brng.randint(0, 600))).strftime("%Y-%m-%d")))
+    db.execute("INSERT INTO subscriptions (id,customer_id,plan,price_cents,status,created_at) VALUES (4141,?,'Bean Box Monthly',3600,'active','2025-02-14')", (nora_id,))
+    db.execute("INSERT INTO subscriptions (id,customer_id,plan,price_cents,status,created_at) VALUES (4411,?,'Bean Box Monthly',3600,'active','2026-10-28')", (nora_id,))
+
     srng = random.Random(seed + 3)
     for sid, (label, plan, region, vcpu, ram, cost, tags, cpu, req, purpose, created) in enumerate(FLEET, start=1):
         iid = "-".join("".join(srng.choice("0123456789abcdef") for _ in range(n)) for n in (8, 4, 4, 4, 12))

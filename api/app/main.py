@@ -456,6 +456,23 @@ def runs_csv():
     return Response(buf.getvalue(), media_type="text/csv", headers={"Content-Disposition": 'attachment; filename="stunt-double-audit.csv"'})
 
 
+@app.get("/api/runs/{rid}/shots/{n}.png")
+def run_shot(rid: str, n: int, attempt: int = 0):
+    """A screenshot the plan's browser took inside the sandbox (browser doubles only)."""
+    from fastapi.responses import FileResponse
+    run = _get(rid)
+    if not run["attempts"] or not 1 <= n <= 12:
+        raise HTTPException(404, "no such screenshot")
+    att = run["attempts"][attempt - 1] if 1 <= attempt <= len(run["attempts"]) else run["attempts"][-1]
+    sid = str(att.get("sandbox_id", ""))
+    if not sid.startswith("sd-") or "/" in sid or ".." in sid:
+        raise HTTPException(404, "no such screenshot")
+    path = config.RUNS_DIR / sid / "out" / "shots" / f"{n}.png"
+    if not path.is_file():
+        raise HTTPException(404, "no such screenshot")
+    return FileResponse(path, media_type="image/png", headers={"Cache-Control": "public, max-age=86400, immutable"})
+
+
 @app.get("/api/runs/{rid}/stream")
 async def stream_run(rid: str, request: Request):
     """Server-sent events: the full run every time it changes; ends when the run is no longer active."""

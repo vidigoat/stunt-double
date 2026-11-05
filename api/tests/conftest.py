@@ -20,6 +20,15 @@ def docker_ok() -> bool:
 needs_docker = pytest.mark.skipif(not docker_ok(), reason="Docker daemon not available")
 
 
+def browser_image_ok() -> bool:
+    if not docker_ok():
+        return False
+    return subprocess.run(["docker", "image", "inspect", "stunt-double-browser:latest"], capture_output=True).returncode == 0
+
+
+needs_browser = pytest.mark.skipif(not browser_image_ok(), reason="browser sandbox image not built (sandbox/Dockerfile.browser)")
+
+
 @pytest.fixture(scope="session", autouse=True)
 def sandbox_image():
     if docker_ok():

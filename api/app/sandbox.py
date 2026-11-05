@@ -60,18 +60,50 @@ def _copy_regular_file(src: Path, dst: Path, max_bytes: int = 512 * 1024 * 1024)
     return True
 
 
-def _docker(name: str, mount: str, mode: str, extra: list[str] | None = None) -> tuple[int, str, str | None]:
-    cmd = ["docker", "run", "--rm", "--name", name, *GUARD_FLAGS, *(extra or [])]
+def _browser_flags() -> list[str]:
+    """Same guards, sized for a real Chromium: more memory, processes and /tmp; no address-space rlimit (it breaks Chromium)."""
+    f = list(GUARD_FLAGS)
+    for key, val in (("--memory", config.BROWSER_MEMORY), ("--memory-swap", config.BROWSER_MEMORY), ("--pids-limit", "512"), ("--tmpfs", "/tmp:rw,size=512m")):
+        f[f.index(key) + 1] = val
+    f[f.index("nofile=256:256")] = "nofile=4096:4096"
+    return [*f, "--shm-size", "256m"]
+
+
+def _docker(name: str, mount: str, mode: str, extra: list[str] | None = None, browser: bool = False) -> tuple[int, str, str | None]:
+    cmd = ["docker", "run", "--rm", "--name", name, *(_browser_flags() if browser else GUARD_FLAGS), *(extra or [])]
     if config.SANDBOX_RUNTIME:
         cmd += ["--runtime", config.SANDBOX_RUNTIME]
-    cmd += [*mount.split(" "), config.SANDBOX_IMAGE, mode]
+    cmd += [*mount.split(" "), config.BROWSER_IMAGE if browser else config.SANDBOX_IMAGE, mode]
+    timeout = config.BROWSER_TIMEOUT_S if browser else config.SANDBOX_TIMEOUT_S
+    mem = config.BROWSER_MEMORY if browser else config.SANDBOX_MEMORY
     try:
-        p = subprocess.run(cmd, capture_output=True, text=True, timeout=config.SANDBOX_TIMEOUT_S, env={"PATH": os.environ.get("PATH", "")})
-        killed = f"memory cap ({config.SANDBOX_MEMORY}) hit - process killed" if p.returncode == 137 else None
+        p = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout, env={"PATH": os.environ.get("PATH", "")})
+        killed = f"memory cap ({mem}) hit - process killed" if p.returncode == 137 else None
         return p.returncode, p.stderr[-2000:], killed
     except subprocess.TimeoutExpired:
         subprocess.run(["docker", "rm", "-f", name], capture_output=True)
-        return -1, "", f"time cap ({config.SANDBOX_TIMEOUT_S}s) hit - sandbox killed"
+        return -1, "", f"time cap ({timeout}s) hit - sandbox killed"
+
+
+def uses_browser(plan_code: str) -> bool:
+    return "ctx.browser" in plan_code or ".browser." in plan_code
+
+
+def _copy_shots(src: Path, dst: Path) -> int:
+    """Screenshots the plan's browser produced: only N.png names, real PNGs, at most 12, each at most 2 MB."""
+    if not src.is_dir():
+        return 0
+    dst.mkdir(exist_ok=True)
+    n = 0
+    for i in range(1, 13):
+        target = dst / f"{i}.png"
+        if _copy_regular_file(src / f"{i}.png", target, max_bytes=2 * 1024 * 1024):
+            if target.read_bytes()[:8] != b"\x89PNG\r\n\x1a\n":
+                target.unlink()
+                continue
+            os.chmod(target, 0o644)
+            n += 1
+    return n
 
 
 def rehearse(plan_code: str) -> dict:
@@ -91,13 +123,15 @@ def rehearse(plan_code: str) -> dict:
     host = Path(config.RUNS_DIR_HOST) / rid
 
     t0 = time.time()
-    code1, err1, killed = _docker(rid, f"-v {host / 'work'}:/work", "run")
+    browser = uses_browser(plan_code)
+    code1, err1, killed = _docker(rid, f"-v {host / 'work'}:/work", "run", browser=browser)
     run_ms = int((time.time() - t0) * 1000)
     # Hand phase 1's outputs to phase 2 as plain files (never symlinks), then throw phase 1's directory away.
     have_after = _copy_regular_file(work / "work.db", inp / "after.db")
     if not have_after:
         shutil.copyfile(inp / "before.db", inp / "after.db")
     _copy_regular_file(work / "out" / "intents.json", inp / "intents.json")
+    shots = _copy_shots(work / "out" / "shots", out / "shots") if browser else 0
     shutil.rmtree(work, ignore_errors=True)
     for f in inp.iterdir():
         os.chmod(f, 0o644)
@@ -123,6 +157,7 @@ def rehearse(plan_code: str) -> dict:
         "id": rid, "runtime": config.SANDBOX_RUNTIME or "runc", "network": "none", "memory": config.SANDBOX_MEMORY,
         "timeout_s": config.SANDBOX_TIMEOUT_S, "read_only_root": True, "exit_code": code1, "killed": killed,
         "run_ms": run_ms, "wall_ms": wall_ms, "destroyed": True, "measured_separately": True,
+        **({"profile": "browser", "memory": config.BROWSER_MEMORY, "timeout_s": config.BROWSER_TIMEOUT_S, "screenshots": shots} if browser else {}),
     }
     # The clones are destroyed; only the measured outputs are kept for the approval and the audit trail.
     for f in ("before.db", "after.db"):

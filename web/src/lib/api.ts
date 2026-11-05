@@ -15,6 +15,7 @@ export type Consequences = {
   http?: { count: number; samples: { method: string; url: string; host: string; json: unknown; headers: Record<string, string> }[] };
   irreversible?: { refunds: number; refund_total_cents: number; emails: number; http: number; servers_deleted?: number };
   cloud?: CloudConsequences;
+  browser?: { steps: { n: number; action: string; target: string; url: string; shot: string | null }[] };
   blocked: { kind: string; target: string }[];
   guards: { env_keys?: string[]; uid?: number; hostname?: string; root_writable?: boolean };
   audit?: { emails?: { vip_count?: number; templated_count?: number }; refunds?: { over_refunded_count?: number } };

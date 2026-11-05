@@ -28,6 +28,7 @@ mkdir -p /opt/stunt-double/data/runs
 [ -d /opt/stunt-double/src ] || git clone "$REPO" /opt/stunt-double/src
 cd /opt/stunt-double/src && git pull --ff-only
 docker build -t stunt-double-sandbox:latest -f sandbox/Dockerfile .
+docker build -t stunt-double-browser:latest -f sandbox/Dockerfile.browser . || echo "browser sandbox build failed (browser doubles disabled)"
 cd infra
 [ -f .env ] || cp .env.example .env
 if [ -n "${VULTR_INFERENCE_KEY:-}" ]; then sed -i "s|^VULTR_INFERENCE_KEY=.*|VULTR_INFERENCE_KEY=${VULTR_INFERENCE_KEY}|" .env; fi

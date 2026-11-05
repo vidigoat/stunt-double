@@ -41,6 +41,8 @@ PAYMENTS: list[dict] = []
 EMAILS: list[dict] = []
 HTTP: list[dict] = []
 CLOUD: list[dict] = []
+BROWSER: list[dict] = []
+MAX_SHOTS = 12
 LOGS: list[str] = []
 SECRET_HEADERS = {"authorization", "cookie", "x-api-key", "api-key", "x-auth-token", "proxy-authorization"}
 
@@ -138,6 +140,127 @@ class Vultr:
         return {"status": "recorded"}
 
 
+ADMIN_CSS = ("body{font:15px/1.45 -apple-system,Segoe UI,Helvetica,Arial,sans-serif;margin:0;background:#f6f6f3;color:#111}"
+             "header{background:#111;color:#fff;padding:12px 24px;font-weight:600}header span{opacity:.6;font-weight:400}"
+             "main{padding:20px 24px}form.s{margin:0 0 14px}input{padding:7px 10px;border:1px solid #ccc;border-radius:6px;width:260px}"
+             "button{padding:6px 12px;border-radius:6px;border:1px solid #bbb;background:#fff;cursor:pointer}"
+             "table{border-collapse:collapse;width:100%;background:#fff;border:1px solid #e3e3df}"
+             "th,td{text-align:left;padding:9px 12px;border-bottom:1px solid #eee}th{font-size:12px;color:#666;text-transform:uppercase}"
+             ".active{color:#127a3e}.cancelled{color:#b42318;font-weight:600}")
+
+
+def _admin_server(db: sqlite3.Connection, lock):  # noqa: ANN001
+    """The double of the company's admin site, served inside the sandbox from the cloned database (127.0.0.1 only)."""
+    import html
+    import urllib.parse
+    from http.server import BaseHTTPRequestHandler, HTTPServer
+
+    class H(BaseHTTPRequestHandler):
+        def log_message(self, *a):  # noqa: ANN002
+            pass
+
+        def _page(self, body: str) -> None:
+            data = (f"<!doctype html><meta charset=utf-8><title>Bean There Admin</title><style>{ADMIN_CSS}</style>"
+                    f"<header>Bean There Admin <span>· Subscriptions</span></header><main>{body}</main>").encode()
+            self.send_response(200)
+            self.send_header("Content-Type", "text/html; charset=utf-8")
+            self.send_header("Content-Length", str(len(data)))
+            self.end_headers()
+            self.wfile.write(data)
+
+        def do_GET(self):  # noqa: N802
+            u = urllib.parse.urlsplit(self.path)
+            q = urllib.parse.parse_qs(u.query).get("q", [""])[0][:80]
+            with lock:
+                rows = db.execute("SELECT s.id, c.name, s.plan, s.price_cents, s.created_at, s.status FROM subscriptions s "
+                                  "JOIN customers c ON c.id = s.customer_id WHERE c.name LIKE ? ORDER BY s.id LIMIT 50", (f"%{q}%",)).fetchall()
+            trs = "".join(
+                f"<tr><td>#{i}</td><td>{html.escape(n)}</td><td>{html.escape(p)}</td><td>${c / 100:.2f}</td><td>{d}</td>"
+                f"<td class={st}>{st.title()}</td><td>" + (f"<form method=post action=/subscriptions/{i}/cancel?q={urllib.parse.quote(q)}>"
+                f"<button id=cancel-{i}>Cancel</button></form>" if st == "active" else "") + "</td></tr>"
+                for i, n, p, c, d, st in rows)
+            self._page(f"<form class=s><input name=q placeholder='Search customers' value='{html.escape(q)}'> <button>Search</button></form>"
+                       f"<table><tr><th>Subscription</th><th>Customer</th><th>Plan</th><th>Price</th><th>Since</th><th>Status</th><th></th></tr>{trs}</table>")
+
+        def do_POST(self):  # noqa: N802
+            u = urllib.parse.urlsplit(self.path)
+            parts = u.path.strip("/").split("/")
+            if len(parts) == 3 and parts[0] == "subscriptions" and parts[2] == "cancel" and parts[1].isdigit():
+                with lock:
+                    db.execute("UPDATE subscriptions SET status = 'cancelled', cancelled_at = '2026-11-05 10:00:00' WHERE id = ?", (int(parts[1]),))
+            self.send_response(303)
+            self.send_header("Location", "/subscriptions?" + u.query)
+            self.end_headers()
+
+    srv = HTTPServer(("127.0.0.1", 0), H)
+    import threading
+    threading.Thread(target=srv.serve_forever, daemon=True).start()
+    return srv
+
+
+class Browser:
+    """A real Chromium inside the sandbox, pointed at the double of the admin site. Every step is recorded with a
+    screenshot for the approver and the vision verifier; the database diff (measured in phase 2) stays the source of truth."""
+    def __init__(self, db: sqlite3.Connection):
+        self._db, self._page, self._pw, self._b, self._srv = db, None, None, None, None
+
+    def _ensure(self):  # noqa: ANN202
+        if self._page is None:
+            import threading
+            from playwright.sync_api import sync_playwright
+            self._srv = _admin_server(self._db, threading.Lock())
+            self._pw = sync_playwright().start()
+            self._b = self._pw.chromium.launch(args=["--no-sandbox", "--disable-dev-shm-usage", "--disable-gpu"])
+            self._page = self._b.new_page(viewport={"width": 760, "height": 480}, device_scale_factor=1.5)
+            self.base = f"http://127.0.0.1:{self._srv.server_address[1]}"
+        return self._page
+
+    def _step(self, action: str, target: str) -> None:
+        page = self._page
+        n = len(BROWSER) + 1
+        shot = None
+        if n <= MAX_SHOTS:
+            os.makedirs("/work/out/shots", exist_ok=True)
+            shot = f"{n}.png"
+            h = int(page.evaluate("document.body.scrollHeight") or 480)
+            page.screenshot(path=f"/work/out/shots/{shot}", clip={"x": 0, "y": 0, "width": 760, "height": max(180, min(480, h + 16))})
+        BROWSER.append({"n": n, "action": action, "target": str(target)[:200], "url": page.url.replace(self.base, "")[:300], "shot": shot})
+
+    def open(self, path: str = "/subscriptions") -> None:
+        page = self._ensure()
+        page.goto(self.base + (path if path.startswith("/") else "/" + path))
+        self._step("open", path)
+
+    def search(self, text: str) -> None:
+        page = self._ensure()
+        page.fill("input[name=q]", str(text))
+        page.press("input[name=q]", "Enter")
+        page.wait_for_load_state()
+        self._step("search", text)
+
+    def click(self, target: str) -> None:
+        page = self._ensure()
+        loc = page.locator(target) if target[:1] in "#.[" else page.get_by_text(target, exact=True)
+        loc.first.click()
+        page.wait_for_load_state()
+        self._step("click", target)
+
+    def text(self) -> str:
+        return self._ensure().inner_text("body")[:8000]
+
+    def screenshot(self, label: str = "") -> None:
+        self._ensure()
+        self._step("look", label or "screenshot")
+
+    def close(self) -> None:
+        for x in (self._b, self._pw):
+            with contextlib.suppress(Exception):
+                x.close() if x is self._b else x.stop()
+        if self._srv:
+            with contextlib.suppress(Exception):
+                self._srv.shutdown()
+
+
 class Ctx:
     def __init__(self, db: sqlite3.Connection):
         self.db = db
@@ -145,6 +268,7 @@ class Ctx:
         self.email = Email()
         self.http = Http()
         self.vultr = Vultr(db)
+        self.browser = Browser(db)
 
     def log(self, *parts) -> None:  # noqa: ANN002
         LOGS.append(" ".join(str(p) for p in parts)[:500])
@@ -159,8 +283,9 @@ def phase_run() -> None:
               "root_writable": os.access("/", os.W_OK)}
     mem_mb = int(os.environ.get("SD_PLAN_MEM_MB", "160"))
     soft, hard = resource.getrlimit(resource.RLIMIT_AS)
-    resource.setrlimit(resource.RLIMIT_AS, (mem_mb * 1024 * 1024, hard))  # below the container cap: we survive to report
-    db = sqlite3.connect("/work/work.db", isolation_level=None)
+    if mem_mb > 0:  # 0 = browser sandbox: the container's memory cap is the limit (Chromium reserves huge address space)
+        resource.setrlimit(resource.RLIMIT_AS, (mem_mb * 1024 * 1024, hard))  # below the container cap: we survive to report
+    db = sqlite3.connect("/work/work.db", isolation_level=None, check_same_thread=False)
     db.execute("PRAGMA foreign_keys = OFF")
     stdout = io.StringIO()
     error = None
@@ -171,7 +296,11 @@ def phase_run() -> None:
             exec(compile(open("/work/plan.py").read(), "plan.py", "exec"), ns)  # noqa: S102 - this IS the sandbox
             if "run" not in ns:
                 raise RuntimeError("plan.py must define run(ctx)")
-            ns["run"](Ctx(db))
+            ctx = Ctx(db)
+            try:
+                ns["run"](ctx)
+            finally:
+                ctx.browser.close()
         if db.in_transaction:
             db.execute("COMMIT")
     except BaseException as e:  # noqa: BLE001
@@ -187,7 +316,8 @@ def phase_run() -> None:
     with contextlib.suppress(Exception):
         db.close()
     intents = {"ok": error is None, "error": error, "stdout": stdout.getvalue()[-4000:], "logs": LOGS[-100:],
-               "payments": PAYMENTS[:MAX_INTENTS], "emails": EMAILS[:MAX_INTENTS], "http": HTTP[:MAX_INTENTS], "cloud": CLOUD[:MAX_INTENTS], "blocked": BLOCKED[:50], "guards": guards,
+               "payments": PAYMENTS[:MAX_INTENTS], "emails": EMAILS[:MAX_INTENTS], "http": HTTP[:MAX_INTENTS],
+               "cloud": CLOUD[:MAX_INTENTS], "browser": BROWSER[:50], "blocked": BLOCKED[:50], "guards": guards,
                "duration_ms": int((time.time() - started) * 1000)}
     with open("/work/out/intents.json", "w") as f:
         json.dump(intents, f, default=str)
@@ -270,10 +400,13 @@ def validate_intents(raw: dict) -> dict:
                       "host": (parsed.hostname or "").lower(), "scheme": parsed.scheme, "path": path[:2000],
                       "json": json.loads(body) if len(body) <= 65536 else {"_truncated": True}, "body_bytes": len(body), "headers": hdrs,
                       **({"oversized": True} if len(body) > 65536 or len(url) > 2000 else {})})
+    browser = [{"n": _int(b.get("n"), 0) or 0, "action": str(b.get("action", ""))[:20], "target": str(b.get("target", ""))[:200],
+                "url": str(b.get("url", ""))[:300], "shot": f"{_int(b.get('n'), 1, MAX_SHOTS)}.png" if b.get("shot") else None}
+               for b in (raw.get("browser") or [])[:50] if isinstance(b, dict)]
     cloud = [{"method": str(c.get("method", ""))[:10], "path": str(c.get("path", ""))[:200]}
              for c in (raw.get("cloud") or [])[:MAX_INTENTS] if isinstance(c, dict)]
     err = raw.get("error")
-    return {"cloud_calls": cloud, "ok": bool(raw.get("ok")) and err is None, "error": err if isinstance(err, dict) else ({"message": str(err)[:2000]} if err else None),
+    return {"browser_steps": browser, "cloud_calls": cloud, "ok": bool(raw.get("ok")) and err is None, "error": err if isinstance(err, dict) else ({"message": str(err)[:2000]} if err else None),
             "stdout": str(raw.get("stdout", ""))[-4000:], "logs": [str(x)[:500] for x in (raw.get("logs") or [])[:100]],
             "payments": pays, "emails": mails, "http": calls,
             "blocked": [{"kind": str(b.get("kind", ""))[:20], "target": str(b.get("target", ""))[:200]} for b in (raw.get("blocked") or [])[:50] if isinstance(b, dict)],
@@ -441,6 +574,7 @@ def phase_measure() -> None:
         "blocked": intents["blocked"], "guards": intents["guards"], "audit": {**audit(before, pays, mails), "http": audit_http(before, calls)}, "measured_by": "trusted-phase-2",
         "http": {"count": len(calls), "samples": calls[:25]},
         "cloud": {**audit_cloud(before, after), "calls": intents.get("cloud_calls", [])[:50]},
+        "browser": {"steps": intents.get("browser_steps", [])},
     }
     with open("/out/consequences.json", "w") as f:
         json.dump(consequences, f, default=str)

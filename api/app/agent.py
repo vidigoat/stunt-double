@@ -28,6 +28,9 @@ CTX_DOC = """Your plan is a Python module that defines `def run(ctx):`.
   ctx.vultr.delete_instance(id) / .halt_instance(id) / .resize_instance(id, plan): manage the company's Vultr servers
   (the same fleet is in the `servers` table). Never touch servers tagged 'production'. Low CPU alone does not mean unused:
   read `purpose` and `tags`.
+- ctx.browser.open("/subscriptions") / .search(text) / .click(text_or_#id) / .text() / .screenshot(label): operate the
+  company's admin website in a real browser (a double of it). Each step is screenshotted for the human reviewer.
+  Cancel buttons have ids like #cancel-4411.
   Never put credentials in a plan: the server adds them after a human approves.
 - ctx.log(*values): leave a note for the reviewer.
 Standard library only. There is no network access."""
@@ -134,6 +137,7 @@ def compact_consequences(c: dict) -> dict:
         "emails": {"count": c["emails"]["count"], "samples": c["emails"]["samples"][:5]},
         "blocked_side_effects": c.get("blocked", []),
         "plan_log": c.get("logs", [])[-20:], "stdout_tail": (c.get("stdout") or "")[-800:],
+        **({"browser_steps": c["browser"]["steps"]} if (c.get("browser") or {}).get("steps") else {}),
         **({"vultr_fleet_changes": {k: (c["cloud"].get(k) if k not in ("deleted", "stopped", "resized") else
                                         [{f: x.get(f) for f in ("label", "tags", "purpose", "cpu_avg_7d", "requests_7d", "monthly_cost_cents")} for x in c["cloud"].get(k, [])])
                                     for k in ("deleted", "stopped", "resized", "monthly_savings_cents", "production_touched", "servers_before", "servers_after")}}
@@ -300,6 +304,22 @@ def ops_agent(task: str, rehearse: Callable[[str, str], dict], emit: Callable, f
     return final or "", messages
 
 
+def _screenshots(consequences: dict, limit: int = 3) -> list[dict]:
+    """The last browser screenshots of a rehearsal as image parts for a multimodal model (vision verifier)."""
+    import base64
+    sid = (consequences.get("sandbox") or {}).get("id", "")
+    steps = [s for s in (consequences.get("browser") or {}).get("steps", []) if s.get("shot")]
+    if not steps or not str(sid).startswith("sd-"):
+        return []
+    parts = []
+    for st in steps[-limit:]:
+        p = config.RUNS_DIR / sid / "out" / "shots" / st["shot"]
+        if p.is_file() and p.stat().st_size < 2_000_000:
+            parts += [{"type": "text", "text": f"Screenshot after step {st['n']}: {st['action']} {st['target']} (page {st['url']})"},
+                      {"type": "image_url", "image_url": {"url": "data:image/png;base64," + base64.b64encode(p.read_bytes()).decode()}}]
+    return parts
+
+
 def verify(task: str, code: str, consequences: dict, emit: Callable) -> dict:
     from . import policy as _policy
     glossary = _policy.load().get("glossary", [])
@@ -309,6 +329,11 @@ def verify(task: str, code: str, consequences: dict, emit: Callable) -> dict:
                     if glossary else "")},
                 {"role": "user", "content": json.dumps({"human_request": task, "plan_code": code,
                                                         "measured_consequences": compact_consequences(consequences)}, default=str)}]
+    shots = _screenshots(consequences)
+    if shots:  # browser double: let the (multimodal) verifier SEE what the agent did on screen
+        messages[-1] = {"role": "user", "content": [{"type": "text", "text": messages[-1]["content"]},
+                                                    {"type": "text", "text": "The agent worked in a browser. These are its last screens; check them against the request "
+                                                                             "and the measured row changes, and cite what you see."}, *shots]}
 
     def _query(sql: str):
         emit("verify", "Checking the outcome against your request", sql)

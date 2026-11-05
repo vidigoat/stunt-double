@@ -9,6 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ApprovalCard, viewFromAttempt } from "@/components/approval-card";
 import { CloudDiff, cloudChanged } from "@/components/cloud-diff";
+import { Filmstrip } from "@/components/filmstrip";
 import { BlastRadius } from "@/components/blast-radius";
 import { AppHeader } from "@/components/app-header";
 import { api, num, usd, type Business, type Flag, type Health, type Run, type Workspace } from "@/lib/api";
@@ -37,6 +38,18 @@ const BREAK_IT: { label: string; task: string; code: string }[] = [
         ctx.email.send(email, "We refunded your duplicate charge",
                        f"Hi {name.split()[0]},\\n\\nYou were charged twice for one order last week. "
                        f"We've refunded \${amount / 100:.2f}. Sorry about that!\\n\\nBean There Coffee Co.")
+` },
+  { label: "Cancel the duplicate subscription (in a browser)", task: "Cancel Nora Dubois's duplicate subscription #4411. Keep her original one.", code: `def run(ctx):
+    # The agent works in a real browser (a double of the admin site). It clicks the first "Cancel" it sees for Nora:
+    # that's #4141, her real subscription, not the duplicate #4411. No rule can tell; the vision check can.
+    ctx.browser.open("/subscriptions")
+    ctx.browser.search("Nora Dubois")
+    ctx.browser.click("Cancel")
+` },
+  { label: "✓ Cancel #4411 (in a browser)", task: "Cancel Nora Dubois's duplicate subscription #4411. Keep her original one.", code: `def run(ctx):
+    ctx.browser.open("/subscriptions")
+    ctx.browser.search("Nora Dubois")
+    ctx.browser.click("#cancel-4411")
 ` },
   { label: "Clean up idle Vultr servers", task: "Clean up our unused Vultr servers to cut the cloud bill.", code: `def run(ctx):
     # The obvious reading: anything idle by CPU is unused. Deletes the failover replica and the backup runner too.
@@ -384,15 +397,16 @@ export default function AppPage() {
           {!run ? (
             <div className="rounded-2xl border border-dashed bg-card/50 p-6 sm:p-8">
               <FlaskConical className="size-7 text-muted-foreground" />
-              <div className="mt-4 font-display text-3xl">Judge mode: five clicks</div>
+              <div className="mt-4 font-display text-3xl">Judge mode: six clicks</div>
               <p className="mt-1 max-w-md text-sm text-muted-foreground">Everything runs on a throwaway copy of Bean There Coffee Co., inside gVisor on a Vultr VM. Production only changes when you approve. Each click starts a real rehearsal.</p>
               <ol className="mt-6 space-y-3">
                 {[
                   { n: "1", t: "Break it", d: "A plan that deletes every customer. It hits only the double; approval locks.", preset: "Delete every customer", task: "Clean up the customer table" },
                   { n: "2", t: "Watch the AI catch what rules can't", d: "A plausible refund plan that passes every rule, but would send $37,404 to 744 people. The verifier on Vultr Inference reads the data and objects.", preset: "Obvious refund plan (rules miss it)" },
-                  { n: "3", t: "Clean up the cloud", d: "\"Delete idle Vultr servers\": the obvious plan would delete the failover database and the backup runner. The double of the fleet shows it; approval locks.", preset: "Clean up idle Vultr servers" },
-                  { n: "4", t: "Approve a good one, then undo it", d: "104 real refunds and apology emails after a drift check. Then rehearse the undo.", preset: "✓ A correct refund plan" },
-                  { n: "5", t: "Hand it to the agent", d: "The AI agent on Vultr Serverless Inference investigates, writes a plan and rehearses it.", agent: true },
+                  { n: "3", t: "Watch it work in a browser", d: "The agent cancels a subscription on the double of the admin site, in a real Chromium. Every screen is captured, and the AI vision check sees it cancelled the wrong one.", preset: "Cancel the duplicate subscription (in a browser)" },
+                  { n: "4", t: "Clean up the cloud", d: "\"Delete idle Vultr servers\": the obvious plan would delete the failover database and the backup runner. The double of the fleet shows it; approval locks.", preset: "Clean up idle Vultr servers" },
+                  { n: "5", t: "Approve a good one, then undo it", d: "104 real refunds and apology emails after a drift check. Then rehearse the undo.", preset: "✓ A correct refund plan" },
+                  { n: "6", t: "Hand it to the agent", d: "The AI agent on Vultr Serverless Inference investigates, writes a plan and rehearses it.", agent: true },
                 ].map((s) => (
                   <li key={s.n}>
                     <button disabled={busy || running} onClick={() => {
@@ -462,6 +476,9 @@ export default function AppPage() {
                 );
               })() : null}
 
+              {attempt && attempt.consequences.browser?.steps?.length ? (
+                <Filmstrip runId={run.id} attempt={attempt.n} steps={attempt.consequences.browser.steps} verdict={run.verdict?.headline} />
+              ) : null}
               <ApprovalCard view={view} label={run.status === "applied" ? "Applied" : run.status === "rejected" ? "Rejected" : run.status === "drifted" ? "Drift detected" : run.status === "failed" ? "Failed" : critical ? "Blocked by policy" : "Approval required"}
                 applied={run.status === "applied" && run.apply_result ? appliedSentence(run) : undefined}>
                 {run.status === "review" ? (

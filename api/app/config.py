@@ -23,6 +23,9 @@ SANDBOX_IMAGE = os.environ.get("SD_SANDBOX_IMAGE", "stunt-double-sandbox:latest"
 SANDBOX_RUNTIME = os.environ.get("SD_SANDBOX_RUNTIME", "")           # "runsc" for gVisor on the Vultr VM
 SANDBOX_MEMORY = os.environ.get("SD_SANDBOX_MEMORY", "256m")
 SANDBOX_TIMEOUT_S = int(os.environ.get("SD_SANDBOX_TIMEOUT", "60"))
+BROWSER_IMAGE = os.environ.get("SD_BROWSER_IMAGE", "stunt-double-browser:latest")  # plans that call ctx.browser
+BROWSER_MEMORY = os.environ.get("SD_BROWSER_MEMORY", "1g")
+BROWSER_TIMEOUT_S = int(os.environ.get("SD_BROWSER_TIMEOUT", "120"))
 # Host path that maps to RUNS_DIR (needed when the API itself runs in a container and talks to the host Docker daemon)
 RUNS_DIR_HOST = os.environ.get("SD_RUNS_DIR_HOST", str(RUNS_DIR))
 

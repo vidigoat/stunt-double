@@ -1,0 +1,9 @@
+# The browser rehearsal sandbox: the same harness plus a real Chromium (Playwright). Used only for plans that call ctx.browser.
+# It runs with the same guards as the normal sandbox (no network, read-only root, non-root, empty env) and more memory.
+FROM mcr.microsoft.com/playwright/python:v1.49.1-noble
+RUN pip install --no-cache-dir --break-system-packages playwright==1.49.1 \
+ && rm -rf /root/.cache
+COPY api/app/harness/runner.py /harness/runner.py
+USER 1001
+WORKDIR /work
+ENTRYPOINT ["/usr/bin/env", "-i", "PATH=/usr/local/bin:/usr/bin:/bin", "HOME=/tmp", "PLAYWRIGHT_BROWSERS_PATH=/ms-playwright", "SD_PLAN_MEM_MB=0", "python3", "-I", "-B", "/harness/runner.py"]

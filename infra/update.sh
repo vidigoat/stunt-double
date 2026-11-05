@@ -7,6 +7,7 @@ if [ "$(git rev-parse HEAD)" != "$(git rev-parse origin/main)" ]; then
   OLD=$(git rev-parse HEAD)
   git reset -q --hard origin/main
   docker build -q -t stunt-double-sandbox:latest -f sandbox/Dockerfile . >/dev/null
+  docker build -q -t stunt-double-browser:latest -f sandbox/Dockerfile.browser . >/dev/null || echo "browser sandbox build failed"
   cd infra && SITE_HOST=$(cat /opt/stunt-double/site_host) docker compose up -d --build
   # The Caddyfile is a single-file bind mount; git replaces the file, so only a restart picks up a change.
   if git -C /opt/stunt-double/src diff --name-only "$OLD" HEAD | grep -q '^infra/Caddyfile$'; then
