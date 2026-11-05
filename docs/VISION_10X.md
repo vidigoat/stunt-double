@@ -7,6 +7,21 @@ everything an AI agent touches**: databases, payments, email, SaaS APIs, web app
 > One line for the judges: *"Your agent is about to delete three servers, refund $37,404 and click 'Cancel' in a
 > browser. Watch it do all three — to the double."*
 
+## Status (Thu Nov 5, 12:00 IST)
+**Shipped and live on the Vultr server** (each with tests and checked on production):
+- ✅ **Browser double (Pattern B)**: a real Chromium in the sandbox (gVisor on the VM, 1 GB profile) drives a double of the admin
+  site; every step screenshotted; the verifier reads the screens (vision). Live: 3 screens in 5.9 s; caught 2/2 by the AI alone.
+- ✅ **Cloud double**: `ctx.vultr` over a double of the fleet; deleted/stopped/resized servers and the $/month change measured
+  in phase 2; production servers protected; deleted servers irreversible in undo; cloud receipt with server cards.
+- ✅ **Catch → rule**: the verifier proposes the SQL check it used; only rules that pass today's data are offered; promoted rules
+  run in phase 2 of every rehearsal, and a violation decides instantly without AI. Live: learned, then blocked the same plan.
+- ✅ **Mission control** (`/control`): every rehearsal, request → double on Vultr → decision, live.
+- ✅ Landing: doubles showcase, dark "works with any agent" tabs, two-column FAQ, gradient close, big footer; EB Garamond + Figtree.
+- ✅ Evals on the live server: 48/48 bad plans caught, 0/26 false alarms (all six traps).
+
+**Next** (in order): AI jury (3 models) · dedicated throwaway Vultr VMs (needs an API key on the server: decide) ·
+graduated autonomy · signed evidence · GitHub sign-in · TS SDK. Demo script for the 1-minute video: `docs/DEMO_1MIN.md`.
+
 ## 0. Feasibility, proven this morning (Thu 10:25–10:30 IST)
 | Question | Result |
 |---|---|
