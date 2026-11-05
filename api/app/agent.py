@@ -24,6 +24,10 @@ CTX_DOC = """Your plan is a Python module that defines `def run(ctx):`.
 - ctx.email.send(to: str, subject: str, body: str, kind: str = None): email a customer, kind is "transactional" or "marketing".
   Write the real final text (no template placeholders).
 - ctx.http.post(url, json=...) / .patch / .put / .delete: call an external API through a connector (see the list below).
+- ctx.vultr.list_instances(tag=None) -> [{id, label, plan, region, vcpu, ram, monthly_cost_cents, tags, status, cpu_avg_7d, requests_7d, purpose}]
+  ctx.vultr.delete_instance(id) / .halt_instance(id) / .resize_instance(id, plan): manage the company's Vultr servers
+  (the same fleet is in the `servers` table). Never touch servers tagged 'production'. Low CPU alone does not mean unused:
+  read `purpose` and `tags`.
   Never put credentials in a plan: the server adds them after a human approves.
 - ctx.log(*values): leave a note for the reviewer.
 Standard library only. There is no network access."""
@@ -130,6 +134,10 @@ def compact_consequences(c: dict) -> dict:
         "emails": {"count": c["emails"]["count"], "samples": c["emails"]["samples"][:5]},
         "blocked_side_effects": c.get("blocked", []),
         "plan_log": c.get("logs", [])[-20:], "stdout_tail": (c.get("stdout") or "")[-800:],
+        **({"vultr_fleet_changes": {k: (c["cloud"].get(k) if k not in ("deleted", "stopped", "resized") else
+                                        [{f: x.get(f) for f in ("label", "tags", "purpose", "cpu_avg_7d", "requests_7d", "monthly_cost_cents")} for x in c["cloud"].get(k, [])])
+                                    for k in ("deleted", "stopped", "resized", "monthly_savings_cents", "production_touched", "servers_before", "servers_after")}}
+           if (c.get("cloud") or {}).get("servers_before") and (c["cloud"].get("deleted") or c["cloud"].get("stopped") or c["cloud"].get("resized")) else {}),
     }
 
 
@@ -341,7 +349,7 @@ def red_flags(c: dict, pol: dict | None = None) -> list[dict]:
                  f"Columns: {', '.join(v.get('changed_columns', [])[:5])}. Policy allows {p['max_update_pct_protected']}%.")
         if v["deleted"] and t in p["protected_tables"]:
             flag("protected_tables", True, f"Deletes {v['deleted']:,} rows from protected table '{t}'", f"'{t}' is protected by policy.")
-        if v["deleted"] and v["rows_before"] and v["deleted"] / v["rows_before"] * 100 > p["max_delete_pct"]:
+        if v["deleted"] and v["rows_before"] and t != "servers" and v["deleted"] / v["rows_before"] * 100 > p["max_delete_pct"]:  # servers: cloud rules below
             flag("max_delete_pct", True, f"Deletes {v['deleted']:,} of {v['rows_before']:,} {t}",
                  f"{v['deleted'] / v['rows_before']:.0%} of the table; policy allows {p['max_delete_pct']}%.")
     for b in c.get("blocked", []):
@@ -408,6 +416,13 @@ def red_flags(c: dict, pol: dict | None = None) -> list[dict]:
     if h.get("unsafe_path_count"):
         flag("connectors_only", True, f"{h['unsafe_path_count']} API calls use a path that escapes the connector",
              f"e.g. {h['unsafe_paths'][0]['url']}: '..' segments aren't allowed.")
+    cl = c.get("cloud") or {}
+    if cl.get("production_touched") and p.get("protect_production_servers", True):
+        names = ", ".join(cl["production_touched"][:4])
+        flag("protect_production_servers", True, f"Deletes or changes {len(cl['production_touched'])} production server{'s' if len(cl['production_touched']) != 1 else ''}",
+             f"{names}. Servers tagged 'production' are never removed or stopped by an agent.")
+    if cl.get("deleted") and len(cl["deleted"]) > p.get("max_servers_deleted", 5):
+        flag("max_servers_deleted", False, f"Deletes {len(cl['deleted'])} servers", f"Above the {p.get('max_servers_deleted', 5)}-server review threshold.", "high")
     n_http = (c.get("http") or {}).get("count", 0)
     if n_http > p["max_http_per_run"]:
         flag("max_http_per_run", False, f"Makes {n_http:,} API calls", f"Above the {p['max_http_per_run']:,}-call review threshold.", "medium")

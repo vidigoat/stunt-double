@@ -332,7 +332,7 @@ def business(ws: str = workspaces.DEMO):
         return {"name": d["name"], "workspace": ws, "tables": d["tables"], "counts": d["tables"],
                 "refunded": {"count": 0, "total_cents": 0}, "recent_tickets": [], "beanpay": {k: v for k, v in beanpay.ledger(0).items() if k != "refunds"}}
     db = sqlite3.connect(f"file:{config.PROD_DB}?mode=ro", uri=True)
-    counts = {t: db.execute(f"SELECT COUNT(*) FROM {t}").fetchone()[0] for t in ("customers", "orders", "charges", "tickets")}
+    counts = {t: db.execute(f"SELECT COUNT(*) FROM {t}").fetchone()[0] for t in ("customers", "orders", "charges", "tickets", "servers")}
     refunded = db.execute("SELECT COUNT(*), COALESCE(SUM(amount_cents),0) FROM charges WHERE status='refunded'").fetchone()
     tickets = db.execute("SELECT t.id, c.name, t.subject, t.created_at FROM tickets t JOIN customers c ON c.id=t.customer_id "
                          "ORDER BY t.created_at DESC LIMIT 8").fetchall()
@@ -778,10 +778,11 @@ def rollback_run(rid: str, req: Request):
     run = _new_run(f"Undo: {src['task']}", "rollback", ws)
     flags = agent.red_flags(c)
     irr = c["irreversible"]
-    if irr["refunds"] or irr["emails"] or irr["http"]:
+    if irr["refunds"] or irr["emails"] or irr["http"] or irr.get("servers_deleted"):
         flags.append({"rule": "irreversible", "severity": "medium", "title": "Some effects can't be undone",
-                      "detail": f"{irr['refunds']} refunds (${irr['refund_total_cents'] / 100:,.2f}), {irr['emails']} emails and {irr['http']} API calls "
-                                "already happened. Only the data changes are rolled back."})
+                      "detail": f"{irr['refunds']} refunds (${irr['refund_total_cents'] / 100:,.2f}), {irr['emails']} emails, {irr['http']} API calls"
+                                + (f" and {irr['servers_deleted']} deleted servers" if irr.get("servers_deleted") else "")
+                                + " already happened. Only the data changes are rolled back."})
     code = f"# Rollback of {rid}: the inverse of its approved effects ({att.get('effects_sha256', '')[:12]})\n"
     with LOCK:
         run["rollback_of"] = rid

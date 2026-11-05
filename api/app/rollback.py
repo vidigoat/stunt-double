@@ -16,7 +16,8 @@ def inverse(effects: dict) -> dict:
             "dropped": False, "created": False,
             "updated": [{"rowid": u["rowid"], "before": u["after"], "after": u["before"], "changed": u["changed"]} for u in d.get("updated", [])],
             "deleted": [{"rowid": i["rowid"], "before": i["after"]} for i in d.get("inserted", [])],
-            "inserted": [{"rowid": x["rowid"], "after": x["before"]} for x in d.get("deleted", [])],
+            # A deleted cloud server can't be brought back: its row is not re-created (it's listed as irreversible).
+            "inserted": [] if table == "servers" else [{"rowid": x["rowid"], "after": x["before"]} for x in d.get("deleted", [])],
         }
     return {"changes": changes, "payments": [], "emails": [], "http": []}
 
@@ -36,7 +37,8 @@ def consequences(inv: dict, source: dict, rows_now: dict[str, int], rid: str) ->
         "payments": {"count": 0, "total_cents": 0, "samples": []}, "emails": {"count": 0, "samples": []}, "http": {"count": 0, "samples": []},
         "blocked": [], "guards": {}, "audit": {},
         "irreversible": {"refunds": len(source.get("payments", [])), "refund_total_cents": sum(p["amount_cents"] for p in source.get("payments", [])),
-                         "emails": len(source.get("emails", [])), "http": len(source.get("http", []))},
+                         "emails": len(source.get("emails", [])), "http": len(source.get("http", [])),
+                         "servers_deleted": len(source.get("changes", {}).get("servers", {}).get("deleted", []))},
         "measured_by": "inverse-of-approved-effects",
         "sandbox": {"id": rid, "runtime": "none (derived)", "network": "none", "memory": "-", "timeout_s": 0, "read_only_root": True,
                     "exit_code": 0, "killed": None, "run_ms": 0, "wall_ms": 0, "destroyed": True},

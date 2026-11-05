@@ -40,6 +40,7 @@ BLOCKED: list[dict] = []
 PAYMENTS: list[dict] = []
 EMAILS: list[dict] = []
 HTTP: list[dict] = []
+CLOUD: list[dict] = []
 LOGS: list[str] = []
 SECRET_HEADERS = {"authorization", "cookie", "x-api-key", "api-key", "x-auth-token", "proxy-authorization"}
 
@@ -87,12 +88,63 @@ class Http:
         return self.request("DELETE", url, None, headers)
 
 
+VULTR_PLANS = {  # plan -> (vcpu, ram MB, $/month cents): real Vultr Cloud Compute prices
+    "vc2-1c-0.5gb": (1, 512, 350), "vc2-1c-1gb": (1, 1024, 500), "vc2-1c-2gb": (1, 2048, 1000), "vc2-2c-2gb": (2, 2048, 1500),
+    "vc2-2c-4gb": (2, 4096, 2000), "vc2-4c-8gb": (4, 8192, 4000), "vc2-6c-16gb": (6, 16384, 8000),
+}
+
+
+class Vultr:
+    """A double of the Vultr API over the business's fleet (the `servers` table of the clone). Calls change the double;
+    phase 2 measures exactly which servers would be deleted, stopped or resized, and what it does to the monthly bill."""
+    def __init__(self, db: sqlite3.Connection):
+        self._db = db
+
+    def _row(self, r) -> dict:  # noqa: ANN001
+        keys = ["id", "label", "plan", "region", "vcpu", "ram", "monthly_cost_cents", "tags", "status", "cpu_avg_7d", "requests_7d", "purpose", "date_created"]
+        d = dict(zip(keys, r, strict=False))
+        d["tags"] = [t for t in str(d["tags"]).split(",") if t]
+        return d
+
+    def list_instances(self, tag: str | None = None) -> list[dict]:
+        rows = self._db.execute("SELECT instance_id,label,plan,region,vcpu,ram_mb,monthly_cost_cents,tags,status,cpu_avg_7d,requests_7d,purpose,created_at "
+                                "FROM servers ORDER BY id").fetchall()
+        out = [self._row(r) for r in rows]
+        return [i for i in out if tag in i["tags"]] if tag else out
+
+    def get_instance(self, instance_id: str) -> dict | None:
+        return next((i for i in self.list_instances() if i["id"] == instance_id or i["label"] == instance_id), None)
+
+    def _call(self, method: str, path: str, body: dict | None = None) -> None:
+        CLOUD.append({"method": method, "path": path[:200], "body": body})
+
+    def delete_instance(self, instance_id: str) -> dict:
+        self._db.execute("DELETE FROM servers WHERE instance_id = ? OR label = ?", (str(instance_id), str(instance_id)))
+        self._call("DELETE", f"/v2/instances/{instance_id}")
+        return {"status": "recorded"}
+
+    def halt_instance(self, instance_id: str) -> dict:
+        self._db.execute("UPDATE servers SET status = 'stopped' WHERE instance_id = ? OR label = ?", (str(instance_id), str(instance_id)))
+        self._call("POST", f"/v2/instances/{instance_id}/halt")
+        return {"status": "recorded"}
+
+    def resize_instance(self, instance_id: str, plan: str) -> dict:
+        if plan not in VULTR_PLANS:
+            raise ValueError(f"unknown plan {plan!r}; known: {', '.join(VULTR_PLANS)}")
+        vcpu, ram, cost = VULTR_PLANS[plan]
+        self._db.execute("UPDATE servers SET plan = ?, vcpu = ?, ram_mb = ?, monthly_cost_cents = ? WHERE instance_id = ? OR label = ?",
+                         (plan, vcpu, ram, cost, str(instance_id), str(instance_id)))
+        self._call("PATCH", f"/v2/instances/{instance_id}", {"plan": plan})
+        return {"status": "recorded"}
+
+
 class Ctx:
     def __init__(self, db: sqlite3.Connection):
         self.db = db
         self.payments = Payments()
         self.email = Email()
         self.http = Http()
+        self.vultr = Vultr(db)
 
     def log(self, *parts) -> None:  # noqa: ANN002
         LOGS.append(" ".join(str(p) for p in parts)[:500])
@@ -135,7 +187,7 @@ def phase_run() -> None:
     with contextlib.suppress(Exception):
         db.close()
     intents = {"ok": error is None, "error": error, "stdout": stdout.getvalue()[-4000:], "logs": LOGS[-100:],
-               "payments": PAYMENTS[:MAX_INTENTS], "emails": EMAILS[:MAX_INTENTS], "http": HTTP[:MAX_INTENTS], "blocked": BLOCKED[:50], "guards": guards,
+               "payments": PAYMENTS[:MAX_INTENTS], "emails": EMAILS[:MAX_INTENTS], "http": HTTP[:MAX_INTENTS], "cloud": CLOUD[:MAX_INTENTS], "blocked": BLOCKED[:50], "guards": guards,
                "duration_ms": int((time.time() - started) * 1000)}
     with open("/work/out/intents.json", "w") as f:
         json.dump(intents, f, default=str)
@@ -218,8 +270,10 @@ def validate_intents(raw: dict) -> dict:
                       "host": (parsed.hostname or "").lower(), "scheme": parsed.scheme, "path": path[:2000],
                       "json": json.loads(body) if len(body) <= 65536 else {"_truncated": True}, "body_bytes": len(body), "headers": hdrs,
                       **({"oversized": True} if len(body) > 65536 or len(url) > 2000 else {})})
+    cloud = [{"method": str(c.get("method", ""))[:10], "path": str(c.get("path", ""))[:200]}
+             for c in (raw.get("cloud") or [])[:MAX_INTENTS] if isinstance(c, dict)]
     err = raw.get("error")
-    return {"ok": bool(raw.get("ok")) and err is None, "error": err if isinstance(err, dict) else ({"message": str(err)[:2000]} if err else None),
+    return {"cloud_calls": cloud, "ok": bool(raw.get("ok")) and err is None, "error": err if isinstance(err, dict) else ({"message": str(err)[:2000]} if err else None),
             "stdout": str(raw.get("stdout", ""))[-4000:], "logs": [str(x)[:500] for x in (raw.get("logs") or [])[:100]],
             "payments": pays, "emails": mails, "http": calls,
             "blocked": [{"kind": str(b.get("kind", ""))[:20], "target": str(b.get("target", ""))[:200]} for b in (raw.get("blocked") or [])[:50] if isinstance(b, dict)],
@@ -274,6 +328,32 @@ def audit_http(before: dict, calls: list) -> dict:
             "bulk_personal_data": bulk[:5], "bulk_personal_data_count": len(bulk),
             "card_numbers": cards[:5], "card_number_count": len(cards), "customers_in_payloads": len(leaked),
             "oversized": oversized[:5], "oversized_count": len(oversized), "unsafe_paths": unsafe[:5], "unsafe_path_count": len(unsafe)}
+
+
+def audit_cloud(before: dict, after: dict) -> dict:
+    """What the plan does to the fleet, measured from the servers table before/after (the plan's own call log is not trusted)."""
+    b = {r.get("instance_id"): r for r in before.get("servers", {}).get("rows", {}).values()}
+    a = {r.get("instance_id"): r for r in after.get("servers", {}).get("rows", {}).values()}
+    if not b:
+        return {}
+
+    def card(r: dict) -> dict:
+        tags = [t for t in str(r.get("tags", "")).split(",") if t]
+        return {"id": r.get("instance_id"), "label": r.get("label"), "plan": r.get("plan"), "region": r.get("region"),
+                "monthly_cost_cents": int(r.get("monthly_cost_cents") or 0), "tags": tags, "production": "production" in tags,
+                "cpu_avg_7d": r.get("cpu_avg_7d"), "requests_7d": r.get("requests_7d"), "purpose": r.get("purpose"), "status": r.get("status")}
+    deleted = [card(r) for k, r in b.items() if k not in a]
+    stopped = [card(a[k]) for k in b if k in a and b[k].get("status") != "stopped" and a[k].get("status") == "stopped"]
+    resized = [{**card(a[k]), "from_plan": b[k].get("plan"), "from_cost_cents": int(b[k].get("monthly_cost_cents") or 0)}
+               for k in b if k in a and b[k].get("plan") != a[k].get("plan")]
+    before_cost = sum(int(r.get("monthly_cost_cents") or 0) for r in b.values())
+    after_cost = sum(int(r.get("monthly_cost_cents") or 0) for r in a.values())  # Vultr bills stopped instances too
+    touched = deleted + stopped + [{k: v for k, v in r.items() if k not in ("from_plan", "from_cost_cents")} for r in resized]
+    return {"servers_before": len(b), "servers_after": len(a), "deleted": deleted, "stopped": stopped, "resized": resized,
+            "monthly_cost_before_cents": before_cost, "monthly_cost_after_cents": after_cost,
+            "monthly_savings_cents": before_cost - after_cost,
+            "production_touched": [c["label"] for c in touched if c["production"]],
+            "fleet": [card(r) for r in b.values()]}
 
 
 def audit(before: dict, payments: list, emails: list) -> dict:
@@ -360,6 +440,7 @@ def phase_measure() -> None:
         "emails": {"count": len(mails), "samples": mails[:25]},
         "blocked": intents["blocked"], "guards": intents["guards"], "audit": {**audit(before, pays, mails), "http": audit_http(before, calls)}, "measured_by": "trusted-phase-2",
         "http": {"count": len(calls), "samples": calls[:25]},
+        "cloud": {**audit_cloud(before, after), "calls": intents.get("cloud_calls", [])[:50]},
     }
     with open("/out/consequences.json", "w") as f:
         json.dump(consequences, f, default=str)

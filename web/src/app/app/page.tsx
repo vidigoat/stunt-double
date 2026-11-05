@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ApprovalCard, viewFromAttempt } from "@/components/approval-card";
+import { CloudDiff, cloudChanged } from "@/components/cloud-diff";
 import { BlastRadius } from "@/components/blast-radius";
 import { AppHeader } from "@/components/app-header";
 import { api, num, usd, type Business, type Flag, type Health, type Run, type Workspace } from "@/lib/api";
@@ -17,6 +18,7 @@ const EXAMPLES = [
   "Refund everyone who was double-charged last week and send them an apology email.",
   "Go through last week's support tickets and take care of what customers asked for.",
   "Email our VIP customers a thank-you note with the code BEANS10 for 10% off.",
+  "Clean up our unused Vultr servers to cut the cloud bill.",
 ];
 
 const BREAK_IT: { label: string; task: string; code: string }[] = [
@@ -35,6 +37,18 @@ const BREAK_IT: { label: string; task: string; code: string }[] = [
         ctx.email.send(email, "We refunded your duplicate charge",
                        f"Hi {name.split()[0]},\\n\\nYou were charged twice for one order last week. "
                        f"We've refunded \${amount / 100:.2f}. Sorry about that!\\n\\nBean There Coffee Co.")
+` },
+  { label: "Clean up idle Vultr servers", task: "Clean up our unused Vultr servers to cut the cloud bill.", code: `def run(ctx):
+    # The obvious reading: anything idle by CPU is unused. Deletes the failover replica and the backup runner too.
+    for s in ctx.vultr.list_instances():
+        if s["cpu_avg_7d"] < 2:
+            ctx.vultr.delete_instance(s["id"])
+` },
+  { label: "✓ Clean up idle servers (safe)", task: "Clean up our unused Vultr servers to cut the cloud bill.", code: `def run(ctx):
+    # Idle AND not production: low CPU alone doesn't mean unused (failover, backups).
+    for s in ctx.vultr.list_instances():
+        if s["cpu_avg_7d"] < 2 and "production" not in s["tags"]:
+            ctx.vultr.delete_instance(s["id"])
 ` },
   { label: "Obvious refund plan (rules miss it)", task: "Refund everyone who was double-charged last week and send them an apology email.", code: `def run(ctx):
     # The obvious reading: same customer, same amount, same day = double charge. Passes every rule.
@@ -261,8 +275,8 @@ export default function AppPage() {
               </select>
               <span className="font-mono text-[11px] uppercase tracking-wider text-muted-foreground">production</span>
             </div>
-            <div className="mt-4 grid grid-cols-4 gap-2 font-mono text-sm">
-              {Object.entries(biz?.tables ?? (biz ? { customers: biz.counts.customers, orders: biz.counts.orders, charges: biz.counts.charges, tickets: biz.counts.tickets } : {})).slice(0, 4).map(([k, v]) => (
+            <div className="mt-4 grid grid-cols-5 gap-2 font-mono text-sm">
+              {Object.entries(biz?.tables ?? (biz ? { customers: biz.counts.customers, orders: biz.counts.orders, charges: biz.counts.charges, tickets: biz.counts.tickets, servers: biz.counts.servers } : {})).slice(0, 5).map(([k, v]) => (
                 <div key={k} className="min-w-0">
                   <div className={cn("truncate text-lg tabular", containment && containment.table === k && "text-foreground")}>{num(v ?? 0)}</div>
                   <div className="truncate text-[11px] text-muted-foreground">{k}</div>
@@ -370,14 +384,15 @@ export default function AppPage() {
           {!run ? (
             <div className="rounded-2xl border border-dashed bg-card/50 p-6 sm:p-8">
               <FlaskConical className="size-7 text-muted-foreground" />
-              <div className="mt-4 font-display text-3xl">Judge mode: four clicks, two minutes</div>
+              <div className="mt-4 font-display text-3xl">Judge mode: five clicks</div>
               <p className="mt-1 max-w-md text-sm text-muted-foreground">Everything runs on a throwaway copy of Bean There Coffee Co., inside gVisor on a Vultr VM. Production only changes when you approve. Each click starts a real rehearsal.</p>
               <ol className="mt-6 space-y-3">
                 {[
                   { n: "1", t: "Break it", d: "A plan that deletes every customer. It hits only the double; approval locks.", preset: "Delete every customer", task: "Clean up the customer table" },
                   { n: "2", t: "Watch the AI catch what rules can't", d: "A plausible refund plan that passes every rule, but would send $37,404 to 744 people. The verifier on Vultr Inference reads the data and objects.", preset: "Obvious refund plan (rules miss it)" },
-                  { n: "3", t: "Approve a good one, then undo it", d: "104 real refunds and apology emails after a drift check. Then rehearse the undo.", preset: "✓ A correct refund plan" },
-                  { n: "4", t: "Hand it to the agent", d: "The AI agent on Vultr Serverless Inference investigates, writes a plan and rehearses it.", agent: true },
+                  { n: "3", t: "Clean up the cloud", d: "\"Delete idle Vultr servers\": the obvious plan would delete the failover database and the backup runner. The double of the fleet shows it; approval locks.", preset: "Clean up idle Vultr servers" },
+                  { n: "4", t: "Approve a good one, then undo it", d: "104 real refunds and apology emails after a drift check. Then rehearse the undo.", preset: "✓ A correct refund plan" },
+                  { n: "5", t: "Hand it to the agent", d: "The AI agent on Vultr Serverless Inference investigates, writes a plan and rehearses it.", agent: true },
                 ].map((s) => (
                   <li key={s.n}>
                     <button disabled={busy || running} onClick={() => {
@@ -501,6 +516,7 @@ export default function AppPage() {
                 </div>
               ) : null}
 
+              {attempt && cloudChanged(attempt.consequences.cloud) ? <CloudDiff cl={attempt.consequences.cloud} /> : null}
               {attempt ? <BlastRadius c={attempt.consequences} /> : null}
               {attempt ? <Details attempt={attempt} events={run.events} runId={run.id} /> : null}
             </>

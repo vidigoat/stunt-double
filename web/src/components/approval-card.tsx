@@ -10,6 +10,8 @@ export type ApprovalView = {
   task: string;
   checking?: boolean;   // the AI verifier is still investigating: no verdict yet, and none implied
   moneyCents: number;
+  cloudSavingsCents?: number;   // Vultr bill change per month (positive = cheaper)
+  serversDeleted?: number;
   refunds: number;
   emails: number;
   rowsChanged: number;
@@ -29,7 +31,16 @@ export function plainEnglish(c: Attempt["consequences"]): string {
   if (c.payments.count) parts.push(`refunds ${(c.payments.total_cents / 100).toLocaleString("en-US", { style: "currency", currency: "USD" })} across ${num(c.payments.count)} charges`);
   const vip = c.audit?.emails?.vip_count ?? 0;
   if (c.emails.count) parts.push(`emails ${num(c.emails.count)} ${c.emails.count === 1 ? "person" : "people"}${vip ? ` (${num(vip)} VIP${vip === 1 ? "" : "s"})` : ""}`);
+  const cl = c.cloud;
+  if (cl && cl.servers_before && cl.deleted.length + cl.stopped.length + cl.resized.length) {
+    const names = cl.deleted.map((x) => x.label);
+    if (cl.deleted.length) parts.push(`deletes ${num(cl.deleted.length)} Vultr server${cl.deleted.length === 1 ? "" : "s"} (${names.slice(0, 3).join(", ")}${names.length > 3 ? ", …" : ""})`);
+    if (cl.stopped.length) parts.push(`stops ${num(cl.stopped.length)} server${cl.stopped.length === 1 ? "" : "s"}`);
+    if (cl.resized.length) parts.push(`resizes ${num(cl.resized.length)} server${cl.resized.length === 1 ? "" : "s"}`);
+    if (cl.monthly_savings_cents) parts.push(`${cl.monthly_savings_cents > 0 ? "cuts" : "raises"} the Vultr bill by ${(Math.abs(cl.monthly_savings_cents) / 100).toLocaleString("en-US", { style: "currency", currency: "USD" })}/month`);
+  }
   for (const [t, d] of Object.entries(c.tables)) {
+    if (t === "servers" && cl?.servers_before) continue;
     if (d.dropped) parts.push(`drops the entire ${t} table (${num(d.rows_before)} rows)`);
     else {
       const rows = (n: number) => (n === 1 ? `1 row in ${t}` : `${num(n)} ${t}`);
@@ -52,7 +63,10 @@ export function viewFromAttempt(task: string, a: Attempt, verdict: Verdict | nul
   const rows = tables.reduce((s, [, t]) => s + t.deleted + t.updated + t.inserted, 0);
   const big = tables.sort((x, y) => (y[1].deleted + y[1].updated + y[1].inserted) - (x[1].deleted + x[1].updated + x[1].inserted))[0];
   const biggest = big ? `${big[0]}: ${[big[1].deleted && `${num(big[1].deleted)} deleted`, big[1].updated && `${num(big[1].updated)} updated`, big[1].inserted && `${num(big[1].inserted)} added`].filter(Boolean).join(", ")}` : undefined;
-  return { task, moneyCents: c.payments.total_cents, refunds: c.payments.count, emails: c.emails.count, rowsChanged: rows, biggestChange: biggest,
+  const cl = c.cloud;
+  const cloud = cl && cl.servers_before && (cl.deleted.length + cl.stopped.length + cl.resized.length) ? cl : null;
+  return { task, moneyCents: c.payments.total_cents, refunds: c.payments.count,
+    ...(cloud ? { cloudSavingsCents: cloud.monthly_savings_cents, serversDeleted: cloud.deleted.length } : {}), emails: c.emails.count, rowsChanged: rows, biggestChange: biggest,
     verdict, flags, sandboxId: c.sandbox?.id, sandboxMs: c.sandbox?.wall_ms, runtime: c.sandbox?.runtime, plain: plainEnglish(c) };
 }
 
@@ -91,7 +105,9 @@ export function ApprovalCard({ view, children, className, label = "Approval requ
           {applied ? <p className="text-[15px] leading-snug">{applied}</p> : view.plain ? <p className="text-[15px] leading-snug">{view.plain}</p> : null}
         </div>
         <div className="grid grid-cols-2 gap-2.5 md:grid-cols-4">
-          <Stat label="Money out" value={<CountUp value={view.moneyCents} format="usd" />} hot={hot && view.moneyCents > 0} sub={`${num(view.refunds)} refunds`} />
+          {view.cloudSavingsCents !== undefined && !view.refunds
+            ? <Stat label="Vultr bill" value={<>{view.cloudSavingsCents >= 0 ? "−" : "+"}<CountUp value={Math.abs(view.cloudSavingsCents)} format="usd" /></>} sub={`per month · ${num(view.serversDeleted ?? 0)} servers deleted`} />
+            : <Stat label="Money out" value={<CountUp value={view.moneyCents} format="usd" />} hot={hot && view.moneyCents > 0} sub={`${num(view.refunds)} refunds`} />}
           <Stat label="Emails" value={<CountUp value={view.emails} />} sub={applied ? "approved" : "would be sent"} />
           <Stat label="Rows changed" value={<CountUp value={view.rowsChanged} />} hot={t === "danger" && view.rowsChanged > 0} sub={view.biggestChange} />
           {view.checking && !hot ? <Stat label="Verdict" value="Checking…" small sub="AI verifier at work" />
