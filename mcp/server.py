@@ -1,7 +1,7 @@
 """Stunt Double MCP server: let ANY agent (Claude Code, Cursor, custom) rehearse before it acts.
 
 Tools
-  describe_business()          tables + the plan API, so the agent can write a plan
+  describe_business()          tables + the plan API (ctx.db, payments, email, http, browser, vultr), so the agent can write a plan
   rehearse(task, plan_code)    run the plan on a throwaway copy in an isolated sandbox; returns the consequences,
                                policy flags and verdict, plus a link where a HUMAN approves
   get_run_status(run_id)       has a human approved / rejected it yet? what was applied?
@@ -76,6 +76,11 @@ def _summarise(run: dict) -> dict:
         "api_calls": (c.get("http") or {}).get("count", 0),
         "approvals_required": (att or {}).get("approvals_required", 1),
         "irreversible": c.get("irreversible"),
+        "vultr_fleet": ({k: (c["cloud"].get(k) if k not in ("deleted", "stopped", "resized") else [x.get("label") for x in c["cloud"].get(k, [])])
+                         for k in ("deleted", "stopped", "resized", "monthly_savings_cents", "production_touched")}
+                        if (c.get("cloud") or {}).get("servers_before") else None),
+        "browser_steps": [f"{b['n']}. {b['action']} {b['target']}" for b in (c.get("browser") or {}).get("steps", [])] or None,
+        "learned_rules_broken": [r["title"] for r in c.get("rules", []) if r.get("violations")] or None,
         "plan_sha256": (att or {}).get("plan_sha256"),
         "sandbox": c.get("sandbox"),
         "approval": run.get("approval"),
