@@ -99,6 +99,11 @@ The bad refund plan selects 744 charges; the correct plan selects 104. **All 104
 and the other 640 are exactly the wrong ones.** So surgical approval of the bad plan yields precisely the correct
 outcome: 104 refunds, $5,136, 104 emails. The demo moment is real, not staged.
 
+**Why it's needed (tested on today's system):** a plan that opens its own second connection, renames a customer and
+logs "Read-only check: nothing changed" is already caught by the measurement (1 row changed), but nothing says *how*
+it got around the declared channel. With Proof of Effect that same run reads **"1 change the plan can't explain"**,
+and approval locks.
+
 **Prototype of Proof of Effect (passed):** SQLite's trace hook records each statement with its bound values expanded;
 replaying the log on a fresh copy with the same frozen clock reproduced the measured result exactly; and a write made
 after the plan switched the trace off showed up as an unexplained row. The mechanism works before we build it.
