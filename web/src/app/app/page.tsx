@@ -15,6 +15,12 @@ import { AppHeader } from "@/components/app-header";
 import { api, num, usd, type Business, type Flag, type Health, type Run, type Workspace } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
+const SAAS_PLANS = [
+  { label: "Deactivate accounts inactive for 90 days", task: "Deactivate accounts nobody has used in 90 days", code: `def run(ctx):\n    ctx.db.execute("UPDATE accounts SET active = 0 WHERE last_seen_at < '2026-08-01'")\n` },
+  { label: "✓ Upgrade big free accounts to Pro", task: "Move free accounts with 25+ seats to Pro", code: `def run(ctx):\n    ctx.db.execute("UPDATE accounts SET plan = 'pro', mrr = 49 WHERE plan = 'free' AND seats >= 25")\n` },
+  { label: "Delete unpaid invoices", task: "Clean up unpaid invoices", code: `def run(ctx):\n    ctx.db.execute("DELETE FROM invoices WHERE status = 'unpaid'")\n` },
+];
+
 const FLEET_PLANS = [
   { label: "Delete every server", task: "Clean up our Vultr account", code: `def run(ctx):\n    for s in ctx.vultr.list_instances():\n        ctx.vultr.delete_instance(s["id"])\n` },
   { label: "Stop everything not tagged production", task: "Stop servers we don't need tonight", code: `def run(ctx):\n    for s in ctx.vultr.list_instances():\n        if "production" not in s["tags"]:\n            ctx.vultr.halt_instance(s["id"])\n` },
@@ -356,6 +362,16 @@ export default function AppPage() {
                   <Button type="submit" className="h-9 rounded-lg px-3" disabled={uploading || pgUrl.length < 12}>{uploading ? "Reading…" : "Import"}</Button>
                 </div>
                 <p className="text-xs leading-relaxed text-muted-foreground">One read-only copy of the public schema (up to 50,000 rows a table), then the connection string is discarded. Nothing is ever written to your database: approved changes download as drift-guarded SQL for your own pipeline. Use a read-only user.</p>
+                {health?.sample_postgres ? (
+                  <Button type="button" variant="outline" className="h-8 w-full rounded-lg text-xs" disabled={uploading} onClick={async () => {
+                    setUploading(true);
+                    try {
+                      const w = await api.importSamplePostgres();
+                      setPgOpen(false); setSpaces((cur) => [...cur, w]); setWs(w.id); setRun(null); setMode("break");
+                      toast.success(`${w.name}: ${w.description}.`);
+                    } catch (err) { toast.error((err as Error).message); } finally { setUploading(false); }
+                  }}>No Postgres handy? Import our sample SaaS database (accounts, plans, invoices)</Button>
+                ) : null}
               </form>
             ) : null}
             {vultrOpen ? (
@@ -403,6 +419,9 @@ export default function AppPage() {
               <TabsContent value="break" className="space-y-3 pt-3">
                 <p className="text-sm text-muted-foreground">Paste any plan, even a malicious one. It only ever runs on the double. Or try a correct one and approve it.</p>
                 <div className="flex flex-wrap gap-1.5">
+                  {spaces.find((w) => w.id === ws)?.kind === "postgres" && biz?.tables && "accounts" in biz.tables ? SAAS_PLANS.map((b) => (
+                    <button key={b.label} onClick={() => { setCode(b.code); setBreakTask(b.task); }} className={cn("rounded-full border px-2.5 py-1 text-xs text-muted-foreground hover:text-foreground", code === b.code && "border-foreground text-foreground")}>{b.label}</button>
+                  )) : null}
                   {spaces.find((w) => w.id === ws)?.kind === "vultr" ? FLEET_PLANS.map((b) => (
                     <button key={b.label} onClick={() => { setCode(b.code); setBreakTask(b.task); }} className={cn("rounded-full border px-2.5 py-1 text-xs text-muted-foreground hover:text-foreground", code === b.code && "border-foreground text-foreground")}>{b.label}</button>
                   )) : ws !== "demo" && biz?.tables ? (() => {

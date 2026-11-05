@@ -429,7 +429,7 @@ def health():
             "agent_runs_daily_limit": config.DAILY_AGENT_RUNS,
             "ai_checks_today": VERIFY_DAY["count"] if VERIFY_DAY["day"] == time.strftime("%Y-%m-%d", time.gmtime()) else 0,
             "ai_checks_daily_limit": config.DAILY_VERIFICATIONS, "sandbox_runtime": config.SANDBOX_RUNTIME or "runc",
-            "vm_isolation": vultr_vm.configured(), "vm_plan": config.VM_PLAN if vultr_vm.configured() else None,
+            "vm_isolation": vultr_vm.configured(), "sample_postgres": bool(config.SAMPLE_PG_URL), "vm_plan": config.VM_PLAN if vultr_vm.configured() else None,
             "docker": docker.stdout.strip() or None, "sandbox_ready": ready, "sandbox_status": why,
             "evidence_archive": f"vultr-object-storage:{archive.BUCKET}" if archive.enabled() else None}
 
@@ -502,6 +502,21 @@ def import_postgres(body: PgImportIn, req: Request):
                                   description=f"{meta['server']} · {meta['tables']} tables, {meta['rows']:,} rows · imported read-only")
     except ValueError as e:
         raise HTTPException(400, str(e)) from None
+    return {k: v for k, v in entry.items() if k not in ("pks", "types")}
+
+
+@app.post("/api/workspaces/postgres/sample")
+def import_sample_postgres(req: Request):
+    """One click: the same read-only import, from a small sample SaaS database that runs inside this deployment."""
+    _rate_limit(req, per_hour=10, kind="Postgres import")
+    if not config.SAMPLE_PG_URL:
+        raise HTTPException(404, "No sample database on this server")
+    try:
+        data, meta = pg_import.import_db(config.SAMPLE_PG_URL, "public", allow_private=True)  # our own configured, internal host
+    except pg_import.PgImportError as e:
+        raise HTTPException(503, f"The sample database isn't ready: {e}") from None
+    entry = workspaces.create("Sample SaaS (Postgres)", data, kind="postgres", extra={"pks": meta["pks"], "types": meta["types"]},
+                              description=f"{meta['server']} · {meta['tables']} tables, {meta['rows']:,} rows · imported read-only")
     return {k: v for k, v in entry.items() if k not in ("pks", "types")}
 
 

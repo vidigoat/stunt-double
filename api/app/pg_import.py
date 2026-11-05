@@ -29,11 +29,11 @@ class PgImportError(Exception):
     pass
 
 
-def _check_host(url: str) -> None:
+def _check_host(url: str, allow_private: bool = False) -> None:
     u = urlparse(url)
     if u.scheme not in ("postgres", "postgresql") or not u.hostname:
         raise PgImportError("Use a postgresql://user:password@host:5432/database connection string")
-    if config.PG_ALLOW_PRIVATE:
+    if config.PG_ALLOW_PRIVATE or allow_private:
         return
     try:
         addrs = {a[4][0] for a in socket.getaddrinfo(u.hostname, u.port or 5432, proto=socket.IPPROTO_TCP)}
@@ -65,11 +65,11 @@ def _val(v):
     return v
 
 
-def import_db(url: str, schema: str = "public") -> tuple[bytes, dict]:
+def import_db(url: str, schema: str = "public", allow_private: bool = False) -> tuple[bytes, dict]:
     """Returns (SQLite bytes, meta) where meta = {"tables": n, "rows": n, "pks": {...}, "types": {...}, "server": "PostgreSQL 16"}."""
     import psycopg  # imported lazily: only this feature needs it
 
-    _check_host(url)
+    _check_host(url, allow_private)
     try:
         con = psycopg.connect(url, connect_timeout=10, options="-c default_transaction_read_only=on -c statement_timeout=15000")
     except psycopg.Error as e:

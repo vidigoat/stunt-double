@@ -25,6 +25,8 @@ services:
       SD_SMTP_PORT: "1025"
       SD_MAILPIT_API: http://mailpit:8025/mail
       SD_PUBLIC_URL: "https://${SITE_HOST}"
+      # One-click sample Postgres for the console: an internal container, read-only role, not reachable from outside.
+      SD_SAMPLE_PG_URL: postgresql://sd_readonly:sd-sample-readonly@sample-pg:5432/saas
       # Models and spend caps live in the repo (not the VM's .env), so a push changes them. Measured in docs/VERIFIER_EVAL.md:
       # glm-5.3 (non-flash) spends its whole budget reasoning and never answers; the flash models answer in seconds.
       SD_AGENT_MODEL: "${SD_AGENT_MODEL_PIN:-glm-5.3-flash,qwen3.8-flash-next}"
@@ -43,6 +45,13 @@ services:
       STUNT_DOUBLE_API: http://api:8000
       STUNT_DOUBLE_PUBLIC: "https://${SITE_HOST}"
       STUNT_DOUBLE_ALLOWED_HOSTS: "${SITE_HOST}"
+
+  sample-pg:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment: { POSTGRES_DB: saas, POSTGRES_PASSWORD: sample-only-not-exposed }
+    volumes: ["./sample-pg/init.sql:/docker-entrypoint-initdb.d/init.sql:ro"]
+    # no ports: only the api container can reach it, on the compose network
 
   mailpit:
     image: axllent/mailpit:v1.21

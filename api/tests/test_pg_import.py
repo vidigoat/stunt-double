@@ -82,3 +82,32 @@ def test_internal_hosts_and_bad_urls_are_refused():
     for url in ("postgresql://u:p@127.0.0.1:5432/db", "postgresql://u:p@169.254.169.254/db", "postgresql://u:p@10.0.0.5/db", "mysql://u:p@example.com/db"):
         r = api.post("/api/workspaces/postgres", json={"url": url})
         assert r.status_code == 400 and "p@" not in r.text, (url, r.text)
+
+
+@needs_docker
+def test_one_click_sample_database(fresh_business, monkeypatch):
+    """The console's sample: infra/sample-pg/init.sql in a real Postgres, imported through the same read-only path."""
+    if subprocess.run(["docker", "image", "inspect", "postgres:16-alpine"], capture_output=True).returncode:
+        pytest.skip("postgres:16-alpine image not available")
+    from pathlib import Path
+    init = Path(__file__).resolve().parents[2] / "infra" / "sample-pg" / "init.sql"
+    name, port = "sd-test-sample-" + uuid.uuid4().hex[:6], 55433
+    subprocess.run(["docker", "run", "-d", "--rm", "--name", name, "-e", "POSTGRES_DB=saas", "-e", "POSTGRES_PASSWORD=x",
+                    "-v", f"{init}:/docker-entrypoint-initdb.d/init.sql:ro", "-p", f"{port}:5432", "postgres:16-alpine"], check=True, capture_output=True)
+    try:
+        import psycopg
+        url = f"postgresql://sd_readonly:sd-sample-readonly@127.0.0.1:{port}/saas"
+        for _ in range(60):
+            try:
+                psycopg.connect(url, connect_timeout=2).close()
+                break
+            except psycopg.Error:
+                time.sleep(1)
+        monkeypatch.setattr(config, "SAMPLE_PG_URL", url)
+        api = TestClient(main.app)
+        r = api.post("/api/workspaces/postgres/sample")
+        assert r.status_code == 200, r.text
+        assert "3 tables, 1,719 rows" in r.json()["description"] and r.json()["kind"] == "postgres"
+        assert "sd-sample-readonly" not in r.text
+    finally:
+        subprocess.run(["docker", "rm", "-f", name], capture_output=True)

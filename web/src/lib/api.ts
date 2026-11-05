@@ -48,7 +48,7 @@ export type RunSummary = {
   id: string; task: string; mode: "agent" | "manual" | "rollback"; status: RunStatus; approvals?: { name: string; at: number }[]; rollback_of?: string; rolled_back_by?: string; rollback_run?: string; created_at: number; attempts: number; verdict: Verdict["verdict"] | null;
   money_cents: number; emails: number; rows: number; blocked: boolean; plan_sha256: string | null; approval: Approval | null; apply_result: Run["apply_result"];
 };
-export type Health = { ok: boolean; inference_configured: boolean; sandbox_ready?: boolean; sandbox_status?: string; agent_model: string; verifier_model: string; sandbox_runtime: string; docker: string | null; vm_isolation?: boolean; vm_plan?: string | null };
+export type Health = { ok: boolean; inference_configured: boolean; sandbox_ready?: boolean; sandbox_status?: string; agent_model: string; verifier_model: string; sandbox_runtime: string; docker: string | null; vm_isolation?: boolean; vm_plan?: string | null; sample_postgres?: boolean };
 
 async function req<T>(path: string, body?: unknown): Promise<T> {
   const res = await fetch(`/api${path}`, {
@@ -75,6 +75,7 @@ export const api = {
     if (!res.ok) throw new Error((data as { detail?: string }).detail || "Upload failed");
     return data as Workspace;
   },
+  importSamplePostgres: () => req<Workspace>("/workspaces/postgres/sample", {}),
   importPostgres: (url: string, schema_name = "public", name = "My Postgres") => req<Workspace>("/workspaces/postgres", { url, schema_name, name }),
   importVultr: (api_key: string, name = "My Vultr fleet") => req<Workspace & { servers: number; monthly_cost_cents: number }>("/workspaces/vultr", { api_key, name }),
   deleteWorkspace: async (id: string) => {
