@@ -21,7 +21,7 @@ export function Business() {
           </div>
           <div className="mt-10 grid gap-4 md:grid-cols-3">
             {PLANS.map((p) => (
-              <div key={p.name} className={cn("flex flex-col rounded-2xl border bg-background p-6", p.featured && "border-foreground")}>
+              <div key={p.name} className={cn("flex flex-col rounded-2xl border bg-background p-6", p.featured && "card-hard")}>
                 <div className="flex items-center justify-between">
                   <div className="font-display text-2xl">{p.name}</div>
                   {p.featured ? <span className="rounded-full bg-foreground px-2 py-0.5 text-[11px] text-background">Most teams</span> : null}

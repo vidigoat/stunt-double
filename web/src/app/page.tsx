@@ -122,7 +122,7 @@ function Statement() {
   return (
     <section className="border-y bg-card">
       <div className="mx-auto max-w-5xl px-4 py-20 sm:px-6 sm:py-28">
-        <p className="font-display text-[30px] leading-[1.15] text-muted-foreground sm:text-[44px]">
+        <p className="font-display text-[28px] leading-[1.18] text-muted-foreground sm:text-[38px]">
           <span className="text-foreground">In July 2025, an AI agent deleted a company&apos;s production database during a code freeze.</span>{" "}
           Today agents refund money, email customers and edit records. Someone should see the damage before it&apos;s real.
         </p>
@@ -148,7 +148,7 @@ function How() {
         {STEPS.map((s) => {
           const v = STEP_VISUALS[s.n];
           return (
-            <div key={s.n} className="card-lift flex flex-col overflow-hidden rounded-[22px] border bg-card">
+            <div key={s.n} className="card-hard flex flex-col overflow-hidden rounded-[22px] border bg-card">
               <div className={cn("grain px-6 pb-6 pt-7", `backdrop-${v.tone}`)}>
                 <div className="relative z-[2] rounded-xl border border-black/10 bg-card/95 p-3 font-mono text-[12px] shadow-[0_18px_40px_-24px_rgba(20,30,60,.5)]">
                   {v.rows.map(([k, val]) => (
@@ -171,7 +171,7 @@ function How() {
 
 function Panel({ shot, title, body, cta, className }: { shot: React.ReactNode; title: React.ReactNode; body: string; cta?: string; className?: string }) {
   return (
-    <div className={cn("flex flex-col overflow-hidden rounded-[22px] border bg-card", className)}>
+    <div className={cn("card-hard flex flex-col overflow-hidden rounded-[22px] border bg-card", className)}>
       {shot}
       <div className="p-6 sm:p-7">
         <h3 className="font-display text-[30px] leading-[1.1] sm:text-[34px]">{title}</h3>

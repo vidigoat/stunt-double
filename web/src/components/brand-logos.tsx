@@ -26,17 +26,16 @@ export function BrandLogo({ name, className, tone = "mono", title }: { name: Log
 const STRIP: { name: LogoName; label: string }[] = [
   { name: "vultr", label: "Vultr" }, { name: "claude", label: "Claude Code" }, { name: "cursor", label: "Cursor" },
   { name: "mcp", label: "MCP" }, { name: "python", label: "Python" }, { name: "slack", label: "Slack" },
-  { name: "postgres", label: "PostgreSQL" }, { name: "sqlite", label: "SQLite" }, { name: "docker", label: "Docker" },
+  { name: "postgres", label: "PostgreSQL" }, { name: "sqlite", label: "SQLite" },
 ];
 
-/** "Works with" row: monochrome by default, each logo lights up in its brand color on hover. */
+/** "Works with" row: each tool as a chip with its own brand mark, in colour. */
 export function LogoStrip({ className }: { className?: string }) {
   return (
-    <div className={cn("flex flex-wrap items-center justify-center gap-x-7 gap-y-3", className)}>
+    <div className={cn("flex flex-wrap items-center justify-center gap-2", className)}>
       {STRIP.map((l) => (
-        <span key={l.name} className="group inline-flex items-center gap-2 text-muted-foreground transition-colors hover:text-foreground">
-          <BrandLogo name={l.name} className="size-[18px] opacity-70 transition group-hover:hidden" />
-          <BrandLogo name={l.name} tone="brand" className="hidden size-[18px] group-hover:block" />
+        <span key={l.name} className="inline-flex items-center gap-2 rounded-full border bg-card px-3 py-1.5 text-foreground/80 shadow-[0_6px_16px_-12px_rgba(20,30,60,.5)] transition hover:-translate-y-px hover:text-foreground">
+          <BrandLogo name={l.name} tone="brand" className="size-[18px]" />
           <span className="text-[13px] font-medium tracking-tight">{l.label}</span>
         </span>
       ))}

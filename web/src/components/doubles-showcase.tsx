@@ -2,15 +2,15 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Cloud, CreditCard, Database, Lock, Mail, MousePointerClick, Server, Webhook } from "lucide-react";
-import { BrandLogo } from "@/components/brand-logos";
+import { BrandLogo, type LogoName } from "@/components/brand-logos";
 import { cn } from "@/lib/utils";
 
-type Item = { key: string; icon: typeof Database; name: string; line: string; visual: () => React.ReactNode };
+type Item = { key: string; icon: typeof Database; name: string; line: string; visual: () => React.ReactNode; logos?: LogoName[] };
 
 const ROWS = [["#18", "charges", "status", "succeeded", "refunded"], ["#93", "charges", "status", "succeeded", "refunded"], ["#240", "charges", "refunded_at", "—", "2026-11-05"]];
 
 const ITEMS: Item[] = [
-  { key: "db", icon: Database, name: "Your database", line: "Your SQLite or PostgreSQL data, cloned. Every changed row is measured and replayed only if nobody touched it since.",
+  { key: "db", icon: Database, logos: ["postgres", "sqlite"], name: "Your database", line: "Your SQLite or PostgreSQL data, cloned. Every changed row is measured and replayed only if nobody touched it since.",
     visual: () => (
       <div className="w-full max-w-md rounded-xl border bg-card p-4 shadow-sm">
         <div className="font-mono text-[11px] uppercase tracking-wider text-muted-foreground">Rows · 104 updated in charges</div>
@@ -44,7 +44,7 @@ const ITEMS: Item[] = [
         <div className="border-t px-4 py-2 font-mono text-[11px] text-muted-foreground">transactional · consent ok · 1 of 104</div>
       </div>
     ) },
-  { key: "http", icon: Webhook, name: "Any HTTP API", line: "Calls are recorded in the sandbox and delivered through a connector after approval, with the real token added then.",
+  { key: "http", icon: Webhook, logos: ["slack"], name: "Any HTTP API", line: "Calls are recorded in the sandbox and delivered through a connector after approval, with the real token added then.",
     visual: () => (
       <div className="w-full max-w-md space-y-2 font-mono text-[12px]">
         <div className="rounded-xl border bg-card p-4 shadow-sm"><div className="flex items-center gap-2"><BrandLogo name="slack" tone="brand" className="size-4" /><span>POST hooks.slack.com/services/…</span></div>
@@ -62,7 +62,7 @@ const ITEMS: Item[] = [
         </div>
       </div>
     ) },
-  { key: "cloud", icon: Cloud, name: "Your Vultr cloud", line: "Import a read-only double of your real Vultr fleet (the key is used once, never kept). Delete, stop or resize servers there first: blast radius and bill change, production protected.",
+  { key: "cloud", icon: Cloud, logos: ["vultr"], name: "Your Vultr cloud", line: "Import a read-only double of your real Vultr fleet (the key is used once, never kept). Delete, stop or resize servers there first: blast radius and bill change, production protected.",
     visual: () => (
       <div className="grid w-full max-w-md grid-cols-2 gap-2 text-xs">
         {[["prod-db-replica", true, "$40", "would delete"], ["prod-backup-runner", true, "$10", "would delete"], ["ci-runner-old", false, "$20", "delete"], ["ml-experiment", false, "$40", "delete"]].map(([l, prod, cost, st]) => (
@@ -93,7 +93,7 @@ export function DoublesShowcase() {
             <button onClick={() => setI(k)} className={cn("relative flex w-full items-start gap-3 py-4 text-left transition", k === i ? "opacity-100" : "opacity-45 hover:opacity-80")}>
               <it.icon className={cn("mt-0.5 size-4 shrink-0", k === i && "text-signal")} />
               <span>
-                <span className="block text-[16px] font-medium">{it.name}</span>
+                <span className="flex items-center gap-2 text-[16px] font-medium">{it.name}{it.logos?.map((l) => <BrandLogo key={l} name={l} tone="brand" className="size-4" />)}</span>
                 {k === i ? <span className="mt-1 block text-[14px] leading-relaxed text-muted-foreground">{it.line}</span> : null}
               </span>
               {k === i ? <span key={i} className="absolute -bottom-px left-0 h-px w-full origin-left animate-[grow_4.5s_linear] bg-signal" /> : null}

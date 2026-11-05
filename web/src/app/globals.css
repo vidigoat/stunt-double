@@ -156,7 +156,7 @@
   code, pre, kbd, .font-mono { font-feature-settings: "zero", "ss02"; }
 }
 @layer utilities {
-  .font-display { font-family: var(--font-display-serif), ui-serif, Georgia, serif; letter-spacing: -0.02em; font-weight: 400; font-kerning: normal; font-feature-settings: "liga", "kern"; }
+  .font-display { font-family: var(--font-display-serif), ui-serif, Georgia, serif; letter-spacing: -0.028em; font-weight: 400; font-kerning: normal; font-feature-settings: "liga", "kern"; }
   .font-display em, em.font-display { font-style: italic; letter-spacing: -0.015em; }
   /* A highlighter stroke in the accent color, used sparingly on the hero's key words. */
   .mark-signal { background: linear-gradient(transparent 80%, color-mix(in oklch, var(--signal) 30%, transparent) 80%, color-mix(in oklch, var(--signal) 30%, transparent) 90%, transparent 90%); padding: 0 .04em; -webkit-box-decoration-break: clone; box-decoration-break: clone; }
@@ -166,6 +166,9 @@
   .eyebrow::before { content: ""; display: inline-block; width: 6px; height: 6px; border-radius: 9999px; background: currentColor; margin-right: 8px; vertical-align: 1px; }
   .tabular { font-variant-numeric: tabular-nums; }
   .text-balance { text-wrap: balance; }
+  /* A crisp object: dark border and a hard offset shadow (used sparingly, for the things worth looking at). */
+  .card-hard { border-color: color-mix(in oklch, var(--foreground) 88%, transparent) !important; box-shadow: 5px 5px 0 0 color-mix(in oklch, var(--foreground) 88%, transparent); transition: transform .15s ease, box-shadow .15s ease; }
+  .card-hard:hover { transform: translate(-1px, -1px); box-shadow: 7px 7px 0 0 color-mix(in oklch, var(--foreground) 88%, transparent); }
   /* Solid highlight behind a key phrase. */
   .mark-block { display: inline-block; margin-top: .12em; line-height: 1.02; background: var(--signal); color: #fff; padding: .02em .16em .1em; border-radius: .08em; }
   /* Film grain: an SVG noise tile over a surface (purely decorative). */
