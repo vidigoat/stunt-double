@@ -243,3 +243,17 @@ Total ≈ **66 hours of work**, compressed to ~2.5 days of wall-clock by running
 - **Footer and landing**: the big sign-off (done), section rhythm 96–128 px, product shots as the hero, real numbers only.
 - **Design QA gate** (Sat 14:00–18:00): every screen at 390 / 768 / 1440 px, light + dark, keyboard focus states, no
   layout shift, empty/loading/error states designed, real data everywhere.
+
+---
+
+## 9. Kickoff checklist (the first 3 hours after "go")
+1. **gVisor + Chromium on the VM** (the one feasibility gap): build `sandbox/Dockerfile.browser` on the VM; run the
+   Chromium probe under `runsc` from a deploy hook; record the result in BENCH.md. If it fails, try `runsc --platform=systrap`
+   flags, then decide (documented) by 13:30.
+2. **Double SDK skeleton** (`api/app/doubles/`) with payments/email/http moved behind it; all 101 tests green.
+3. **Cloud double v0**: inventory snapshot from the live account → mock Vultr API in the sandbox → `ctx.vultr.instances.delete(id)`
+   recorded → receipt "cloud" section with $/month. Test against a fixture inventory.
+4. **Mission Control shell** (`/control`) streaming real runs, plus the receipt redesign tokens.
+5. Create two tiny **`double-demo` VMs** (vc2-1c-0.5gb, $0.003/h) as the safe targets for the cloud-apply demo; the
+   policy forbids touching anything else.
+6. Commit, deploy, run e2e on production, post progress to the user.
