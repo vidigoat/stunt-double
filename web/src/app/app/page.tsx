@@ -533,6 +533,26 @@ export default function AppPage() {
                 </div>
               ) : null}
 
+              {run.verdict?.rule?.sql && run.verdict.verdict !== "looks_right" ? (
+                <div className="animate-rise rounded-2xl border border-signal/30 bg-signal-soft/40 p-5">
+                  <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+                    <Sparkles className="size-4 text-signal" />
+                    <div className="text-sm font-medium">{run.promoted_rule ? "Learned. This check now runs on every rehearsal, without AI." : "Turn this catch into a rule"}</div>
+                    {!run.promoted_rule ? (
+                      <Button size="sm" className="ml-auto h-8 rounded-full bg-signal px-3 text-white hover:bg-signal/90" disabled={busy} onClick={async () => {
+                        setBusy(true);
+                        try { const r = await api.promote(run.id, approver.trim() || undefined); setRun({ ...run, promoted_rule: r.id }); toast.success(`Rule learned: ${r.title}. Rehearse the plan again: it's blocked in milliseconds, no AI needed.`); }
+                        catch (e) { toast.error((e as Error).message); } finally { setBusy(false); }
+                      }}>Learn this rule</Button>
+                    ) : null}
+                  </div>
+                  <p className="mt-2 text-sm text-muted-foreground">
+                    <span className="font-medium text-foreground">{run.verdict.rule.title}.</span> The AI wrote the check it used as SQL. As a rule it runs
+                    deterministically inside the sandbox on every future rehearsal, and it must pass today&apos;s data to be accepted.
+                  </p>
+                  <pre className="mt-3 overflow-x-auto whitespace-pre-wrap break-words rounded-lg bg-foreground px-3 py-2 font-mono text-[11px] leading-relaxed text-background/90">{run.verdict.rule.sql}</pre>
+                </div>
+              ) : null}
               {attempt && cloudChanged(attempt.consequences.cloud) ? <CloudDiff cl={attempt.consequences.cloud} /> : null}
               {attempt ? <BlastRadius c={attempt.consequences} /> : null}
               {attempt ? <Details attempt={attempt} events={run.events} runId={run.id} /> : null}

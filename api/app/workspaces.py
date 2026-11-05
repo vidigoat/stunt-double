@@ -54,6 +54,10 @@ def db_path(ws: str | None = None) -> Path:
     return DIR / f"{ws}.db"
 
 
+def name_of_current() -> str:
+    return _current.get()
+
+
 def use(ws: str) -> contextvars.Token:
     return _current.set(ws)
 

@@ -79,7 +79,12 @@ VERDICT_TOOL = {"type": "function", "function": {
             "severity": {"type": "string", "enum": ["high", "medium", "low"]},
             "title": {"type": "string"}, "detail": {"type": "string"},
             "affected_count": {"type": "integer"}}, "required": ["severity", "title", "detail"]}},
-        "fix_instructions": {"type": "string", "description": "If not looks_right: exact guidance for the ops agent to fix the plan."}},
+        "fix_instructions": {"type": "string", "description": "If not looks_right: exact guidance for the ops agent to fix the plan."},
+        "rule": {"type": "object", "description": "If not looks_right: the check you used, as a reusable rule. `sql` is ONE SQLite SELECT "
+                 "over the business tables that returns the rows that are wrong AFTER a plan runs (it must return 0 rows when the data "
+                 "is right). Keep it general (no hard-coded ids unless the request named them). `title` is <= 10 words. "
+                 "Before proposing it, run it with run_query: today's data is correct, so it MUST return 0 rows now.",
+                 "properties": {"title": {"type": "string"}, "sql": {"type": "string"}}, "required": ["title", "sql"]}},
         "required": ["verdict", "headline", "summary", "concerns"]}}}
 
 
@@ -441,6 +446,10 @@ def red_flags(c: dict, pol: dict | None = None) -> list[dict]:
     if h.get("unsafe_path_count"):
         flag("connectors_only", True, f"{h['unsafe_path_count']} API calls use a path that escapes the connector",
              f"e.g. {h['unsafe_paths'][0]['url']}: '..' segments aren't allowed.")
+    for r in c.get("rules") or []:
+        if r.get("violations"):
+            flag("learned_rule", True, f"Breaks a learned rule: {r['title']}",
+                 f"{r['violations']:,}{'+' if r.get('more') else ''} rows violate it. Learned from run {r.get('source_run', '?')}; it runs without AI.")
     cl = c.get("cloud") or {}
     if cl.get("production_touched") and p.get("protect_production_servers", True):
         names = ", ".join(cl["production_touched"][:4])

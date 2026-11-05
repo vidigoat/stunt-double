@@ -15,7 +15,7 @@ from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
-from . import agent, archive, beanpay, config, connectors, policy, rollback, sandbox, seed, workspaces
+from . import agent, archive, beanpay, config, connectors, policy, rollback, rules, sandbox, seed, workspaces
 from . import apply as applier
 
 app = FastAPI(
@@ -521,6 +521,41 @@ def fix_run(rid: str, body: FixIn):
     return {"id": rid}
 
 
+class PromoteIn(BaseModel):
+    by: str | None = Field(default=None, max_length=80)
+
+
+@app.post("/api/runs/{rid}/promote")
+def promote_catch(rid: str, req: Request, body: PromoteIn | None = None):
+    """Turn the AI verifier's catch into a learned rule: a deterministic check that runs on every future rehearsal."""
+    _rate_limit(req, per_hour=30, kind="rule")
+    run = _get(rid)
+    rule = (run.get("verdict") or {}).get("rule") or {}
+    if not rule.get("sql"):
+        raise HTTPException(409, "This run's verifier didn't propose a rule")
+    try:
+        r = rules.add(run.get("workspace", workspaces.DEMO), rule.get("title", ""), rule["sql"], rid, (body.by if body else "") or "")
+    except ValueError as e:
+        raise HTTPException(422, str(e)) from e
+    with LOCK:
+        run["promoted_rule"] = r["id"]
+        _save(run)
+    _emit(run, "human", f"Turned the catch into a rule: {r['title']}", r["sql"])
+    return r
+
+
+@app.get("/api/rules")
+def list_rules(ws: str = workspaces.DEMO):
+    return {"rules": rules.all_rules(ws)}
+
+
+@app.delete("/api/rules/{rule_id}")
+def delete_rule(rule_id: str):
+    if not rules.delete(rule_id):
+        raise HTTPException(404, "unknown rule")
+    return {"deleted": rule_id}
+
+
 @app.post("/api/runs/{rid}/recheck")
 def recheck_run(rid: str, req: Request):
     """Run the AI verifier again when it couldn't finish (it never changes the plan or its effects)."""
@@ -854,6 +889,7 @@ def reset(req: Request):
     beanpay.reset()
     connectors.reset()
     policy.reset()
+    rules.reset()
     if config.MAILPIT_API:  # empty the demo inbox too (best effort)
         try:
             import httpx

@@ -133,6 +133,8 @@ def rehearse(plan_code: str) -> dict:
     _copy_regular_file(work / "out" / "intents.json", inp / "intents.json")
     shots = _copy_shots(work / "out" / "shots", out / "shots") if browser else 0
     shutil.rmtree(work, ignore_errors=True)
+    from . import rules as _rules, workspaces as _ws  # learned rules for this workspace: written by the host, evaluated in phase 2
+    (inp / "rules.json").write_text(json.dumps([{k: r[k] for k in ("id", "title", "sql", "source_run")} for r in _rules.all_rules(_ws.name_of_current())]))
     for f in inp.iterdir():
         os.chmod(f, 0o644)
 

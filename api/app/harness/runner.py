@@ -463,6 +463,32 @@ def audit_http(before: dict, calls: list) -> dict:
             "oversized": oversized[:5], "oversized_count": len(oversized), "unsafe_paths": unsafe[:5], "unsafe_path_count": len(unsafe)}
 
 
+def check_rules(after_db: str, rules_path: str) -> list[dict]:
+    """Learned rules (one SELECT each) run read-only against the after-state; any returned row is a violation."""
+    try:
+        rules = json.load(open(rules_path))
+    except (OSError, ValueError):
+        return []
+    out = []
+    db = sqlite3.connect(f"file:{after_db}?mode=ro&immutable=1", uri=True)
+    db.execute("PRAGMA query_only = ON")
+    for r in rules[:50] if isinstance(rules, list) else []:
+        if not isinstance(r, dict):
+            continue
+        deadline = time.time() + 2
+        db.set_progress_handler(lambda d=deadline: 1 if time.time() > d else 0, 10_000)
+        try:
+            cur = db.execute(str(r.get("sql", "")))
+            cols = [c[0] for c in cur.description or []]
+            rows = cur.fetchmany(1001)
+            out.append({"id": str(r.get("id", ""))[:40], "title": str(r.get("title", ""))[:120], "source_run": str(r.get("source_run", ""))[:40],
+                        "violations": len(rows), "more": len(rows) > 1000, "sample": [dict(zip(cols, x, strict=False)) for x in rows[:5]]})
+        except sqlite3.Error as e:
+            out.append({"id": str(r.get("id", ""))[:40], "title": str(r.get("title", ""))[:120], "violations": 0, "error": str(e)[:200]})
+    db.close()
+    return out
+
+
 def audit_cloud(before: dict, after: dict) -> dict:
     """What the plan does to the fleet, measured from the servers table before/after (the plan's own call log is not trusted)."""
     b = {r.get("instance_id"): r for r in before.get("servers", {}).get("rows", {}).values()}
@@ -575,6 +601,7 @@ def phase_measure() -> None:
         "http": {"count": len(calls), "samples": calls[:25]},
         "cloud": {**audit_cloud(before, after), "calls": intents.get("cloud_calls", [])[:50]},
         "browser": {"steps": intents.get("browser_steps", [])},
+        "rules": check_rules("/in/after.db", "/in/rules.json"),
     }
     with open("/out/consequences.json", "w") as f:
         json.dump(consequences, f, default=str)

@@ -1,7 +1,7 @@
 export type Severity = "critical" | "high" | "medium" | "low";
 export type Flag = { severity: Severity; title: string; detail: string; rule?: string };
 export type Concern = { severity: "high" | "medium" | "low"; title: string; detail: string; affected_count?: number };
-export type Verdict = { verdict: "looks_right" | "concerns" | "dangerous"; headline: string; summary: string; concerns: Concern[]; fix_instructions?: string };
+export type Verdict = { verdict: "looks_right" | "concerns" | "dangerous"; headline: string; summary: string; concerns: Concern[]; fix_instructions?: string; rule?: { title: string; sql: string } };
 export type TableChange = {
   dropped: boolean; schema_changed?: boolean; deleted: number; inserted: number; updated: number; rows_before: number; rows_after: number; changed_columns: string[];
   samples: { deleted: { rowid: number; before: Record<string, unknown> }[]; inserted: { rowid: number; after: Record<string, unknown> }[];
@@ -35,6 +35,7 @@ export type Run = {
   id: string; task: string; mode: "agent" | "manual" | "rollback"; status: RunStatus; approvals?: { name: string; at: number }[]; rollback_of?: string; rolled_back_by?: string; rollback_run?: string; created_at: number; events: RunEvent[]; attempts: Attempt[];
   verdict: Verdict | null; flags: Flag[]; final_message: string | null; error: string | null; agent_model: string; verifier_model: string; approval?: Approval | null; version?: number;
   rejection?: { by: string; at: number; reason: string } | null;
+  promoted_rule?: string;
   apply_result: null | { rows_written?: number; refunds?: number; refund_total_cents?: number; emails_sent?: number; emails_failed?: number; http_delivered?: number; http_failed?: number; drift_count?: number; drifted?: unknown[]; error?: string };
 };
 export type Workspace = { id: string; name: string; kind: "demo" | "upload"; description: string };
@@ -81,6 +82,7 @@ export const api = {
   runs: () => req<RunSummary[]>("/runs"),
   fix: (id: string, note?: string) => req<{ id: string }>(`/runs/${id}/fix`, { note }),
   recheck: (id: string) => req<{ id: string }>(`/runs/${id}/recheck`, {}),
+  promote: (id: string, by?: string) => req<{ id: string; title: string; sql: string }>(`/runs/${id}/promote`, { by }),
   approve: (id: string, approver?: string, note?: string) => req<Run>(`/runs/${id}/approve`, { approver, note: note || undefined }),
   reject: (id: string, approver?: string, reason?: string) => req<Run>(`/runs/${id}/reject`, { approver, reason: reason || undefined }),
   rollback: (id: string) => req<{ id: string }>(`/runs/${id}/rollback`, {}),

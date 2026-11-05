@@ -59,6 +59,10 @@ export default function PolicyPage() {
   type Change = { at: number; by: string; changes: Record<string, [unknown, unknown]> };
   const [history, setHistory] = useState<Change[]>([]);
   const loadHistory = () => fetch("/api/policy/history").then((r) => r.json()).then((d) => setHistory(d.history ?? [])).catch(() => {});
+  type Learned = { id: string; title: string; sql: string; source_run: string; by: string; created_at: number };
+  const [learned, setLearned] = useState<Learned[]>([]);
+  const loadRules = () => fetch("/api/rules").then((r) => r.json()).then((d) => setLearned(d.rules ?? [])).catch(() => {});
+  useEffect(() => { loadRules(); }, []);
   useEffect(() => { loadHistory(); }, []);
   const dirty = useMemo(() => JSON.stringify(saved) !== JSON.stringify(draft), [saved, draft]);
   type Sim = { considered: number; newly_blocked: number; unblocked: number; now_two_person: number;
@@ -184,6 +188,26 @@ export default function PolicyPage() {
               </section>
             ) : null}
             <p className={cn("text-sm", dirty ? "text-foreground" : "text-muted-foreground")}>{dirty ? "You have unsaved changes." : "Saved. The demo's Reset button restores the defaults."}</p>
+            <section className="rounded-2xl border bg-card p-6">
+              <div className="font-mono text-[11px] uppercase tracking-wider text-muted-foreground">Learned rules · AI catches a human turned into checks · they run without AI</div>
+              {learned.length ? (
+                <ul className="mt-3 divide-y">
+                  {learned.map((r) => (
+                    <li key={r.id} className="py-3">
+                      <div className="flex flex-wrap items-baseline gap-x-3">
+                        <span className="font-medium">{r.title}</span>
+                        <a href={`/app?run=${r.source_run}`} className="font-mono text-xs text-muted-foreground underline-offset-4 hover:underline">from {r.source_run}</a>
+                        {r.by ? <span className="text-xs text-muted-foreground">by {r.by}</span> : null}
+                        <button className="ml-auto text-xs text-muted-foreground underline-offset-4 hover:text-damage hover:underline" onClick={async () => {
+                          await fetch(`/api/rules/${r.id}`, { method: "DELETE" }); loadRules(); toast.success("Rule removed");
+                        }}>Remove</button>
+                      </div>
+                      <pre className="mt-2 overflow-x-auto whitespace-pre-wrap break-words rounded-md bg-muted px-3 py-2 font-mono text-[11px]">{r.sql}</pre>
+                    </li>
+                  ))}
+                </ul>
+              ) : <p className="mt-3 text-sm text-muted-foreground">None yet. When the AI verifier catches a mistake, it proposes the check it used; &quot;Learn this rule&quot; on the run adds it here.</p>}
+            </section>
             <section className="rounded-2xl border bg-card p-6">
               <div className="font-mono text-[11px] uppercase tracking-wider text-muted-foreground">Change history · policy edits are on the record too</div>
               {history.length ? (
