@@ -67,7 +67,8 @@ checked against it deterministically in phase 2, in milliseconds, without asking
 **How it works.**
 1. The jury compiles the request (plus the business glossary) into 2–4 promises, each a plain sentence and an
    after-state SQL check, the same shape as learned rules.
-2. Each check must pass on today's data, and must not contradict the glossary.
+2. Each promise is classified by running it on today's data: 0 rows means a **guard** (must stay 0), some rows means
+   an **obligation** (the work to be done, shown as "104 orders need a refund").
 3. The human approves the contract. It travels with the run: the agent sees it, phase 2 enforces it, the evidence
    bundle records it.
 
@@ -105,6 +106,22 @@ after the plan switched the trace off showed up as an unexplained row. The mecha
 **Email linkage on the demo data:** each of the 744 customers has exactly one refund, so every email maps to exactly one
 keep-or-drop decision. In general, if one person has both a kept and a dropped change, the email is held back and named
 in the card ("1 email needs a person to decide"), never guessed.
+
+**Prototype of an Intent Contract (passed, live on Vultr Serverless Inference).** Given only the request, the glossary
+and the schema, `deepseek-v4.1-flash-1017` wrote promises before any plan existed. Each was run on today's data, on
+the correct plan's result and on the bad plan's result:
+
+| Promise (the model's own words) | today | correct plan | bad plan |
+|---|---|---|---|
+| "No charge is refunded unless it belongs to an order that had exactly two charges…" | 0 | 0 | **640** |
+| "Every order that had exactly two charges… has exactly one of those charges refunded…" | **104** | 0 | 0 |
+
+The discovery: contracts contain two kinds of promise. **Guards** must hold before and after (the first row: it
+catches the exact 640 wrong refunds, deterministically, with no AI at check time). **Obligations** are broken before
+and kept after (the second row): they are the work itself. So the contract can say, **before the agent writes a line,
+"104 orders need a refund"**, and the approval card can show "obligation met: 104 of 104". Stunt Double knows the
+right answer before the agent starts. (`glm-5.3-flash` ran out of tokens on this prompt; the production loop's forced
+decision and model fallback already handle that.)
 
 ## The hard parts, and the answers
 
