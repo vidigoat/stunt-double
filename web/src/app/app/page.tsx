@@ -233,11 +233,11 @@ export default function AppPage() {
     return hit ? { table: hit[0], sandbox: hit[1].rows_after, before: hit[1].rows_before } : null;
   }, [attempt]);
 
-  async function start(o?: { mode: "agent" | "break"; task: string; code?: string }) {
-    const m = o?.mode ?? mode, t = o ? o.task : m === "agent" ? task : breakTask, c = o?.code ?? code;
+  async function start(o?: { mode: "agent" | "break"; task: string; code?: string; ws?: string }) {
+    const m = o?.mode ?? mode, t = o ? o.task : m === "agent" ? task : breakTask, c = o?.code ?? code, space = o?.ws ?? ws;
     setBusy(true);
     try {
-      const { id } = m === "agent" ? await api.createRun(t, ws) : await api.createManualRun(t, c, ws, ownVm && !o && !/\.browser\./.test(c) ? "vultr_vm" : "container");
+      const { id } = m === "agent" ? await api.createRun(t, space) : await api.createManualRun(t, c, space, ownVm && !o && !/\.browser\./.test(c) ? "vultr_vm" : "container");
       setRun({ id, task: t, mode: m === "agent" ? "agent" : "manual", status: "queued", created_at: Date.now() / 1000,
         events: [], attempts: [], verdict: null, flags: [], final_message: null, error: null, agent_model: "", verifier_model: "", apply_result: null });
     } catch (e) {
@@ -479,7 +479,7 @@ export default function AppPage() {
           {!run ? (
             <div className="rounded-2xl border border-dashed bg-card/50 p-6 sm:p-8">
               <FlaskConical className="size-7 text-muted-foreground" />
-              <div className="mt-4 font-display text-3xl">Judge mode: six clicks</div>
+              <div className="mt-4 font-display text-3xl">Judge mode: seven clicks</div>
               <p className="mt-1 max-w-md text-sm text-muted-foreground">Everything runs on a throwaway copy of Bean There Coffee Co., inside gVisor on a Vultr VM. Production only changes when you approve. Each click starts a real rehearsal.</p>
               <ol className="mt-6 space-y-3">
                 {[
@@ -489,10 +489,22 @@ export default function AppPage() {
                   { n: "4", t: "Clean up the cloud", d: "\"Delete idle Vultr servers\": the obvious plan would delete the failover database and the backup runner. The double of the fleet shows it; approval locks.", preset: "Clean up idle Vultr servers" },
                   { n: "5", t: "Approve a good one, then undo it", d: "104 real refunds and apology emails after a drift check. Then rehearse the undo.", preset: "✓ A correct refund plan" },
                   { n: "6", t: "Hand it to the agent", d: "The AI agent on Vultr Serverless Inference investigates, writes a plan and rehearses it.", agent: true },
-                ].map((s) => (
+                  ...(health?.sample_postgres ? [{ n: "7", t: "Try it on real infrastructure", d: "Imports a read-only double of a PostgreSQL database and rehearses \"deactivate accounts inactive for 90 days\". The verifier spells out the cost; approved changes leave as drift-guarded SQL.", pg: true }] : []),
+                ].map((s: { n: string; t: string; d: string; preset?: string; task?: string; agent?: boolean; pg?: boolean }) => (
                   <li key={s.n}>
                     <button disabled={busy || running} onClick={() => {
                       if (s.agent) { setMode("agent"); setTask(EXAMPLES[0]); void start({ mode: "agent", task: EXAMPLES[0] }); return; }
+                      if (s.pg) {
+                        void (async () => {
+                          try {
+                            const w = await api.importSamplePostgres();
+                            const p = SAAS_PLANS[0];
+                            setSpaces((cur) => [...cur, w]); setWs(w.id); setMode("break"); setCode(p.code); setBreakTask(p.task);
+                            await start({ mode: "break", task: p.task, code: p.code, ws: w.id });
+                          } catch (e) { toast.error((e as Error).message); }
+                        })();
+                        return;
+                      }
                       const b = BREAK_IT.find((x) => x.label === s.preset)!; const t = s.task ?? b.task;
                       setMode("break"); setCode(b.code); setBreakTask(t); void start({ mode: "break", task: t, code: b.code });
                     }} className="group flex w-full items-start gap-4 rounded-xl border bg-background p-4 text-left transition hover:border-signal disabled:opacity-60">

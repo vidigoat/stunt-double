@@ -42,7 +42,7 @@
 
 ## Judge it in 2 minutes
 
-Open **[the live demo](https://149-28-206-186.sslip.io/app)**. Judge mode is six clicks; each one starts a real rehearsal
+Open **[the live demo](https://149-28-206-186.sslip.io/app)**. Judge mode is seven clicks; each one starts a real rehearsal
 in gVisor on the Vultr VM:
 
 | # | Click | What you should see |
@@ -53,6 +53,7 @@ in gVisor on the Vultr VM:
 | 4 | **Clean up the cloud** | "Delete idle Vultr servers": the obvious plan would also delete the failover database and the backup runner. The double of the fleet shows it; production servers are protected. |
 | 5 | **Approve a good one, then undo it** | 104 refunds ($5,136) and emails after a drift check. Then rehearse the undo, which needs two approvers. |
 | 6 | **Hand it to the agent** | The agent on Vultr Serverless Inference investigates, writes a plan and rehearses it. It fell for none of our traps on the live server ([eval](docs/EVAL.md)). |
+| 7 | **Try it on real infrastructure** | One click imports a read-only double of a PostgreSQL database and rehearses "deactivate accounts inactive for 90 days". The verifier spells out the cost (49 paying accounts, $3,451/month); approved changes leave as drift-guarded SQL keyed on the real primary key. |
 
 Agents can do the same over MCP: `claude mcp add --transport http stunt-double https://149-28-206-186.sslip.io/mcp`.
 
