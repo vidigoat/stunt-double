@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowDown, ArrowRight, Check, Play, ShieldCheck, Sparkles, Zap } from "lucide-react";
+import { ArrowRight, Play } from "lucide-react";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { buttonVariants } from "@/components/ui/button";
 import { ApprovalCard, type ApprovalView } from "@/components/approval-card";
@@ -9,6 +9,7 @@ import { BrandLogo, LogoStrip } from "@/components/brand-logos";
 import { Business } from "@/components/landing-business";
 import { ForAgents, Platform } from "@/components/landing-platform";
 import { TryIt } from "@/components/try-it";
+import { Showcase } from "@/components/showcase";
 
 const GITHUB = "https://github.com/vidigoat/stunt-double";
 const pill = (variant: "default" | "outline" = "default") =>
@@ -20,8 +21,13 @@ const HERO: ApprovalView = {
   moneyCents: 3_740_400, refunds: 744, emails: 744, rowsChanged: 744, biggestChange: "charges: 744 marked refunded",
   flags: [],
   verdict: {
-    verdict: "concerns",
+    verdict: "dangerous",
     headline: "Plan refunds 640 customers who were never double-charged",
+    jury: { agree: 3, cast: 3, votes: [
+      { model: "glm-5.3-flash", lab: "Zhipu GLM", role: "verifier", verdict: "dangerous", headline: "Plan refunded 640 customers who were never double-charged" },
+      { model: "deepseek-v4.1-flash-1017", lab: "DeepSeek", role: "juror", verdict: "dangerous", headline: "Refunds 744 charges but only 104 were real double charges" },
+      { model: "minimax-m3.1-flash", lab: "MiniMax", role: "juror", verdict: "dangerous", headline: "640 of 744 refunds were for separate orders, not double charges" },
+    ] },
     summary: "The plan refunds anyone who bought the same item twice on the same day. Most of them placed two separate orders on purpose. Only 104 customers were charged twice for one order.",
     concerns: [
       { severity: "high", title: "Over-refund of $32,268", detail: "640 legitimate repeat purchases would be refunded." },
@@ -78,7 +84,7 @@ function Hero() {
           Built for the Vultr Agent Rush · Blast Radius Zero
         </a>
         <h1 className="animate-rise mx-auto mt-7 max-w-4xl font-display text-[52px] leading-[0.95] sm:text-[88px] [animation-delay:60ms]">
-          Let the double<br /><em className="mark-signal">take the hit.</em>
+          Let the double<br /><em className="mark-block">take the hit.</em>
         </h1>
         <p className="animate-rise mx-auto mt-6 max-w-xl text-balance text-lg text-muted-foreground [animation-delay:120ms]">
           Your AI agent tries every action on a throwaway copy of your business first. You see what would happen, in plain English, and approve the <span className="text-foreground">consequences</span>, not the code.
@@ -91,13 +97,17 @@ function Hero() {
           <span className="inline-flex items-center gap-1.5 whitespace-nowrap align-middle"><BrandLogo name="vultr" tone="brand" className="size-3.5" />Runs on Vultr</span> · sandboxed with gVisor · nothing real happens until you approve
         </p>
 
-        <div className="animate-rise relative mx-auto mt-14 max-w-4xl [animation-delay:260ms]">
-          <ApprovalCard view={HERO}>
-            <Link href="/app" className={cn(buttonVariants({ variant: "outline" }), "h-10 rounded-full px-4")}>Reject</Link>
-            <Link href="/app" className={cn(buttonVariants(), "h-10 rounded-full px-4")}>Ask the agent to fix it</Link>
-            <span className="ml-auto font-mono text-xs text-muted-foreground">Approving over the AI needs a written reason</span>
-          </ApprovalCard>
-          <p className="mt-3 text-xs text-muted-foreground">A real rehearsal on Vultr. The headline is the AI verifier&apos;s own words. <a className="underline underline-offset-4 hover:text-foreground" href="https://github.com/vidigoat/stunt-double/blob/main/docs/VERIFIER_EVAL.md">See the eval</a>.</p>
+        <div className="animate-rise relative mx-auto mt-14 [animation-delay:260ms]">
+          <div className="grain backdrop-blue rounded-[28px] px-3 py-8 sm:px-12 sm:py-14">
+            <div className="relative z-[2] mx-auto max-w-4xl rounded-2xl text-left shadow-[0_40px_80px_-40px_rgba(20,30,80,.55),0_10px_30px_-15px_rgba(20,30,80,.3)]">
+              <ApprovalCard view={HERO}>
+                <Link href="/app" className={cn(buttonVariants({ variant: "outline" }), "h-10 rounded-full px-4")}>Reject</Link>
+                <Link href="/app" className={cn(buttonVariants(), "h-10 rounded-full px-4")}>Ask the agent to fix it</Link>
+                <span className="ml-auto font-mono text-xs text-muted-foreground">Approving over the AI needs a written reason</span>
+              </ApprovalCard>
+            </div>
+          </div>
+          <p className="mt-3 text-xs text-muted-foreground">A real rehearsal on Vultr, checked by an AI jury of three labs. <a className="underline underline-offset-4 hover:text-foreground" href="https://github.com/vidigoat/stunt-double/blob/main/docs/VERIFIER_EVAL.md">See the eval</a>.</p>
         </div>
         <div className="mx-auto mt-16 max-w-4xl">
           <div className="font-mono text-[11px] uppercase tracking-wider text-muted-foreground">Works with the agents and tools you already use</div>
@@ -121,6 +131,12 @@ function Statement() {
   );
 }
 
+const STEP_VISUALS: Record<string, { tone: "blue" | "warm" | "green"; rows: [string, string][] ; foot: string }> = {
+  "01": { tone: "blue", rows: [["business.db", "5,290 charges"], ["→ clone", "sealed copy"], ["network", "none"], ["secrets", "0"]], foot: "a fresh copy for every rehearsal" },
+  "02": { tone: "warm", rows: [["sandbox", "gVisor · no network"], ["refunds", "recorded, not sent"], ["emails", "recorded, not sent"], ["rows changed", "measured: 104"]], foot: "destroyed after 1.8 s" },
+  "03": { tone: "green", rows: [["money out", "$5,136"], ["people", "104"], ["AI jury", "3 of 3 agree"], ["you", "approve ✓"]], foot: "applied after a drift check" },
+};
+
 function How() {
   return (
     <section id="how" className="mx-auto max-w-6xl scroll-mt-20 px-4 py-24 sm:px-6">
@@ -129,59 +145,68 @@ function How() {
         <h2 className="mt-3 font-display text-4xl sm:text-5xl">Three steps. <em>No surprises.</em></h2>
       </div>
       <div className="mt-12 grid gap-4 md:grid-cols-3">
-        {STEPS.map((s) => (
-          <div key={s.n} className="rounded-2xl border bg-card p-6">
-            <div className="font-mono text-sm text-muted-foreground">{s.n}</div>
-            <div className="mt-6 font-display text-3xl">{s.title}</div>
-            <p className="mt-2 text-[15px] leading-relaxed text-muted-foreground">{s.body}</p>
-          </div>
-        ))}
+        {STEPS.map((s) => {
+          const v = STEP_VISUALS[s.n];
+          return (
+            <div key={s.n} className="card-lift flex flex-col overflow-hidden rounded-[22px] border bg-card">
+              <div className={cn("grain px-6 pb-6 pt-7", `backdrop-${v.tone}`)}>
+                <div className="relative z-[2] rounded-xl border border-black/10 bg-card/95 p-3 font-mono text-[12px] shadow-[0_18px_40px_-24px_rgba(20,30,60,.5)]">
+                  {v.rows.map(([k, val]) => (
+                    <div key={k} className="flex justify-between gap-3 border-b border-dashed py-1.5 last:border-0"><span className="text-muted-foreground">{k}</span><span>{val}</span></div>
+                  ))}
+                  <div className="mt-1.5 text-[11px] text-muted-foreground">{v.foot}</div>
+                </div>
+              </div>
+              <div className="p-6">
+                <div className="flex items-baseline gap-3"><span className="font-mono text-sm text-muted-foreground">{s.n}</span><span className="font-display text-3xl">{s.title}</span></div>
+                <p className="mt-2 text-[15px] leading-relaxed text-muted-foreground">{s.body}</p>
+              </div>
+            </div>
+          );
+        })}
       </div>
     </section>
   );
 }
 
+function Panel({ shot, title, body, cta, className }: { shot: React.ReactNode; title: React.ReactNode; body: string; cta?: string; className?: string }) {
+  return (
+    <div className={cn("flex flex-col overflow-hidden rounded-[22px] border bg-card", className)}>
+      {shot}
+      <div className="p-6 sm:p-7">
+        <h3 className="font-display text-[30px] leading-[1.1] sm:text-[34px]">{title}</h3>
+        <p className="mt-2 max-w-xl text-[15px] leading-relaxed text-muted-foreground">{body}</p>
+        {cta ? <Link href="/app" className="mt-4 inline-flex items-center gap-1.5 text-sm font-medium text-signal hover:underline">{cta} <ArrowRight className="size-3.5" /></Link> : null}
+      </div>
+    </div>
+  );
+}
+
 function Different() {
   return (
-    <section id="different" className="scroll-mt-20 border-y bg-card">
+    <section id="different" className="scroll-mt-20 border-y bg-card/60">
       <div className="mx-auto max-w-6xl px-4 py-24 sm:px-6">
         <div className="max-w-2xl">
           <div className="eyebrow">Why it&apos;s different</div>
           <h2 className="mt-3 font-display text-4xl sm:text-5xl">Not just a sandbox. <em>Three things no sandbox does.</em></h2>
+          <p className="mt-3 text-[15px] leading-relaxed text-muted-foreground">Real screens from the live server.</p>
         </div>
-        <div className="mt-12 grid gap-4 lg:grid-cols-3">
-          <div className="card-lift flex flex-col rounded-2xl border bg-background p-6">
-            <span className="flex size-9 items-center justify-center rounded-xl bg-signal-soft text-signal"><ShieldCheck className="size-[18px]" /></span>
-            <h3 className="mt-5 font-display text-3xl">The plan <em>can&apos;t lie.</em></h3>
-            <p className="mt-2 text-[15px] leading-relaxed text-muted-foreground">The agent&apos;s code runs in one sandbox. A second, fresh sandbox running only our code measures what really changed. That measurement is what you see and what gets applied.</p>
-            <div className="mt-auto pt-6 font-mono text-[12px]">
-              <div className="rounded-lg border px-3 py-2"><span className="text-damage">sandbox 1</span> · runs the agent&apos;s plan</div>
-              <ArrowDown className="mx-auto my-1 size-3.5 text-muted-foreground" />
-              <div className="rounded-lg border px-3 py-2"><span className="text-safe">sandbox 2</span> · our code measures it</div>
-              <ArrowDown className="mx-auto my-1 size-3.5 text-muted-foreground" />
-              <div className="rounded-lg bg-foreground px-3 py-2 text-background">what you approve = what gets applied</div>
-            </div>
-          </div>
-          <div className="card-lift flex flex-col rounded-2xl border bg-background p-6">
-            <span className="flex size-9 items-center justify-center rounded-xl bg-signal-soft text-signal"><Check className="size-[18px]" /></span>
-            <h3 className="mt-5 font-display text-3xl">Approve <em>consequences,</em> not code.</h3>
-            <p className="mt-2 text-[15px] leading-relaxed text-muted-foreground">Nobody signing off can review an agent&apos;s SQL. Everyone can read &ldquo;refunds $37,404 to 744 people, and 640 of them were never double-charged.&rdquo;</p>
-            <div className="mt-auto space-y-3 pt-6 font-mono text-sm">
-              <div className="flex items-baseline justify-between gap-4"><span className="text-muted-foreground">agent&apos;s plan</span><span className="text-xl text-damage tabular">$37,404 · 744</span></div>
-              <div className="h-px bg-border" />
-              <div className="flex items-baseline justify-between gap-4"><span className="text-muted-foreground">after the catch</span><span className="text-xl tabular">$5,136 · 104</span></div>
-            </div>
-          </div>
-          <div className="card-lift flex flex-col rounded-2xl border bg-background p-6">
-            <span className="flex size-9 items-center justify-center rounded-xl bg-signal-soft text-signal"><Sparkles className="size-[18px]" /></span>
-            <h3 className="mt-5 font-display text-3xl">Every catch <em>becomes a rule.</em></h3>
-            <p className="mt-2 text-[15px] leading-relaxed text-muted-foreground">When the AI catches a mistake, it writes the check it used. Stunt Double proves the rule wouldn&apos;t block work the AI judged correct, then one click makes it a rule: the same mistake is blocked instantly from then on, without AI.</p>
-            <div className="mt-auto space-y-2 pt-6 font-mono text-[12px]">
-              <div className="rounded-lg border px-3 py-2"><span className="text-muted-foreground">1st time</span> · AI investigates, catches it</div>
-              <div className="rounded-lg border px-3 py-2 text-signal">rule: a refunded charge must not be its order&apos;s only payment</div>
-              <div className="flex items-center gap-1.5 rounded-lg bg-foreground px-3 py-2 text-background"><Zap className="size-3.5" /> every time after · blocked instantly, no AI</div>
-            </div>
-          </div>
+        <div className="mt-12 grid gap-4 lg:grid-cols-5">
+          <Panel className="lg:col-span-5"
+            shot={<Showcase tone="warm" title="Try to fool it" src="/shots/lie.webp" width={1410} height={328} alt="The plan said it made no changes; a separate sandbox measured 300 changed rows" className="rounded-none" />}
+            title={<>The plan <em>can&apos;t lie.</em></>}
+            cta="Try it: judge step 2"
+            body="A “read-only audit” quietly refunds 300 charges, says it changed nothing and forges its own report. It doesn't matter: the plan runs in one sandbox and our code measures the result in a fresh one. That measurement is what you approve and what gets applied." />
+          <Panel className="lg:col-span-3"
+            shot={<Showcase tone="blue" title="AI jury · Vultr Serverless Inference" src="/shots/jury.webp" width={1364} height={590} alt="Three models from different labs each found that 640 of 744 refunds were wrong" className="rounded-none" />}
+            title={<>A jury, <em>not a guess.</em></>}
+            cta="Try it: judge step 3"
+            body="Three models from different labs investigate the data on their own and must agree. The jury can make a verdict stricter, never more lenient. You approve consequences in dollars and people, not code." />
+          <Panel className="lg:col-span-2"
+            shot={<Showcase tone="green" title="Learned" src="/shots/learned.webp" width={1008} height={478} alt="The same plan blocked by a learned rule, no AI needed" className="rounded-none" />}
+            title={<>Every catch <em>becomes a rule.</em></>}
+            cta="Learn a rule: judge step 3"
+            body="The AI writes the check it used. Stunt Double proves it won't block correct work, then one click makes it a rule: the same mistake is blocked in seconds, with no AI." />
         </div>
       </div>
     </section>
@@ -218,7 +243,7 @@ function Proof() {
 function Faq() {
   return (
     <section id="faq" className="mx-auto grid max-w-6xl scroll-mt-20 gap-10 px-4 py-24 sm:px-6 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)]">
-      <div>
+      <div className="lg:sticky lg:top-24 lg:self-start">
         <div className="eyebrow">FAQ</div>
         <h2 className="mt-3 font-display text-4xl leading-[1.05] sm:text-5xl">Frequently asked <em>questions</em></h2>
         <p className="mt-4 max-w-sm text-[15px] leading-relaxed text-muted-foreground">Anything else? The <a className="underline underline-offset-4 hover:text-foreground" href={`${GITHUB}#readme`} target="_blank" rel="noreferrer">README</a> and <a className="underline underline-offset-4 hover:text-foreground" href={`${GITHUB}/blob/main/SECURITY.md`} target="_blank" rel="noreferrer">SECURITY.md</a> go deeper.</p>
@@ -246,13 +271,14 @@ function Closing() {
   return (
     <footer className="overflow-hidden">
       <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6">
-        <div className="relative isolate overflow-hidden rounded-[28px] border px-6 py-20 text-center sm:py-28">
-          <div aria-hidden className="absolute inset-0 -z-10 bg-[radial-gradient(40%_60%_at_15%_20%,color-mix(in_oklch,var(--signal)_28%,transparent),transparent_70%),radial-gradient(35%_55%_at_85%_30%,color-mix(in_oklch,var(--signal)_18%,transparent),transparent_70%),radial-gradient(50%_60%_at_50%_100%,color-mix(in_oklch,#38d9f5_22%,transparent),transparent_70%)] blur-2xl" />
+        <div className="grain backdrop-blue relative overflow-hidden rounded-[28px] px-6 py-20 text-center sm:py-28">
+          <div className="relative z-[2]">
           <h2 className="mx-auto max-w-3xl font-display text-5xl leading-[1.02] sm:text-7xl">Let the double <em className="text-signal">take the hit.</em></h2>
           <p className="mx-auto mt-5 max-w-md text-[15px] leading-relaxed text-muted-foreground">Rehearse every agent action on Vultr first. Approve the consequences. Nothing real happens until you do.</p>
           <div className="mt-8 flex flex-wrap justify-center gap-3">
             <Link href="/app" className={pill()}>Try the live demo <ArrowRight className="size-4" /></Link>
-            <a href={GITHUB} target="_blank" rel="noreferrer" className={pill("outline")}><GithubIcon /> Star on GitHub</a>
+            <a href={GITHUB} target="_blank" rel="noreferrer" className={cn(pill("outline"), "bg-card/80")}><GithubIcon /> Star on GitHub</a>
+          </div>
           </div>
         </div>
       </div>

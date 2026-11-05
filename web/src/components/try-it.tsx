@@ -50,19 +50,19 @@ export function TryIt() {
           </button>
           {err ? <p className="mt-3 text-sm text-damage">{err}</p> : null}
         </div>
-        <div className="grid min-w-0 grid-cols-2 gap-3 text-center">
-          <div className={cn("min-w-0 rounded-2xl border p-3 sm:p-5", res ? "border-damage/30 bg-damage/[0.04]" : "bg-background")}>
+        <div className="grain backdrop-warm grid min-w-0 grid-cols-2 gap-3 rounded-[22px] p-3 text-center sm:p-6">
+          <div className={cn("relative z-[2] min-w-0 rounded-2xl border p-3 shadow-[0_18px_40px_-24px_rgba(60,30,10,.45)] sm:p-5", res ? "border-damage/30 bg-[#fff6f5]" : "bg-card")}>
             <div className={cn("font-mono text-[11px] uppercase tracking-wider", res ? "text-damage" : "text-muted-foreground")}>sandbox customers</div>
             <div className={cn("mt-2 font-mono text-3xl tabular sm:text-5xl", res && "text-damage")}>{res ? num(res.sandbox) : "1,300"}</div>
             <div className="mt-1 text-xs text-muted-foreground">{res ? `was ${num(res.before)}` : "the double"}</div>
           </div>
-          <div className="min-w-0 rounded-2xl border bg-background p-3 sm:p-5">
+          <div className="relative z-[2] min-w-0 rounded-2xl border bg-card p-3 shadow-[0_18px_40px_-24px_rgba(60,30,10,.45)] sm:p-5">
             <div className="font-mono text-[11px] uppercase tracking-wider text-muted-foreground">production customers</div>
             <div className="mt-2 font-mono text-3xl tabular sm:text-5xl">{res ? num(res.production) : "1,300"}</div>
             <div className="mt-1 text-xs text-muted-foreground">{res ? "untouched" : "the real thing"}</div>
           </div>
           {res ? (
-            <div className="col-span-2 space-y-2 text-left">
+            <div className="relative z-[2] col-span-2 space-y-2 rounded-xl bg-card/90 p-3 text-left">
               <div className="flex items-start gap-2 rounded-xl border border-damage/30 bg-damage/[0.04] px-4 py-3 text-sm"><ShieldAlert className="mt-0.5 size-4 shrink-0 text-damage" /><span><b className="font-medium">Approval locked.</b> {res.blocked}</span></div>
               <div className="flex flex-wrap items-center justify-between gap-2 font-mono text-[11px] text-muted-foreground">
                 <span>{res.id} · {res.runtime === "runsc" ? "gVisor" : res.runtime} · {res.ms} ms · sandbox destroyed</span>

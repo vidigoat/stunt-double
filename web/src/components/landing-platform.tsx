@@ -72,8 +72,10 @@ export function ForAgents() {
   const [tab, setTab] = useState(AGENT_TABS[0].key);
   const t = AGENT_TABS.find((x) => x.key === tab) ?? AGENT_TABS[0];
   return (
-    <section id="mcp" className="scroll-mt-20 bg-[#0B0B0C] py-24 text-white">
-      <div className="mx-auto max-w-5xl px-4 sm:px-6">
+    <section id="mcp" className="grain relative scroll-mt-20 overflow-hidden bg-[#0B0B0C] py-24 text-white">
+      <div aria-hidden className="pointer-events-none absolute -left-40 top-10 size-[520px] rounded-full bg-[#1463FF] opacity-25 blur-[120px]" />
+      <div aria-hidden className="pointer-events-none absolute -right-40 bottom-0 size-[480px] rounded-full bg-[#2fd4c4] opacity-15 blur-[120px]" />
+      <div className="relative z-[2] mx-auto max-w-5xl px-4 sm:px-6">
         <div className="text-center">
           <div className="eyebrow justify-center">Built for agents</div>
           <h2 className="mt-3 font-display text-4xl sm:text-6xl">Works with <em className="text-[#7ea6ff]">any agent</em></h2>

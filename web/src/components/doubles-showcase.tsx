@@ -101,8 +101,7 @@ export function DoublesShowcase() {
           </li>
         ))}
       </ol>
-      <div className="relative isolate flex min-h-[380px] items-center justify-center overflow-hidden rounded-2xl border p-6 sm:p-10">
-        <div aria-hidden className="absolute inset-0 -z-10 bg-[radial-gradient(60%_70%_at_20%_10%,color-mix(in_oklch,var(--signal)_16%,transparent),transparent_70%),radial-gradient(50%_60%_at_90%_90%,color-mix(in_oklch,#38d9f5_18%,transparent),transparent_70%)]" />
+      <div className="grain backdrop-blue flex min-h-[380px] items-center justify-center overflow-hidden rounded-[22px] p-6 sm:p-10 [&>*]:relative [&>*]:z-[2]">
         <div key={active.key} className="animate-rise flex w-full justify-center">{active.visual()}</div>
       </div>
     </div>
