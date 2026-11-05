@@ -14,7 +14,9 @@
 <p align="center">
   <b>The safety layer between AI agents and your business.</b><br>
   Every action an agent wants to take is rehearsed first on a throwaway copy of your business, inside an isolated Vultr
-  sandbox. You see exactly what would happen, in plain English, and nothing real happens until a person says yes.
+  sandbox. You see exactly what would happen, in plain English, and nothing real happens until a person says yes.<br><br>
+  When a plan is partly wrong, its <a href="#the-consequence-engine"><b>Consequence Engine</b></a> doesn't just block it: it proves which
+  part is wrong and why, and lets you approve exactly the part that's right.
 </p>
 
 <p align="center">
