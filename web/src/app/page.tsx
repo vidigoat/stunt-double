@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowRight, Play } from "lucide-react";
+import { ArrowRight, Play, Scissors } from "lucide-react";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { buttonVariants } from "@/components/ui/button";
 import { ApprovalCard, type ApprovalView } from "@/components/approval-card";
@@ -104,6 +104,12 @@ function Hero() {
                 <Link href="/app" className={cn(buttonVariants(), "h-10 rounded-full px-4")}>Ask the agent to fix it</Link>
                 <span className="ml-auto font-mono text-xs text-muted-foreground">Approving over the AI needs a written reason</span>
               </ApprovalCard>
+              <a href="#engine" className="group mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 rounded-2xl border border-safe/30 bg-card px-4 py-3 text-left text-sm shadow-[0_20px_40px_-30px_rgba(20,60,30,.6)] hover:border-safe/60">
+                <Scissors className="size-4 shrink-0 text-safe" />
+                <span className="min-w-0 flex-1"><span className="font-medium"><span className="text-safe">104</span> of these 744 changes are right.</span> <span className="text-muted-foreground">The engine proves which line chose the other 640, cuts them, and lets you approve just the 104.</span></span>
+                <span className="font-mono text-[12px]"><span className="text-safe">keep $5,136</span> · <span className="text-damage">cut $32,268</span></span>
+                <span className="inline-flex items-center gap-1 font-medium text-safe">Keep just the 104 <ArrowRight className="size-3.5 transition group-hover:translate-x-0.5" /></span>
+              </a>
             </div>
           </div>
           <p className="mt-3 text-xs text-muted-foreground">A real rehearsal on Vultr, checked by an AI jury of three labs. <a className="underline underline-offset-4 hover:text-foreground" href="https://github.com/vidigoat/stunt-double/blob/main/docs/VERIFIER_EVAL.md">See the eval</a>. Then the engine keeps the right 104 and cuts the rest: <a className="text-signal underline-offset-4 hover:underline" href="#engine">see how</a>.</p>
