@@ -54,6 +54,12 @@ run. The code is in [`api/app/engine/`](../api/app/engine): `graph`, `materializ
 - *Checks run on an indexed private copy.* Model-written checks scanned the raw data; on the VM, judge step 1 took
   42 s. One indexed copy per version of the data made each check ~100x faster: the whole demo moment now takes
   8.6 s on production, offer to approvable subset.
+- *The contract and the jury are two independent readings.* Found by the golden-path e2e on production: shown the
+  contract's results, the jury echoed a contract mistake (it had promised to keep a record of every server, so the
+  correct cleanup "broke" it). Now the jury never sees the contract, and when the jury judges the outcome right but a
+  promise is broken, neither wins: the decision says they disagree, approving needs a written reason (or the person
+  strikes the promise), and only when both object, or the jury didn't run, does a broken promise lock approval.
+- *The agent signs before it writes.* In agent mode, the ops agent gets the promises with the request.
 - *The decision is code, not AI.* Six layers give pass, warn or fail with one reason each; only deterministic layers
   lock approval, and the jury's objection alone asks a person for a written reason.
 
