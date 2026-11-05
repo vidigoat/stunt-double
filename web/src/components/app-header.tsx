@@ -11,6 +11,7 @@ const NAV = [
   { href: "/history", label: "History" },
   { href: "/policy", label: "Policy" },
   { href: "/ledger", label: "Outbox" },
+  { href: "/control", label: "Mission control" },
   { href: "/connect", label: "Connect" },
 ];
 

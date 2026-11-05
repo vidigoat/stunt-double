@@ -407,7 +407,27 @@ def _summary(r: dict) -> dict:
             "money_cents": c.get("payments", {}).get("total_cents", 0), "emails": c.get("emails", {}).get("count", 0),
             "rows": sum(t["deleted"] + t["updated"] + t["inserted"] for t in c.get("tables", {}).values()),
             "blocked": any(f["severity"] == "critical" for f in (a or {}).get("flags", [])),
-            "plan_sha256": (a or {}).get("plan_sha256"), "approval": r.get("approval"), "apply_result": r.get("apply_result")}
+            "plan_sha256": (a or {}).get("plan_sha256"), "approval": r.get("approval"), "apply_result": r.get("apply_result"),
+            "headline": (r.get("verdict") or {}).get("headline"),
+            "top_flag": next((f["title"] for f in (a or {}).get("flags", []) if f["severity"] == "critical"), None),
+            "sandbox": {k: (c.get("sandbox") or {}).get(k) for k in ("id", "runtime", "wall_ms", "profile")} if a else None,
+            "kind": _kind(c) if a else None}
+
+
+def _kind(c: dict) -> str:
+    """What sort of double a rehearsal used, for Mission Control."""
+    if (c.get("browser") or {}).get("steps"):
+        return "browser"
+    cl = c.get("cloud") or {}
+    if cl.get("deleted") or cl.get("stopped") or cl.get("resized"):
+        return "cloud"
+    if (c.get("payments") or {}).get("count"):
+        return "money"
+    if (c.get("emails") or {}).get("count"):
+        return "email"
+    if (c.get("http") or {}).get("count"):
+        return "api"
+    return "data"
 
 
 @app.get("/api/runs")
