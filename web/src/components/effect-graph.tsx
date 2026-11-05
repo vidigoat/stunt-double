@@ -48,11 +48,21 @@ export function EffectGraph({ runId, attempt, summary, dropped }: { runId: strin
         </div>
       </div>
       <div className="border-t px-5 py-4">
-        <div className="flex flex-wrap gap-[2px]" role="listbox" aria-label="Units of work">
+        <div className="flex flex-wrap gap-[2px]" role="listbox" aria-label="Units of work: use the arrow keys" onKeyDown={(e) => {
+          const kids = e.currentTarget.children;
+          let cols = 1;
+          while (cols < kids.length && (kids[cols] as HTMLElement).offsetTop === (kids[0] as HTMLElement).offsetTop) cols++;
+          const step = { ArrowRight: 1, ArrowLeft: -1, ArrowDown: cols, ArrowUp: -cols }[e.key];
+          if (step === undefined) return;
+          e.preventDefault();
+          const next = Math.min(summary.units - 1, Math.max(0, sel + step));
+          setSel(next);
+          (e.currentTarget.querySelector(`[data-unit="${next}"]`) as HTMLElement | null)?.focus();
+        }}>
           {Array.from({ length: n }, (_, i) => {
             const u = Math.floor((i * summary.units) / n);
             return (
-              <button key={i} role="option" aria-selected={u === sel} title={`Unit ${u + 1}${dropped ? (cut.has(u) ? " · cut" : " · kept") : ""}`} onClick={() => setSel(u)}
+              <button key={i} role="option" aria-selected={u === sel} data-unit={u} tabIndex={u === sel ? 0 : -1} title={`Unit ${u + 1}${dropped ? (cut.has(u) ? " · cut" : " · kept") : ""}`} onClick={() => setSel(u)}
                 className={cn("size-[7px] rounded-[1.5px] transition hover:scale-150", dropped ? (cut.has(u) ? "bg-damage/80" : "bg-safe") : "bg-signal/70",
                   u === sel && "scale-150 ring-2 ring-foreground ring-offset-1 ring-offset-card")} />
             );
