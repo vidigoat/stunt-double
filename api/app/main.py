@@ -194,6 +194,7 @@ CONTRACT_READY: dict[str, threading.Event] = {}
 def _contract_job(run: dict) -> None:
     ws = run.get("workspace", workspaces.DEMO)
     base = workspaces.db_path(ws)
+    warm = _prefetch_second_reading(run["task"], base, ws)
     try:
         c = engine_contracts.compile_contract(run["task"], policy.load().get("glossary") or [], base, config.CONTRACT_MODELS,
                                               agent.client(), config.DATA_DIR, today=config.DEMO_TODAY if ws == workspaces.DEMO else None)
@@ -220,14 +221,43 @@ def _contract_job(run: dict) -> None:
         _emit(run, "contract", "No contract for this run", contract["reason"])
     CONTRACT_READY.setdefault(run["id"], threading.Event()).set()
     if contract["status"] == "ready":
-        _contract_cross_check(run, contract, base, ws)
+        _contract_cross_check(run, contract, base, ws, warm)
 
 
-def _cross_read(task: str, contract: dict, base, ws: str) -> dict | None:
+class _Warm(threading.Thread):
+    """The second model's reading, started at the same time as the first; remembers how it ended."""
+
+    def __init__(self, task: str, base, ws: str):
+        super().__init__(daemon=True)
+        self.args, self.error = (task, base, ws), None
+
+    def run(self):
+        task, base, ws = self.args
+        try:
+            engine_contracts.compile_contract(task, policy.load().get("glossary") or [], base, [config.CONTRACT_MODELS[1]], agent.client(),
+                                              config.DATA_DIR, today=config.DEMO_TODAY if ws == workspaces.DEMO else None)
+        except Exception as e:  # noqa: BLE001 - reported by the cross-read, not retried
+            self.error = str(e)[:200]
+
+
+def _prefetch_second_reading(task: str, base, ws: str) -> _Warm | None:
+    """Start the second model's reading at the same time as the first, so the cross-read is a cache hit, not a wait."""
+    if len(config.CONTRACT_MODELS) < 2:
+        return None
+    w = _Warm(task, base, ws)
+    w.start()
+    return w
+
+
+def _cross_read(task: str, contract: dict, base, ws: str, warm: "_Warm | None" = None) -> dict | None:
     """A second model, from another lab, reads the same request on its own. A disagreement counts only if it reproduces."""
     second = next((m for m in config.CONTRACT_MODELS if m != contract.get("model")), None)
     if not second:
         return None
+    if warm is not None:
+        warm.join(timeout=160)
+        if warm.error and second == config.CONTRACT_MODELS[1]:     # it already failed once: say so, don't pay twice
+            return {"model": second, "status": "failed", "reason": warm.error}
     args = (task, policy.load().get("glossary") or [], base, [second], agent.client(), config.DATA_DIR)
     today = config.DEMO_TODAY if ws == workspaces.DEMO else None
     try:
@@ -245,9 +275,9 @@ def _cross_read(task: str, contract: dict, base, ws: str) -> dict | None:
     return cc
 
 
-def _contract_cross_check(run: dict, contract: dict, base, ws: str) -> None:
+def _contract_cross_check(run: dict, contract: dict, base, ws: str, warm: "_Warm | None" = None) -> None:
     """Cross-read a run's contract. Never delays the run."""
-    cc = _cross_read(run["task"], contract, base, ws)
+    cc = _cross_read(run["task"], contract, base, ws, warm)
     if cc is None:
         return
     second = cc["model"]
@@ -957,12 +987,13 @@ def preview_contract(body: PreviewIn, req: Request):
     _rate_limit(req, per_hour=20, kind="contract preview")
     base = workspaces.db_path(body.workspace)
     t0 = time.time()
+    warm = _prefetch_second_reading(body.task, base, body.workspace)
     try:
         c = engine_contracts.compile_contract(body.task, policy.load().get("glossary") or [], base, config.CONTRACT_MODELS, agent.client(),
                                               config.DATA_DIR, today=config.DEMO_TODAY if body.workspace == workspaces.DEMO else None)
     except Exception as e:  # noqa: BLE001
         raise HTTPException(502, f"No model could write a contract for this request ({str(e)[:160]})") from None
-    c = {**c, "status": "ready", "cross_check": _cross_read(body.task, c, base, body.workspace)}
+    c = {**c, "status": "ready", "cross_check": _cross_read(body.task, c, base, body.workspace, warm)}
     return {**c, "ms": int((time.time() - t0) * 1000)}
 
 
