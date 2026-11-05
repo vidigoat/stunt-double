@@ -50,6 +50,7 @@ def reset_rate_limits():
     """Each test is a fresh 'visitor' for the per-IP rate limiter."""
     from app import main
     main.RATE.clear()
+    main.RUNS.clear()                            # a run judged in one test must never count as "known good" in the next
     main.VERDICT_CACHE.unlink(missing_ok=True)  # a verdict from one test must never be reused by another
     main.config.JURY_MODELS = []                 # the AI jury is off unless a test turns it on (tests/test_jury.py)
     main.config.CONTRACT_MODELS = []             # intent contracts are off unless a test turns them on (tests/test_engine_contracts.py)

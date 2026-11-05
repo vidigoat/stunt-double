@@ -241,7 +241,8 @@ export default function AppPage() {
   const view = useMemo(() => (run && attempt ? { ...viewFromAttempt(run.task, attempt, run.verdict, run.flags.length ? run.flags : attempt.flags), checking: run.status === "verifying" } : null), [run, attempt]);
   const critical = !!attempt?.flags.some((f) => f.severity === "critical");
   const imported = (() => { const k = spaces.find((w) => w.id === ws)?.kind; return k === "postgres" || k === "vultr" ? k : null; })();
-  const aiObjected = !!run?.verdict && ["concerns", "dangerous"].includes(run.verdict.verdict) && run.verdict.headline !== "Verifier could not finish";
+  const brokenPromise = !!run?.attempts.at(-1)?.flags.some((f) => f.rule === "contract" && f.title.startsWith("Breaks a promise"));
+  const aiObjected = brokenPromise || (!!run?.verdict && ["concerns", "dangerous"].includes(run.verdict.verdict) && run.verdict.headline !== "Verifier could not finish");
   const needed = attempt?.approvals_required ?? 1;
   const approvalsSoFar = (run?.approvals ?? []);
   const containment = useMemo(() => {
@@ -627,7 +628,7 @@ export default function AppPage() {
                     </Button>
                     )}
                     <input value={note} onChange={(e) => setNote(e.target.value)} maxLength={500} aria-label="Decision note"
-                      placeholder={critical ? "Why are you rejecting it? (optional, goes in the audit trail)" : aiObjected ? "The AI verifier objected. To approve anyway, say why (required, goes in the audit trail)" : "Note for the audit trail (optional): why approve or reject"}
+                      placeholder={critical ? "Why are you rejecting it? (optional, goes in the audit trail)" : aiObjected ? (brokenPromise ? "A promise made before the plan is broken. To approve anyway, say why (required, goes in the audit trail)" : "The AI verifier objected. To approve anyway, say why (required, goes in the audit trail)") : "Note for the audit trail (optional): why approve or reject"}
                       className="h-10 w-full rounded-full border bg-background px-4 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring/50" />
                     {needed > 1 && !critical ? (
                       <div className="flex w-full flex-wrap items-center gap-2 rounded-lg border bg-background px-3 py-2 text-sm">

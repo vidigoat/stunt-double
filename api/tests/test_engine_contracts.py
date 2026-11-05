@@ -239,3 +239,19 @@ def test_an_ambiguous_request_is_flagged_before_anyone_trusts_either_reading(fre
     assert cc == {"model": "b", "status": "disagree", "ours": 104, "theirs": 58}
     assert run["decision"]["layers"][2]["status"] == "warn" and "104 to do, or 58" in run["decision"]["layers"][2]["reason"]
     assert run["decision"]["decision"] == "review"           # the correct plan, but the request itself needs a person
+
+
+@needs_docker
+def test_when_the_contract_and_the_jury_disagree_a_person_decides_with_a_reason(fresh_business, monkeypatch):
+    _ai(monkeypatch, [WORK, GUARD])
+    monkeypatch.setattr(main.agent, "verify", lambda *a, **k: {"verdict": "looks_right", "headline": "fine", "summary": "", "concerns": []})
+    api = TestClient(main.app)
+    rid = api.post("/api/runs/manual", json={"task": PLANS["bad"]["task"], "code": PLANS["bad"]["code"]}).json()["id"]
+    run = _wait(api, rid)
+    flag = next(f for f in run["attempts"][-1]["flags"] if f["rule"] == "contract")
+    assert flag["severity"] == "high" and "strike the promise" in flag["detail"]          # not a lock: two AI readings disagree
+    assert run["verdict"]["verdict"] == "looks_right" and run["decision"]["decision"] == "cut"   # the cut is still offered
+    r = api.post(f"/api/runs/{rid}/approve", json={"approver": "Priya"})
+    assert r.status_code == 422 and "promise" in r.json()["detail"]                       # but approving the whole needs a reason
+    r = api.post(f"/api/runs/{rid}/approve", json={"approver": "Priya", "note": "Same-day repeat orders are refunded by our policy"})
+    assert r.status_code == 200 and len(r.json()["approvals"]) == 1                    # accepted with a reason (and $37k needs a second person)

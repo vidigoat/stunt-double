@@ -149,13 +149,31 @@ def _add_attempt(run: dict, res: dict, code: str, summary: str, **extra) -> dict
     return c
 
 
-def _gate_flags(c: dict, run: dict, pol: dict | None = None) -> list[dict]:
-    """Policy flags for a run, the intent contract, and the workspace rule: money and email only exist for the demo business."""
+def _jury_own(run: dict) -> str | None:
+    """What the AI jury itself concluded (before any deterministic check raised it), if it ran."""
+    v = run.get("verdict") or {}
+    if not v or v.get("source") == "learned_rule" or v.get("headline") == "Verifier could not finish":
+        return None
+    return v.get("raised_from") or v.get("verdict")
+
+
+def _gate_flags(c: dict, run: dict, pol: dict | None = None, jury: str | None = None) -> list[dict]:
+    """Policy flags for a run, the intent contract, and the workspace rule: money and email only exist for the demo business.
+
+    A broken promise locks approval, unless the AI jury, investigating on its own, judged the outcome right: then two
+    AI readings of the request disagree, and a person decides (strike the promise with a reason, or reject)."""
     flags = agent.red_flags(c, pol)
+    jury = jury or _jury_own(run)
     for p in (c.get("contract") or {}).get("promises", []):
         if p.get("status") == "broken":
-            flags.insert(0, {"rule": "contract", "severity": "critical", "title": f"Breaks a promise made before the plan: {p['text'].rstrip('.')}",
-                             "detail": f"{p['after']:,} row{'s' if p['after'] != 1 else ''} break it. Written before the plan existed."})
+            rows = f"{p['after']:,} row{'s' if p['after'] != 1 else ''} break it."
+            if jury == "looks_right":
+                flags.insert(0, {"rule": "contract", "severity": "high", "title": f"Breaks a promise made before the plan: {p['text'].rstrip('.')}",
+                                 "detail": f"{rows} The AI jury judged the outcome right, so the two readings of your request disagree: "
+                                           "strike the promise with a reason, or reject."})
+            else:
+                flags.insert(0, {"rule": "contract", "severity": "critical", "title": f"Breaks a promise made before the plan: {p['text'].rstrip('.')}",
+                                 "detail": f"{rows} Written before the plan existed."})
         elif p.get("status") == "unmet":
             done = max(0, p["today"] - p["after"])
             flags.append({"rule": "contract", "severity": "high", "title": f"Leaves the work undone: {p['text'].rstrip('.')}",
@@ -408,6 +426,7 @@ def _verify(run: dict) -> None:
         except ValueError as e:
             verdict.pop("rule", None)
             _emit(run, "verify", "The verifier's proposed rule was not offered", str(e))
+    att["flags"] = _gate_flags(att["consequences"], run, jury=None if verdict.get("source") == "learned_rule" else verdict.get("verdict"))
     crit = [f for f in att["flags"] if f["severity"] == "critical"]
     if crit and verdict.get("verdict") != "dangerous":
         verdict["raised_from"] = verdict.get("verdict")      # what the jury said, before a deterministic check overruled it
@@ -416,7 +435,8 @@ def _verify(run: dict) -> None:
         run["verdict"] = verdict
         run["flags"] = att["flags"]
     _emit(run, "verify", verdict.get("headline", "Review ready"))
-    if verdict.get("verdict") != "looks_right" and not run["attempts"][-1].get("surgical_of"):
+    broken = any(p.get("status") == "broken" for p in (att["consequences"].get("contract") or {}).get("promises", []))
+    if (verdict.get("verdict") != "looks_right" or broken) and not run["attempts"][-1].get("surgical_of"):
         _surgical_offer(run)
     _status(run, "review")
     if not _auto_approve(run):
@@ -1250,6 +1270,9 @@ def approve_run(rid: str, body: ApproveIn | None = None):
             raise HTTPException(409, f"{name} already approved. The second approval must come from a different person.")
         note = " ".join(((body.note if body else None) or "").split())[:500]
         v = run.get("verdict") or {}
+        broken = next((f for f in att["flags"] if f.get("rule") == "contract" and f["title"].startswith("Breaks a promise")), None)
+        if broken and len(note) < 10:
+            raise HTTPException(422, "A promise made before the plan is broken. Strike it with a reason, or write a note saying why you approve anyway.")
         if v.get("verdict") in ("concerns", "dangerous") and v.get("headline") != "Verifier could not finish" and len(note) < 10:
             raise HTTPException(422, f"The AI verifier objected (“{v.get('headline', 'concerns')}”). To approve anyway, write a note saying why. It goes in the audit trail.")
         approvals.append({"name": name, "at": time.time(), "effects_sha256": att["effects_sha256"], **({"note": note} if note else {})})

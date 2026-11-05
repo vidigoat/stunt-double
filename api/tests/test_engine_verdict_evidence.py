@@ -36,10 +36,16 @@ def test_every_layer_passing_means_approve():
 
 def test_a_broken_promise_blocks_and_a_provable_subset_turns_it_into_a_cut():
     broken = {"contract": {"promises": [{"text": "Nothing else", "kind": "guard", "today": 0, "after": 640, "status": "broken"}]}}
-    d = verdict.decide(_run(c=broken))
+    d = verdict.decide(_run(c=broken, verdict={"verdict": "dangerous", "headline": "640 never double-charged"}))
     assert d["decision"] == "blocked" and d["failed"] == ["contract"] and "640 rows" in d["layers"][2]["reason"]
     d = verdict.decide(_run(c=broken, surgical={"offer": {"units_kept": 104, "units_total": 744}}))
     assert d["decision"] == "cut" and "104 of 744" in d["headline"]
+
+
+def test_a_broken_promise_the_jury_disagrees_with_goes_to_a_person():
+    broken = {"contract": {"promises": [{"text": "Keep a record of every server", "kind": "guard", "today": 0, "after": 4, "status": "broken"}]}}
+    d = verdict.decide(_run(c=broken))                                   # the jury (by default here) says looks_right
+    assert d["decision"] == "review" and d["failed"] == [] and "disagree" in d["headline"]
 
 
 def test_an_unexplained_change_blocks():

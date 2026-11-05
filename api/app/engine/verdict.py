@@ -123,18 +123,23 @@ def decide(run: dict) -> dict | None:
         {"key": "approval", "title": "Sign-off", "status": PASS,
          "reason": "Two different people must approve: " + ", ".join(att.get("approval_reasons") or []) if need > 1 else "One person approves."},
     ]
-    # deterministic layers lock approval; the jury's objection alone asks a person to decide, with a written reason
-    failed = [x for x in layers if x["status"] == FAIL and x["key"] != "jury"]
-    warned = [x for x in layers if x["status"] == WARN or (x["status"] == FAIL and x["key"] == "jury")]
+    # deterministic layers lock approval; the jury's objection alone asks a person to decide, with a written reason.
+    # A broken promise the jury disagrees with (it judged the outcome right) is two AI readings in conflict: a person decides.
+    by = {x["key"]: x for x in layers}
+    conflict = by["contract"]["status"] == FAIL and by["jury"]["status"] == PASS
+    failed = [x for x in layers if x["status"] == FAIL and x["key"] != "jury" and not (conflict and x["key"] == "contract")]
+    warned = [x for x in layers if x["status"] == WARN or (x["status"] == FAIL and (x["key"] == "jury" or (conflict and x["key"] == "contract")))]
     offer = (run.get("surgical") or {}).get("offer") if not att.get("surgical_of") else None
-    jury_failed = any(x["key"] == "jury" and x["status"] == FAIL for x in layers)
-    if offer and (failed or jury_failed):
+    jury_failed = by["jury"]["status"] == FAIL
+    if offer and (failed or jury_failed or conflict):
         decision = "cut"
         headline = f"Approve just the {offer['units_kept']:,} of {offer['units_total']:,} changes that pass the check"
     elif failed:
         decision, headline = "blocked", f"Blocked: {failed[0]['title'].lower()} failed"
     elif jury_failed:
         decision, headline = "review", "The AI jury objected: approving needs a written reason"
+    elif conflict:
+        decision, headline = "review", "The contract and the AI jury disagree: strike the promise with a reason, or reject"
     elif warned:
         decision, headline = "review", f"A person should decide: {', '.join(x['title'].lower() for x in warned)}"
     elif all(x["status"] == SKIP for x in layers if x["key"] in ("contract", "jury")):
