@@ -92,6 +92,23 @@ flowchart LR
     cut --> human
 ```
 
+## Checked against the real demo data (before writing a line)
+
+The bad refund plan selects 744 charges; the correct plan selects 104. **All 104 correct charges are inside the 744,
+and the other 640 are exactly the wrong ones.** So surgical approval of the bad plan yields precisely the correct
+outcome: 104 refunds, $5,136, 104 emails. The demo moment is real, not staged.
+
+## The hard parts, and the answers
+
+| Risk | Answer |
+|---|---|
+| The plan disables the statement log, or writes through a second connection | the replay won't match the measurement: **"N changes the plan can't explain"**, approval locks. Tested adversarially |
+| Statements that depend on the clock or randomness (`datetime('now')`, `random()`) replay differently | both phases install the same frozen clock and seeded random functions on the copy, so replays are exact |
+| Large plans (10,000 statements) | per-statement diffing is capped; above the cap, provenance is proven in batches and attributed per batch |
+| Linking a bad row to its refund and its email | refunds carry `charge_id`; emails link through the customer of that charge. Anything that can't be linked is kept out of the subset (fail closed) |
+| The subset is itself wrong | it is re-rehearsed in a new sandbox and re-checked by every rule and the jury before it is offered |
+| A contract the AI writes is too loose or too strict | it must pass today's data, the human approves it in plain English, and it is shown beside every verdict |
+
 ## Build order (1.5 days, then freeze)
 
 | # | What | Why first | Est. |
