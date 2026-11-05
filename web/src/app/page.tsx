@@ -109,7 +109,7 @@ function Hero() {
               </ApprovalCard>
             </div>
           </div>
-          <p className="mt-3 text-xs text-muted-foreground">A real rehearsal on Vultr, checked by an AI jury of three labs. <a className="underline underline-offset-4 hover:text-foreground" href="https://github.com/vidigoat/stunt-double/blob/main/docs/VERIFIER_EVAL.md">See the eval</a>.</p>
+          <p className="mt-3 text-xs text-muted-foreground">A real rehearsal on Vultr, checked by an AI jury of three labs. <a className="underline underline-offset-4 hover:text-foreground" href="https://github.com/vidigoat/stunt-double/blob/main/docs/VERIFIER_EVAL.md">See the eval</a>. Then the engine keeps the right 104 and cuts the rest: <a className="text-signal underline-offset-4 hover:underline" href="#engine">see how</a>.</p>
         </div>
         <div className="mx-auto mt-16 max-w-4xl">
           <div className="font-mono text-[11px] uppercase tracking-wider text-muted-foreground">Works with the agents and tools you already use</div>
