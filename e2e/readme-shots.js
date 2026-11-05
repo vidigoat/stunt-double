@@ -28,6 +28,24 @@ const out = process.argv[2];
     await p.getByText(/^Verdict$/i).first().scrollIntoViewIfNeeded(); await p.mouse.wheel(0, -160); await p.waitForTimeout(400);
     await p.screenshot({ path: `${out}/ai-catch.png`, fullPage: false });
   }
+  // Browser double: a real Chromium in the sandbox; the filmstrip of what the agent did on screen.
+  await p.getByRole("button", { name: "New" }).click();
+  await p.getByRole("tab", { name: /Break it yourself/ }).click();
+  await p.getByRole("button", { name: "Cancel the duplicate subscription (in a browser)", exact: true }).click();
+  await p.getByRole("button", { name: "Rehearse it", exact: true }).click();
+  await p.getByText(/The agent in a browser/).waitFor({ timeout: 120000 });
+  if (health.inference_configured) await p.getByText(/AI vision check:/).waitFor({ timeout: 240000 });
+  await p.waitForTimeout(1500);
+  await p.getByText(/The agent in a browser/).scrollIntoViewIfNeeded(); await p.mouse.wheel(0, -60); await p.waitForTimeout(500);
+  await p.screenshot({ path: `${out}/browser.png` });
+  // Cloud double: the fleet as server cards.
+  await p.getByRole("button", { name: "New" }).click();
+  await p.getByRole("tab", { name: /Break it yourself/ }).click();
+  await p.getByRole("button", { name: "Clean up idle Vultr servers", exact: true }).click();
+  await p.getByRole("button", { name: "Rehearse it", exact: true }).click();
+  await p.getByText(/Vultr fleet · the double/).waitFor({ timeout: 120000 }); await p.waitForTimeout(1500);
+  await p.getByText(/Vultr fleet · the double/).scrollIntoViewIfNeeded(); await p.mouse.wheel(0, -60); await p.waitForTimeout(500);
+  await p.screenshot({ path: `${out}/cloud.png` });
   await p.getByRole("button", { name: "New" }).click();
   await p.getByRole("tab", { name: /Break it yourself/ }).click();
   await p.getByRole("button", { name: "✓ A correct refund plan", exact: true }).click();
@@ -37,6 +55,8 @@ const out = process.argv[2];
   await p.screenshot({ path: `${out}/applied.png` });
   await p.goto(`${BASE}/history`, { waitUntil: "networkidle" }); await p.waitForTimeout(600);
   await p.screenshot({ path: `${out}/history.png` });
+  await p.goto(`${BASE}/control`, { waitUntil: "networkidle" }); await p.waitForTimeout(2500);
+  await p.screenshot({ path: `${out}/control.png` });
   await p.goto(`${BASE}/policy`, { waitUntil: "networkidle" }); await p.waitForTimeout(600);
   await p.screenshot({ path: `${out}/policy.png` });
   await b.close();

@@ -101,6 +101,25 @@ async function step(name, fn) {
     assert.strictEqual(biz.tables.accounts, 120, "your production data is untouched");
   });
 
+  await step("cloud double: deleting 'idle' servers is blocked for production; the safe cleanup applies (12 -> 8)", async () => {
+    await page.goto(`${BASE}/app`, { waitUntil: "networkidle" });
+    await page.getByRole("tab", { name: /Break it yourself/ }).click();
+    await page.getByRole("button", { name: "Clean up idle Vultr servers", exact: true }).click();
+    await page.getByRole("button", { name: "Rehearse it", exact: true }).click();
+    await page.getByText(/Would remove production: prod-db-replica, prod-backup-runner/).waitFor({ timeout: 120000 });
+    await page.getByRole("button", { name: "New" }).click();
+    await page.getByRole("tab", { name: /Break it yourself/ }).click();
+    await page.getByRole("button", { name: "✓ Clean up idle servers (safe)", exact: true }).click();
+    await page.getByRole("button", { name: "Rehearse it", exact: true }).click();
+    const approve = page.getByRole("button", { name: /Approve and apply|Approve anyway/ });
+    await approve.waitFor({ timeout: 240000 });
+    if (/anyway/.test(await approve.innerText())) await page.getByLabel("Decision note").fill("Checked: only idle non-production servers");
+    await approve.click();
+    await page.getByText("Applied for real").waitFor({ timeout: 60000 });
+    const biz = await fetch(`${BASE}/api/business`).then((r) => r.json());
+    assert.strictEqual(biz.counts.servers, 8, "4 idle servers deleted, production kept");
+  });
+
   await step("audit trail: history shows the applied run with a plan fingerprint", async () => {
     await page.goto(`${BASE}/history`, { waitUntil: "networkidle" });
     await page.getByText("applied", { exact: true }).first().waitFor();
