@@ -6,17 +6,50 @@ video presentation, slide presentation, cover image, application URL and a publi
 Deadline: Mon Nov 9, about 04:30 IST (Sun Nov 8 23:00 UTC), from the live countdown. Prizes are overall (1st: $5,000 +
 $3,000 Vultr credits), judged on Application of Technology, Presentation, Business Value, Originality.
 
-## Step 1 · Submission Title (5–50 chars, this is 48)
+## Step 1 · Submission Title (5–50 chars, this is 41)
+```
+Stunt Double: Let the Double Take the Hit
+```
+
+## Step 1 · Short Description (50–255 chars, this is 188)
+```
+Every AI agent now holds the keys to something real. Stunt Double lets it try every action on a perfect copy of your business first, on Vultr. Nothing real happens until a person says yes.
+```
+
+## Step 1 · Long Description (600–2000 chars and 100+ words, this is 1473 chars, 266 words)
+```
+In the movies, the star never jumps from the burning building. The stunt double does.
+
+AI agents are becoming the stars of our businesses. They refund customers, send emails, click through admin pages and delete servers. They are fast, tireless and usually right. But when they are wrong, they are wrong with real money, real inboxes and real data. There is no second take.
+
+Stunt Double gives every agent a double. Before any action touches the real world, it is rehearsed on a copy of the business, sealed inside a Vultr sandbox with no internet and no secrets. Then a second sandbox measures what truly changed, so the agent cannot hide a single thing.
+
+A jury of three AI models from different labs studies the result and asks one question: is this what the person actually meant? Ask it to refund everyone who was charged twice, and the jury notices that 640 of the 744 people never were. That is $32,268 saved before a single cent moves.
+
+Then a person sees the truth in plain words, not code: who gets paid, who gets emailed, what disappears. Only what they approve ever happens.
+
+And it learns. Every mistake it catches becomes a rule, so the same mistake is stopped instantly the next time, without asking the AI at all.
+
+Built on Vultr from end to end. In live tests it caught 48 of 48 bad plans, with no false alarms. One caught mistake pays for years of use.
+
+Agents should be bold. Businesses should be safe. Now they can be both.
+
+Let the double take the hit.
+```
+
+<details><summary>Backup: the earlier, more technical version</summary>
+
+#### Submission Title (5–50 chars, this is 48)
 ```
 Stunt Double: Rehearse AI Agent Actions on Vultr
 ```
 
-## Step 1 · Short Description (50–255 chars, this is 249)
+#### Short Description (50–255 chars, this is 249)
 ```
 AI agents now move money, email customers and manage servers. Stunt Double runs every agent action on a throwaway double of your business in a gVisor sandbox on Vultr first, shows the consequences, and changes production only after a human approves.
 ```
 
-## Step 1 · Long Description (600–2000 chars and 100+ words, this is 1947 chars, 329 words)
+#### Long Description (600–2000 chars and 100+ words, this is 1947 chars, 329 words)
 ```
 AI agents are starting to act on real systems: refunding customers, sending email, clicking through admin sites and deleting cloud servers. One wrong plan can do irreversible damage before anyone notices. Stunt Double makes every agent action a rehearsal first.
 
@@ -28,6 +61,9 @@ Every catch becomes a rule: the AI writes the SQL check it used, Stunt Double pr
 
 On the live Vultr server it caught 48 of 48 bad plans with 0 false alarms on 26 correct ones. Agents connect over MCP, an SDK, a CLI or REST; there is no approve tool. Built on Vultr Cloud Compute, Serverless Inference and the Vultr API, with gVisor, FastAPI, Next.js and Playwright; 140 API tests and an end-to-end test that passes against production.
 ```
+
+
+</details>
 
 ## Step 1 · Participation Mode
 Online.
