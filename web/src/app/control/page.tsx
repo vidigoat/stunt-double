@@ -12,6 +12,7 @@ type Row = {
   id: string; task: string; mode: string; status: string; created_at: number; verdict: string | null; blocked: boolean;
   money_cents: number; rows: number; headline?: string | null; top_flag?: string | null; kind?: string | null;
   sandbox?: { id?: string; runtime?: string; wall_ms?: number; profile?: string } | null;
+  approval?: { auto?: boolean } | null;
 };
 type Stats = { rehearsals: number; stopped: number; money_prevented_cents: number; rows_protected: number; applied: number };
 type Health = { sandbox_runtime?: string; agent_model?: string; inference_configured?: boolean };
@@ -24,7 +25,7 @@ const ACTIVE = new Set(["queued", "planning", "rehearsing", "verifying", "applyi
 
 function decision(r: Row): { label: string; tone: "run" | "bad" | "warn" | "ok" | "neutral" } {
   if (ACTIVE.has(r.status)) return { label: r.status === "verifying" ? "AI verifier investigating…" : r.status === "applying" ? "applying for real…" : "rehearsing…", tone: "run" };
-  if (r.status === "applied") return { label: "applied after approval", tone: "ok" };
+  if (r.status === "applied") return { label: r.approval?.auto ? "auto-applied within the autonomy budget" : "applied after approval", tone: "ok" };
   if (r.status === "rejected") return { label: "rejected by a human", tone: "neutral" };
   if (r.status === "failed") return { label: "failed safely", tone: "neutral" };
   if (r.blocked) return { label: r.top_flag ? `blocked: ${r.top_flag}` : "blocked by policy", tone: "bad" };

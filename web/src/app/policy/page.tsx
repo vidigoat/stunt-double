@@ -14,12 +14,14 @@ type Policy = {
   block_schema_changes: boolean; block_network_attempts: boolean; block_over_refunds: boolean; block_broken_templates: boolean;
   block_data_leaks: boolean; warn_vip_emails: boolean; block_marketing_to_opted_out: boolean;
   glossary: { term: string; definition: string }[];
-  two_person_over_usd: number; two_person_over_rows: number; two_person_for_rollbacks: boolean; max_http_per_run: number; approval_expires_hours: number; protect_production_servers: boolean; max_servers_deleted: number;
+  two_person_over_usd: number; two_person_over_rows: number; two_person_for_rollbacks: boolean; max_http_per_run: number; approval_expires_hours: number; protect_production_servers: boolean; max_servers_deleted: number; autonomy_enabled: boolean; autonomy_allow_email: boolean; autonomy_max_usd: number; autonomy_max_rows: number;
 };
 
-const TOGGLES: { key: keyof Policy; title: string; body: string; kind: "block" | "warn" | "two" }[] = [
+const TOGGLES: { key: keyof Policy; title: string; body: string; kind: "block" | "warn" | "two" | "auto" }[] = [
   { key: "block_over_refunds", title: "Block risky refunds", body: "Refunds larger than the original charge, of charges already refunded, refunded twice, or that don't exist.", kind: "block" },
   { key: "block_broken_templates", title: "Block broken emails", body: "Emails with unfilled placeholders like {{first_name}} never reach customers.", kind: "block" },
+  { key: "autonomy_enabled", title: "Graduated autonomy", body: "Small, clean changes the AI verifier agrees with apply without waiting for a human (budget below). Everything else still needs approval.", kind: "auto" },
+  { key: "autonomy_allow_email", title: "Autonomy may send email", body: "Let auto-approved changes include customer emails.", kind: "auto" },
   { key: "protect_production_servers", title: "Protect production servers", body: "An agent can never delete, stop or resize a Vultr server tagged 'production'.", kind: "block" },
   { key: "block_marketing_to_opted_out", title: "Respect unsubscribes", body: "Marketing emails to customers who opted out are blocked. Transactional emails (like refund notices) are fine.", kind: "block" },
   { key: "block_data_leaks", title: "Block data leaks", body: "Emails that contain another customer's email address or a card-like number.", kind: "block" },
@@ -29,18 +31,21 @@ const TOGGLES: { key: keyof Policy; title: string; body: string; kind: "block" |
   { key: "warn_vip_emails", title: "Flag VIP recipients", body: "Show which VIP customers would be emailed.", kind: "warn" },
 ];
 
-const NUMBERS: { key: keyof Policy; title: string; body: string; unit: string; kind: "block" | "warn" | "two" }[] = [
+const NUMBERS: { key: keyof Policy; title: string; body: string; unit: string; kind: "block" | "warn" | "two" | "auto" }[] = [
   { key: "max_delete_pct", title: "Max rows deleted", body: "Deleting more than this share of any table is blocked.", unit: "% of a table", kind: "block" },
   { key: "max_update_pct_protected", title: "Max rows rewritten in protected tables", body: "Updating more than this share of a protected table is blocked.", unit: "% of a table", kind: "block" },
   { key: "two_person_over_usd", title: "Two approvers above", body: "Payouts above this need two different people to approve.", unit: "USD", kind: "two" },
   { key: "two_person_over_rows", title: "Two approvers for large changes", body: "Changing more rows than this needs two different people.", unit: "rows", kind: "two" },
   { key: "approval_expires_hours", title: "Rehearsals expire after", body: "An old rehearsal can't be approved. The business moved on, so rehearse again (0 = never).", unit: "hours", kind: "block" },
+  { key: "autonomy_max_usd", title: "Autonomy budget: money", body: "Auto-approve only if the change pays out at most this much.", unit: "USD", kind: "auto" },
+  { key: "autonomy_max_rows", title: "Autonomy budget: rows", body: "Auto-approve only if the change touches at most this many rows.", unit: "rows", kind: "auto" },
   { key: "max_servers_deleted", title: "Server deletion review", body: "Flag rehearsals that delete more Vultr servers than this.", unit: "servers", kind: "warn" },
   { key: "max_refund_total_usd", title: "Large payout review", body: "Flag rehearsals that pay out more than this in total.", unit: "USD", kind: "warn" },
   { key: "max_emails_per_run", title: "Bulk email review", body: "Flag rehearsals that send more emails than this.", unit: "emails", kind: "warn" },
 ];
 
-function Kind({ kind }: { kind: "block" | "warn" | "two" }) {
+function Kind({ kind }: { kind: "block" | "warn" | "two" | "auto" }) {
+  if (kind === "auto") return <span className="inline-flex items-center gap-1 rounded-full bg-signal px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider text-white">autonomy</span>;
   if (kind === "two") return <span className="inline-flex items-center gap-1 rounded-full border border-foreground px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider"><Users className="size-3" />2 people</span>;
   return kind === "block"
     ? <span className="inline-flex items-center gap-1 rounded-full bg-foreground px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider text-background"><Lock className="size-3" />blocks</span>

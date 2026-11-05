@@ -188,7 +188,56 @@ def _verify(run: dict) -> None:
         run["flags"] = att["flags"]
     _emit(run, "verify", verdict.get("headline", "Review ready"))
     _status(run, "review")
-    _notify_review(run)
+    if not _auto_approve(run):
+        _notify_review(run)
+
+
+def _within_autonomy(run: dict, pol: dict) -> str | None:
+    """Why this run may apply without a human (graduated autonomy), or None. Everything must hold: no flags at all, the
+    AI verifier said looks_right, one approver needed, and the money / rows / email / cloud budget is respected."""
+    if not pol.get("autonomy_enabled") or run.get("mode") == "rollback":
+        return None
+    att = run["attempts"][-1]
+    c = att["consequences"]
+    v = run.get("verdict") or {}
+    rows = sum(t["deleted"] + t["updated"] + t["inserted"] for t in c.get("tables", {}).values())
+    money = c.get("payments", {}).get("total_cents", 0)
+    cl = c.get("cloud") or {}
+    if (not c.get("ok") or att["flags"] or v.get("verdict") != "looks_right" or att.get("approvals_required", 1) > 1
+            or money > pol.get("autonomy_max_usd", 0) * 100 or rows > pol.get("autonomy_max_rows", 0)
+            or (c.get("emails", {}).get("count") and not pol.get("autonomy_allow_email")) or (c.get("http") or {}).get("count")
+            or cl.get("deleted") or cl.get("stopped") or cl.get("resized")):
+        return None
+    return f"within the autonomy budget (≤ ${pol.get('autonomy_max_usd', 0):,} and ≤ {pol.get('autonomy_max_rows', 0):,} rows; no flags; the verifier agreed)"
+
+
+def _auto_approve(run: dict) -> bool:
+    """Graduated autonomy: a small, clean, AI-confirmed change applies without waiting for a human (opt-in policy)."""
+    why = _within_autonomy(run, policy.load())
+    if not why:
+        return False
+    att = run["attempts"][-1]
+    with LOCK:
+        if run["status"] != "review":
+            return False
+        effects = open(att["effects_path"], "rb").read()
+        if hashlib.sha256(effects).hexdigest() != att.get("effects_sha256"):
+            return False
+        run["approvals"] = [{"name": "Autonomy policy", "at": time.time(), "effects_sha256": att["effects_sha256"]}]
+        run["approval"] = {"approved_at": time.time(), "approver": "Autonomy policy (no human needed)", "approvers": ["Autonomy policy"],
+                           "notes": [f"Auto-approved {why}"], "auto": True, "plan_sha256": att["plan_sha256"],
+                           "effects_sha256": att["effects_sha256"], "sandbox_id": att["sandbox_id"], "policy": policy.load(), "warnings": []}
+        run["status"] = "applying"
+        _save(run)
+    _emit(run, "human", "Auto-approved by the autonomy policy", why)
+    with APPLY_LOCK:
+        if beanpay.refunded_charges([p["charge_id"] for p in json.loads(effects).get("payments", [])]):
+            with LOCK:
+                run["status"], run["approval"] = "review", None
+                _save(run)
+            return False
+        _apply_claimed(run, att, run["id"])
+    return True
 
 
 def _agent_job(run: dict, feedback: str | None = None) -> None:
