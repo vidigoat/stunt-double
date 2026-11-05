@@ -505,18 +505,18 @@ def _surgical_checks(run: dict) -> list[dict]:
         if r.get("violations"):
             hit = next((x for x in rules.all_rules(ws) if x["id"] == r.get("id")), None)
             if hit:
-                out.append({"title": hit["title"], "sql": hit["sql"], "source": "learned rule"})
+                out.append({"title": hit["title"], "sql": hit["sql"], "source": "learned rule", "required": True})
     for p in (att["consequences"].get("contract") or {}).get("promises", []):
         if p.get("status") == "broken":
-            out.append({"title": p["text"], "sql": p["sql"], "source": "intent contract"})
+            out.append({"title": p["text"], "sql": p["sql"], "source": "intent contract", "required": True})
     v = run.get("verdict") or {}
     if v.get("verdict") in ("concerns", "dangerous") and isinstance(v.get("rule"), dict) and v["rule"].get("sql"):
-        out.append({"title": v["rule"].get("title") or "the AI jury's check", "sql": v["rule"]["sql"], "source": "AI jury"})
+        out.append({"title": v["rule"].get("title") or "the AI jury's check", "sql": v["rule"]["sql"], "source": "AI jury", "required": False})
     return out
 
 
 def _surgical_propose(run: dict) -> tuple[dict, engine_subsets.Offer]:
-    """The first check that yields a provable subset, and the subset. Each check is tried on its own."""
+    """The largest part of the plan that passes every check that fired and still does some of the work asked for."""
     att = run["attempts"][-1]
     checks = _surgical_checks(run)
     if not checks:
@@ -528,15 +528,16 @@ def _surgical_propose(run: dict) -> tuple[dict, engine_subsets.Offer]:
     effects = _effects_cached(att["effects_path"], att.get("effects_sha256") or "")
     base = workspaces.db_path(run.get("workspace", workspaces.DEMO))
     g = engine_graph.build(effects, str(base))
-    reasons = []
-    for check in checks:
-        try:
-            offer = engine_subsets.propose(effects, g, base, check["sql"], check["title"])
-            break
-        except engine_subsets.NoOffer as e:
-            reasons.append((check["source"], str(e)))
-    else:
-        raise engine_subsets.NoOffer(reasons[0][1] if len(reasons) == 1 else "; ".join(f"{s}: {r}" for s, r in reasons))
+    offer = engine_subsets.propose(effects, g, base, checks)
+    check = next(c for c in checks if c["title"] == offer.check_title)
+    contract = run.get("contract") or {}
+    work = [p for p in contract.get("promises") or [] if p["kind"] == "obligation"] if contract.get("status") == "ready" else []
+    if work:   # the part that's kept must do some of what was asked, or there is nothing worth approving
+        done = engine_contracts.evaluate(work, base, offer.effects)
+        if not any(r.get("after") is not None and r["after"] < r["today"] for r in done):
+            raise engine_subsets.NoOffer("the part that passes every check does none of the work the request asked for")
+    elif contract.get("status") == "ready":
+        raise engine_subsets.NoOffer("the request asks for no change, so no part of this plan is needed")
     try:   # Proof of Effect: which lines of the plan produced the rows being cut
         prov = json.loads(open(att["effects_path"].replace("effects.json", "provenance.json")).read())
         wrote, chose = prov.get("rows") or {}, prov.get("decided") or {}

@@ -1,14 +1,15 @@
 """Surgical approval: cut the wrong units of work out of a plan and keep the right ones.
 
-Given a rehearsal's effects, its Effect Graph and a check that flags what is wrong (a learned rule, an intent-contract
-guard, or the AI jury's own check), the engine:
+Given a rehearsal's effects, its Effect Graph and the checks that flag what is wrong (learned rules, intent-contract
+promises, the AI jury's own check), the engine:
 
     1. rebuilds the plan's after-state on a private copy (no plan code runs again)
-    2. runs the check there and maps every flagged row to a node of the graph
+    2. runs every check there and maps each flagged row to a node of the graph
     3. drops every unit of work that contains a flagged node, whole (a refund never leaves without its email)
-    4. rebuilds the after-state of what is left and runs the check again: it must now find nothing
+    4. rebuilds the after-state of what is left and runs every check again: each must now find nothing
 
-If any flagged row can't be mapped, or the remainder still fails, there is no offer. The engine never guesses.
+A required check (a learned rule, a broken promise) must hold on what is left, whatever happens; if it doesn't, there
+is no offer. The engine never guesses.
 The subset that survives is then re-measured in a fresh sandbox by the caller, like any rehearsal.
 """
 from __future__ import annotations
@@ -39,6 +40,7 @@ class Offer:
     effects: dict = field(default_factory=dict)    # the subset itself
     dropped_units: list[int] = field(default_factory=list)   # which units were cut (for drawing the plan)
     caused_by: list[dict] = field(default_factory=list)      # Proof of Effect: the statements that produced the cut rows
+    checks: list[dict] = field(default_factory=list)         # every check the subset was cut by, and passes
 
     def public(self) -> dict:
         return {k: v for k, v in self.__dict__.items() if k != "effects"}
@@ -132,37 +134,59 @@ def _counts(effects: dict) -> dict:
             "emails": len(effects.get("emails") or []), "api_calls": len(effects.get("http") or [])}
 
 
-def propose(effects: dict, g: Graph, base_db: str | Path, check_sql: str, check_title: str) -> Offer:
-    """Find the largest part of the plan that passes the check. Raises NoOffer with a readable reason."""
+def propose(effects: dict, g: Graph, base_db: str | Path, checks: list[dict]) -> Offer:
+    """Find the largest part of the plan that passes every check. Raises NoOffer with a readable reason.
+
+    `checks` are dicts with title, sql and required. Required checks (learned rules that fired, contract promises the
+    plan broke) must all hold on the subset, whatever happens. An optional check (the AI jury's own) joins the cut only
+    when every row it flags can be traced to this plan; otherwise it is left to the jury's re-check of the subset."""
     if not g.units:
         raise NoOffer("the plan has no consequences to keep")
+    if not checks:
+        raise NoOffer("nothing flags specific rows of this plan")
+    recipients: dict[str, list[str]] = {}
+    for i, m in enumerate(effects.get("emails") or []):
+        recipients.setdefault(str(m.get("to", "")).strip().lower(), []).append(f"email:{i}")
     with tempfile.TemporaryDirectory() as d:
         try:
             after = materialize(base_db, effects, Path(d) / "after.db")
         except Drift as e:
             raise NoOffer(f"the data changed since the rehearsal ({e})") from e
-        cols, rows = _run_check(after, check_sql, base_db, effects)
-        if not rows:
-            raise NoOffer("the check finds nothing wrong")
-        recipients: dict[str, list[str]] = {}
-        for i, m in enumerate(effects.get("emails") or []):
-            recipients.setdefault(str(m.get("to", "")).strip().lower(), []).append(f"email:{i}")
-        nodes, unmapped = flagged_nodes(g, cols, rows, check_sql, recipients)
-        if unmapped:
-            raise NoOffer(f"{unmapped:,} flagged rows can't be traced to a consequence of this plan")
+        nodes: set[str] = set()
+        used, flagged = [], 0
+        for chk in checks:
+            try:
+                cols, rows = _run_check(after, chk["sql"], base_db, effects)
+            except NoOffer:
+                if chk.get("required"):
+                    raise
+                continue
+            if not rows:
+                continue
+            found, unmapped = flagged_nodes(g, cols, rows, chk["sql"], recipients)
+            if unmapped and not chk.get("required"):
+                continue                      # a required check with untraced rows still has to hold on the subset
+            nodes |= found
+            used.append(chk)
+            flagged += len(rows)
+        if not used:
+            raise NoOffer("the checks that fired can't be traced to specific consequences of this plan")
         drop = g.units_touching(nodes)
         keep = set(range(len(g.units))) - drop
+        if not drop:
+            raise NoOffer("no consequence of this plan can be traced to what the checks flag")
         if not keep:
-            raise NoOffer("every part of the plan breaks the check")
+            raise NoOffer("every part of the plan breaks a check")
         sub = cut(effects, g, keep)
         try:
             sub_after = materialize(base_db, sub, Path(d) / "subset.db")
         except Drift as e:
             raise NoOffer(f"the subset can't be rebuilt ({e})") from e
-        _, still = _run_check(sub_after, check_sql, base_db, sub)
-        if still:
-            raise NoOffer(f"even without the flagged parts, the check still finds {len(still):,} problems")
+        for chk in used:
+            _, still = _run_check(sub_after, chk["sql"], base_db, sub)
+            if still:
+                raise NoOffer(f"even without the flagged parts, “{chk['title']}” still finds {len(still):,} problems")
     full, kept = _counts(effects), _counts(sub)
-    return Offer(check_title=check_title, units_total=len(g.units), units_kept=len(keep), units_dropped=len(drop),
-                 flagged_rows=len(rows), kept=kept, dropped={k: full[k] - kept[k] for k in full}, effects=sub,
-                 dropped_units=sorted(drop)[:5000])
+    return Offer(check_title=used[0]["title"], units_total=len(g.units), units_kept=len(keep), units_dropped=len(drop),
+                 flagged_rows=flagged, kept=kept, dropped={k: full[k] - kept[k] for k in full}, effects=sub,
+                 dropped_units=sorted(drop)[:5000], checks=[{"title": c["title"], "source": c.get("source")} for c in used])

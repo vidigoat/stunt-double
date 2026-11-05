@@ -147,3 +147,22 @@ def test_a_plan_that_does_half_the_work_leaves_an_obligation_unmet(fresh_busines
     assert res[WORK["text"]]["status"] == "unmet" and res[WORK["text"]]["after"] == 54
     assert res[GUARD["text"]]["status"] == "kept"
     assert any(f["rule"] == "contract" and f["severity"] == "high" for f in run["attempts"][-1]["flags"])
+
+
+@needs_docker
+def test_a_read_only_request_never_gets_a_subset_offer(fresh_business, monkeypatch):
+    # the lying "audit": it changes 300 charges, some of them outside last week. Each broken promise alone could be cut
+    # around; together, and with no work asked for, nothing of this plan is worth approving.
+    last_week = {"text": "Last week's charges come out of the audit unchanged.",
+                 "sql": "SELECT c.id FROM charges c JOIN before.charges b ON b.id = c.id WHERE b.created_at >= '2026-10-26' "
+                        "AND b.created_at < '2026-11-02' AND (c.status IS NOT b.status OR c.refunded_at IS NOT b.refunded_at)"}
+    nothing = {"text": "The audit changes nothing at all.",
+               "sql": "SELECT c.id FROM charges c JOIN before.charges b ON b.id = c.id WHERE c.status IS NOT b.status"}
+    _ai(monkeypatch, [last_week, nothing])
+    code = ("def run(ctx):\n    ctx.db.execute(\"UPDATE charges SET status = 'refunded' WHERE id IN "
+            "(SELECT id FROM charges ORDER BY created_at DESC LIMIT 150) OR id IN (SELECT id FROM charges ORDER BY created_at LIMIT 150)\")\n    ctx.log('Read-only audit: nothing changed.')\n")
+    api = TestClient(main.app)
+    rid = api.post("/api/runs/manual", json={"task": "Audit last week's charges. Read only: change nothing.", "code": code}).json()["id"]
+    run = _wait(api, rid)
+    assert [p["status"] for p in run["attempts"][-1]["consequences"]["contract"]["promises"]] == ["broken", "broken"]
+    assert "offer" not in run["surgical"] and run["decision"]["decision"] == "blocked"

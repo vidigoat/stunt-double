@@ -58,7 +58,7 @@ export type Run = {
 };
 export type SurgicalCounts = { rows: number; refunds: number; money_cents: number; emails: number; api_calls: number };
 export type SurgicalOffer = { check_title: string; units_total: number; units_kept: number; units_dropped: number; flagged_rows: number;
-  kept: SurgicalCounts; dropped: SurgicalCounts; dropped_units: number[]; caused_by?: { i: number; rows: number; how?: "chose" | "wrote" }[] };
+  kept: SurgicalCounts; dropped: SurgicalCounts; dropped_units: number[]; checks?: { title: string; source: string }[]; caused_by?: { i: number; rows: number; how?: "chose" | "wrote" }[] };
 export type Surgical = { offer?: SurgicalOffer; check?: { title: string; source: string }; none?: string; applied_to?: number };
 export type Workspace = { id: string; name: string; kind: "demo" | "upload" | "vultr" | "postgres"; description: string };
 export type Business = {

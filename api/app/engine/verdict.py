@@ -66,9 +66,10 @@ def _contract(c: dict, contract: dict | None) -> dict:
         return {"status": WARN, "reason": f"Leaves {p['after']:,} of {p['today']:,} undone: “{p['text']}”.", "promises": len(ps), "unmet": len(unmet)}
     if unknown:
         return {"status": WARN, "reason": f"Couldn't check {_n(len(unknown), 'promise')} of {len(ps)}: “{unknown[0]['text']}”.", "promises": len(ps)}
-    work = sum(p["today"] for p in ps if p["kind"] == "obligation")
+    work = [p["today"] for p in ps if p["kind"] == "obligation"]
     keeps = "Keeps its one promise" if len(ps) == 1 else f"Keeps all {len(ps)} promises"
-    return {"status": PASS, "reason": keeps + (f" and finishes the work ({work:,} of {work:,})." if work else "."), "promises": len(ps)}
+    done = "" if not work else f" and finishes the work ({work[0]:,} of {work[0]:,})." if len(set(work)) == 1 else f" and finishes all {len(work)} pieces of work."
+    return {"status": PASS, "reason": keeps + (done or "."), "promises": len(ps)}
 
 
 def _rules(flags: list[dict]) -> dict:
