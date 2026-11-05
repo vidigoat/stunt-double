@@ -36,7 +36,7 @@ Online.
 Pick Challenge 01 / Blast Radius Zero if it is listed, plus anything like AI agents, security or developer tools.
 
 ## Step 1 · Technologies Used
-Vultr · Vultr Cloud Compute · Vultr Serverless Inference · gVisor · Docker · Python · FastAPI · Next.js · Playwright ·
+Vultr · Vultr Cloud Compute · Vultr Serverless Inference · Vultr API · gVisor · Docker · Python · FastAPI · Next.js · Playwright · PostgreSQL ·
 MCP · SQLite · GLM
 
 ## Links

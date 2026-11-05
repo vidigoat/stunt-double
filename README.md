@@ -32,10 +32,11 @@
   </tr>
   <tr>
     <td width="50%"><img src="docs/assets/cloud.png" alt="Cleaning up idle Vultr servers would delete production; blocked"><br><sub><b>Your Vultr cloud, on the double.</b> "Idle" servers include the failover database; production is protected.</sub></td>
-    <td width="50%"><img src="docs/assets/containment.png" alt="Containment: sandbox 0 customers, production 1,300"><br><sub><b>Containment.</b> Deleting every customer hits only the double; approval locks.</sub></td>
+    <td width="50%"><img src="docs/assets/postgres.png" alt="A rehearsal on a read-only double of a PostgreSQL database, with an instant labelled verdict and Export as SQL"><br><sub><b>Your real data.</b> A read-only double of your Postgres; the verifier spells out the cost; changes export as drift-guarded SQL.</sub></td>
   </tr>
   <tr>
-    <td colspan="2"><img src="docs/assets/control.png" alt="Mission control: every rehearsal from request to double to decision, live"><br><sub><b>Mission control.</b> Every agent action on the server, live: the request, its double on Vultr (gVisor, seconds, destroyed), the decision.</sub></td>
+    <td width="50%"><img src="docs/assets/containment.png" alt="Containment: sandbox 0 customers, production 1,300"><br><sub><b>Containment.</b> Deleting every customer hits only the double; approval locks.</sub></td>
+    <td width="50%"><img src="docs/assets/control.png" alt="Mission control: every rehearsal from request to double to decision, live"><br><sub><b>Mission control.</b> Every agent action on the server, live: the request, its double on Vultr, the decision.</sub></td>
   </tr>
 </table>
 
