@@ -11,7 +11,7 @@ from tests.conftest import needs_docker
 
 
 def wait(api, rid, states=("review", "failed", "rejected")):
-    for _ in range(120):
+    for _ in range(480):  # up to 2 minutes: shared CI runners can be slow to start a sandbox
         run = api.get(f"/api/runs/{rid}").json()
         if run["status"] in states:
             return run
@@ -176,8 +176,9 @@ def test_unbuildable_rollback_creates_no_run(fresh_business, monkeypatch):
     api = TestClient(main.app)
     code = "def run(ctx):\n    ctx.db.execute(\"UPDATE customers SET name = name || '' WHERE id = 1\")\n"
     rid = api.post("/api/runs/manual", json={"task": "touch customer 1", "code": code}).json()["id"]
-    wait(api, rid)
-    assert api.post(f"/api/runs/{rid}/approve", json={"approver": "Priya"}).json()["status"] == "applied"
+    assert wait(api, rid)["status"] == "review"
+    approved = api.post(f"/api/runs/{rid}/approve", json={"approver": "Priya"}).json()
+    assert approved.get("status") == "applied", approved
     main.RUNS[rid]["attempts"][-1]["effects_sha256"] = "0" * 64  # effects on disk no longer match what was approved
     n = len(main.RUNS)
     r = api.post(f"/api/runs/{rid}/rollback")
