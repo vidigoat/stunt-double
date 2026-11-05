@@ -387,6 +387,7 @@ def _verify(run: dict) -> None:
             _emit(run, "verify", "The verifier's proposed rule was not offered", str(e))
     crit = [f for f in att["flags"] if f["severity"] == "critical"]
     if crit and verdict.get("verdict") != "dangerous":
+        verdict["raised_from"] = verdict.get("verdict")      # what the jury said, before a deterministic check overruled it
         verdict["verdict"] = "dangerous"
     with LOCK:
         run["verdict"] = verdict
@@ -644,6 +645,12 @@ class ManualIn(TaskIn):
 class ApproveIn(BaseModel):
     approver: str | None = Field(default=None, max_length=80)
     note: str | None = Field(default=None, max_length=500)
+
+
+class StrikeIn(BaseModel):
+    index: int = Field(ge=0, le=20)
+    by: str | None = Field(default=None, max_length=80)
+    reason: str = Field(min_length=10, max_length=500)
 
 
 class RejectIn(BaseModel):
@@ -1119,6 +1126,42 @@ def recheck_run(rid: str, req: Request):
     return {"id": rid}
 
 
+@app.post("/api/runs/{rid}/contract/strike")
+def strike_promise(rid: str, body: StrikeIn):
+    """A person disagrees with a promise: it stops being enforced, with their name and reason in the record. The
+    latest rehearsal is re-checked against what is left, with no AI, and the decision and any cut are recomputed."""
+    run = _get(rid)
+    who = " ".join((body.by or "").split())[:80] or "Approver"
+    reason = " ".join(body.reason.split())[:500]
+    with LOCK:
+        contract = run.get("contract") or {}
+        if run["status"] != "review" or contract.get("status") != "ready" or not run["attempts"]:
+            raise HTTPException(409, "Only a ready contract of a run under review can be changed")
+        if body.index >= len(contract["promises"]):
+            raise HTTPException(404, "No such promise")
+        if len(contract["promises"]) == 1:
+            raise HTTPException(409, "That is the last promise; reject the run instead")
+        gone = contract["promises"].pop(body.index)
+        contract.setdefault("struck", []).append({**gone, "by": who, "reason": reason, "at": time.time()})
+        att = run["attempts"][-1]
+        _save(run)
+    c = att["consequences"]
+    _contract_check(run, c, att.get("effects_path"))
+    flags = _gate_flags(c, run)
+    v = run.get("verdict") or {}
+    with LOCK:
+        att["flags"] = flags
+        run["flags"] = flags
+        if v.get("raised_from") and not any(f["severity"] == "critical" for f in flags):
+            v["verdict"] = v.pop("raised_from")       # the deterministic check that overruled the jury is gone
+        run["surgical"] = None
+        _save(run)
+    _emit(run, "human", f"{who} struck a promise from the contract: {gone['text']}", f"Reason: {reason}")
+    if not att.get("surgical_of"):
+        _surgical_offer(run)
+    return _public(run)
+
+
 @app.post("/api/runs/{rid}/reject")
 def reject_run(rid: str, body: RejectIn | None = None):
     run = _get(rid)
@@ -1264,7 +1307,7 @@ def _evidence_steps(run: dict) -> list[tuple[str, object]]:
     """The run as an ordered list of steps, for the hash chain."""
     steps: list[tuple[str, object]] = [("request", {k: run.get(k) for k in ("id", "task", "mode", "workspace", "created_at", "agent_model", "verifier_model")})]
     if run.get("contract"):
-        steps.append(("contract", {k: run["contract"].get(k) for k in ("status", "model", "today", "promises", "withdrawn", "reason")}))
+        steps.append(("contract", {k: run["contract"].get(k) for k in ("status", "model", "today", "promises", "withdrawn", "struck", "reason")}))
     for a in run["attempts"]:
         c = a["consequences"]
         steps.append(("rehearsal", {
@@ -1276,6 +1319,8 @@ def _evidence_steps(run: dict) -> list[tuple[str, object]]:
         steps.append(("surgical", {k: v for k, v in run["surgical"].items() if k != "offer"} | {"offer": {k: v for k, v in ((run["surgical"].get("offer") or {}).items()) if k != "dropped_units"}}))
     if run.get("verdict"):
         steps.append(("jury", run["verdict"]))
+    if (run.get("contract") or {}).get("struck"):
+        steps.append(("contract_struck", run["contract"]["struck"]))
     decision = engine_verdict.decide(run)
     if decision:
         steps.append(("decision", decision))

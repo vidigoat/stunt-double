@@ -186,3 +186,25 @@ def test_the_indexed_copy_follows_the_data(tmp_path):
     second = state.indexed(src)
     assert second != first and sqlite3.connect(second).execute("SELECT COUNT(*) FROM charges").fetchone()[0] == 2
     assert not sqlite3.connect(src).execute("SELECT COUNT(*) FROM sqlite_master WHERE type='index'").fetchone()[0]  # the real data: untouched
+
+
+@needs_docker
+def test_a_person_can_strike_a_promise_and_the_record_says_who_and_why(fresh_business, monkeypatch):
+    _ai(monkeypatch, [WORK, GUARD])
+    api = TestClient(main.app)
+    rid = api.post("/api/runs/manual", json={"task": PLANS["bad"]["task"], "code": PLANS["bad"]["code"]}).json()["id"]
+    run = _wait(api, rid)
+    assert run["decision"]["decision"] == "cut" and run["verdict"]["verdict"] == "dangerous"      # raised by the broken guard
+    assert api.post(f"/api/runs/{rid}/contract/strike", json={"index": 1, "reason": "no"}).status_code == 422   # a reason is required
+    r = api.post(f"/api/runs/{rid}/contract/strike", json={"index": 1, "by": "Priya", "reason": "We also refund same-day repeat orders"})
+    run = r.json()
+    assert [p["text"] for p in run["attempts"][-1]["consequences"]["contract"]["promises"]] == [WORK["text"]]
+    assert not any(f["rule"] == "contract" for f in run["attempts"][-1]["flags"])
+    assert run["verdict"]["verdict"] == "concerns"                     # the jury's own verdict is back
+    assert run["decision"]["decision"] == "review" and "1 struck by Priya" in run["decision"]["layers"][2]["reason"]
+    assert "offer" not in (run.get("surgical") or {})
+    assert api.post(f"/api/runs/{rid}/contract/strike", json={"index": 0, "reason": "the last one goes too"}).status_code == 409
+    ev = api.get(f"/api/runs/{rid}/evidence").json()
+    struck = next(e for e in ev["chain"]["entries"] if e["kind"] == "contract_struck")["body"]
+    assert struck[0]["by"] == "Priya" and struck[0]["reason"] == "We also refund same-day repeat orders"
+    assert api.post("/api/evidence/verify", json=ev).json()["ok"]

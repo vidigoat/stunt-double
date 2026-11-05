@@ -15,7 +15,7 @@ export type ProvenanceDetail = { summary: Provenance; statements: { i: number; r
   unexplained: { table: string; rowid: number; op: string }[]; claimed_only?: { table: string; rowid: number; op: string }[]; failed?: { i: number; error: string }[] };
 export type GraphSummary = { nodes: number; by_kind: Record<string, number>; units: number; largest_unit: number; edges: number; hubs: number; truncated: boolean };
 export type Pledge = { text: string; sql: string; kind: "guard" | "obligation"; today: number };
-export type Contract = { status: "writing" | "ready" | "failed"; promises?: Pledge[]; withdrawn?: Pledge[]; model?: string; today?: string; ms?: number;
+export type Contract = { status: "writing" | "ready" | "failed"; promises?: Pledge[]; withdrawn?: Pledge[]; struck?: (Pledge & { by: string; reason: string; at: number })[]; model?: string; today?: string; ms?: number;
   cached?: { at: number; ms?: number | null }; reason?: string };
 export type ContractResult = { status: "checked" | "late" | "unknown"; model?: string; broken?: number; unmet?: number;
   promises: (Pledge & { status: "kept" | "broken" | "met" | "unmet" | "unknown"; after: number | null; why?: string })[] };
@@ -110,6 +110,7 @@ export const api = {
   recheck: (id: string) => req<{ id: string }>(`/runs/${id}/recheck`, {}),
   provenance: (id: string, attempt = 0) => req<ProvenanceDetail>(`/runs/${id}/provenance?attempt=${attempt}`),
   surgical: (id: string) => req<{ id: string; offer: SurgicalOffer }>(`/runs/${id}/surgical`, {}),
+  strike: (id: string, index: number, reason: string, by?: string) => req<Run>(`/runs/${id}/contract/strike`, { index, reason, by }),
   promote: (id: string, by?: string) => req<{ id: string; title: string; sql: string }>(`/runs/${id}/promote`, { by }),
   approve: (id: string, approver?: string, note?: string) => req<Run>(`/runs/${id}/approve`, { approver, note: note || undefined }),
   reject: (id: string, approver?: string, reason?: string) => req<Run>(`/runs/${id}/reject`, { approver, reason: reason || undefined }),

@@ -50,6 +50,14 @@ def _proof(c: dict) -> dict:
 
 
 def _contract(c: dict, contract: dict | None) -> dict:
+    out = _contract_layer(c, contract)
+    struck = (contract or {}).get("struck") or []
+    if struck:
+        out["reason"] += f" {len(struck)} struck by {', '.join(sorted({x['by'] for x in struck}))}."
+    return out
+
+
+def _contract_layer(c: dict, contract: dict | None) -> dict:
     res = c.get("contract") or {}
     ps = res.get("promises") or []
     if not ps:

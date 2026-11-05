@@ -668,7 +668,11 @@ export default function AppPage() {
               ) : null}
 
               {run.contract && (run.contract.status === "ready" || ACTIVE.has(run.status)) ? (
-                <ContractCard contract={run.contract} result={attempt?.consequences.contract} />
+                <ContractCard contract={run.contract} result={attempt?.consequences.contract}
+                  onStrike={run.status === "review" && run.contract.status === "ready" ? async (i, reason) => {
+                    try { const r = await api.strike(run.id, i, reason, approver.trim() || undefined); setRun(r); toast.success("Struck. The rehearsal was re-checked against what's left."); }
+                    catch (e) { toast.error((e as Error).message); throw e; }
+                  } : undefined} />
               ) : null}
               {run.status === "review" && run.surgical?.offer && !attempt?.surgical_of ? (
                 <SurgicalCard offer={run.surgical.offer} check={run.surgical.check} busy={busy || running} onCut={async () => {

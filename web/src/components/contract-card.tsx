@@ -14,8 +14,11 @@ const PILL: Record<string, { label: string; cls: string }> = {
   pending: { label: "waiting for a plan", cls: "bg-muted text-muted-foreground" },
 };
 
-function Line({ p }: { p: Pledge & { status?: string; after?: number | null } }) {
+function Line({ p, onStrike }: { p: Pledge & { status?: string; after?: number | null }; onStrike?: (reason: string) => Promise<void> }) {
   const [open, setOpen] = useState(false);
+  const [striking, setStriking] = useState(false);
+  const [reason, setReason] = useState("");
+  const [busy, setBusy] = useState(false);
   const pill = PILL[p.status ?? "pending"] ?? PILL.pending;
   const counts = p.kind === "obligation"
     ? p.after == null ? `${num(p.today)} to do today` : p.after === 0 ? `${num(p.today)} to do · all done` : `${num(p.today)} to do · ${num(p.after)} left`
@@ -29,15 +32,29 @@ function Line({ p }: { p: Pledge & { status?: string; after?: number | null } })
       <div className="mt-1.5 flex flex-wrap items-center gap-x-3 pl-0.5 text-xs text-muted-foreground">
         <span className="font-mono uppercase tracking-wider">{p.kind === "guard" ? "guard" : "the work"}</span>
         <span className={cn("font-mono", p.status === "broken" && "text-damage")}>{counts}</span>
-        <button className="ml-auto text-signal hover:underline" onClick={() => setOpen((v) => !v)}>{open ? "Hide the check" : "The check"}</button>
+        {onStrike ? <button className="ml-auto hover:text-foreground hover:underline" onClick={() => setStriking((v) => !v)}>Disagree?</button> : null}
+        <button className={cn("text-signal hover:underline", !onStrike && "ml-auto")} onClick={() => setOpen((v) => !v)}>{open ? "Hide the check" : "The check"}</button>
       </div>
+      {striking && onStrike ? (
+        <form className="mt-2 flex flex-wrap gap-2" onSubmit={async (e) => {
+          e.preventDefault(); setBusy(true);
+          try { await onStrike(reason); setStriking(false); } finally { setBusy(false); }
+        }}>
+          <input value={reason} onChange={(e) => setReason(e.target.value)} minLength={10} maxLength={500} required aria-label="Why this promise is wrong"
+            placeholder="Why is this promise wrong for your business? (goes in the signed record)"
+            className="h-9 min-w-0 flex-1 rounded-full border bg-background px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring/50" />
+          <button disabled={busy || reason.trim().length < 10} className="h-9 rounded-full border px-3 text-sm hover:bg-muted disabled:opacity-50">Strike it</button>
+        </form>
+      ) : null}
       {open ? <pre className="mt-2 max-h-56 overflow-auto whitespace-pre-wrap break-words rounded-lg bg-muted/60 px-3 py-2 font-mono text-[11px] leading-relaxed">{p.sql}</pre> : null}
     </li>
   );
 }
 
 /** Intent Contract: what the request means, written down before any plan existed, then checked against the plan. */
-export function ContractCard({ contract, result, className }: { contract: Contract; result?: ContractResult; className?: string }) {
+export function ContractCard({ contract, result, className, onStrike }: {
+  contract: Contract; result?: ContractResult; className?: string; onStrike?: (index: number, reason: string) => Promise<void>;
+}) {
   if (contract.status === "writing") {
     return (
       <div className={cn("flex items-center gap-3 rounded-2xl border bg-card px-5 py-4 text-sm", className)}>
@@ -68,8 +85,15 @@ export function ContractCard({ contract, result, className }: { contract: Contra
         </div>
       </div>
       <ul className="space-y-2 border-t px-5 py-4">
-        {rows.map((p, i) => <Line key={i} p={p} />)}
+        {rows.map((p, i) => <Line key={`${i}:${p.text}`} p={p} onStrike={onStrike && rows.length > 1 ? (r) => onStrike(i, r) : undefined} />)}
       </ul>
+      {contract.struck?.length ? (
+        <div className="space-y-1 border-t px-5 py-3 text-xs text-muted-foreground">
+          {contract.struck.map((x, i) => (
+            <p key={i}><span className="line-through">{x.text}</span> <span className="text-foreground">Struck by {x.by}:</span> “{x.reason}”</p>
+          ))}
+        </div>
+      ) : null}
       {contract.withdrawn?.length ? (
         <p className="border-t px-5 py-3 text-xs text-muted-foreground">
           {contract.withdrawn.length === 1 ? "One promise was" : `${contract.withdrawn.length} promises were`} withdrawn before checking: a plan the jury judged
