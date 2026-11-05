@@ -1651,6 +1651,8 @@ def evidence_key():
 @app.post("/api/evidence/verify")
 def verify_evidence(body: dict, req: Request):
     """Check a downloaded evidence record: every entry of the chain, and the signature, against this server's key."""
+    if int(req.headers.get("content-length") or 0) > 8_000_000:
+        raise HTTPException(413, "An evidence record is at most 8 MB")
     _rate_limit(req, per_hour=120, kind="evidence check")
     return engine_evidence.verify(body, engine_evidence.public_key(config.DATA_DIR)["public_key"])
 
