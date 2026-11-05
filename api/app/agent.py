@@ -82,7 +82,9 @@ VERDICT_TOOL = {"type": "function", "function": {
         "fix_instructions": {"type": "string", "description": "If not looks_right: exact guidance for the ops agent to fix the plan."},
         "rule": {"type": "object", "description": "If not looks_right: the check you used, as a reusable rule. `sql` is ONE SQLite SELECT "
                  "over the business tables that returns the rows that are wrong AFTER a plan runs (it must return 0 rows when the data "
-                 "is right). Keep it general (no hard-coded ids unless the request named them). `title` is <= 10 words. "
+                 "is right). Keep it general (no hard-coded ids or dates unless the request named them). `title` is <= 10 words. "
+                 "It must flag ONLY the mistake: the result of a CORRECT plan for the same request must also return 0 rows "
+                 "(e.g. a correct refund leaves one refunded and one succeeded charge on the order; the rule must accept that). "
                  "Before proposing it, run it with run_query: today's data is correct, so it MUST return 0 rows now.",
                  "properties": {"title": {"type": "string"}, "sql": {"type": "string"}}, "required": ["title", "sql"]}},
         "required": ["verdict", "headline", "summary", "concerns"]}}}
@@ -325,7 +327,8 @@ def _screenshots(consequences: dict, limit: int = 3) -> list[dict]:
     return parts
 
 
-def verify(task: str, code: str, consequences: dict, emit: Callable) -> dict:
+def verify(task: str, code: str, consequences: dict, emit: Callable, models: str | list[str] | None = None, vision: bool = True) -> dict:
+    """The independent AI check. `models` picks a different model (a juror); jurors may run without screenshots."""
     from . import policy as _policy
     glossary = _policy.load().get("glossary", [])
     messages = [{"role": "system", "content": VERIFIER_SYSTEM + (
@@ -334,7 +337,7 @@ def verify(task: str, code: str, consequences: dict, emit: Callable) -> dict:
                     if glossary else "")},
                 {"role": "user", "content": json.dumps({"human_request": task, "plan_code": code,
                                                         "measured_consequences": compact_consequences(consequences)}, default=str)}]
-    shots = _screenshots(consequences)
+    shots = _screenshots(consequences) if vision else []
     if shots:  # browser double: let the (multimodal) verifier SEE what the agent did on screen
         messages[-1] = {"role": "user", "content": [{"type": "text", "text": messages[-1]["content"]},
                                                     {"type": "text", "text": "The agent worked in a browser. These are its last screens; check them against the request "
@@ -344,7 +347,7 @@ def verify(task: str, code: str, consequences: dict, emit: Callable) -> dict:
         emit("verify", "Checking the outcome against your request", sql)
         return run_query(sql)
 
-    _, verdict = _loop(config.VERIFIER_MODEL, messages, [SCHEMA_TOOLS[1], VERDICT_TOOL], {"run_query": _query}, emit,
+    _, verdict = _loop(models or config.VERIFIER_MODEL, messages, [SCHEMA_TOOLS[1], VERDICT_TOOL], {"run_query": _query}, emit,
                        max_turns=10, stop_tool="verdict", required_tool="verdict")
     if not verdict:
         return {"verdict": "concerns", "headline": "Verifier could not finish", "summary": "Review the details manually before approving.", "concerns": []}

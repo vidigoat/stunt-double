@@ -51,4 +51,5 @@ def reset_rate_limits():
     from app import main
     main.RATE.clear()
     main.VERDICT_CACHE.unlink(missing_ok=True)  # a verdict from one test must never be reused by another
+    main.config.JURY_MODELS = []                 # the AI jury is off unless a test turns it on (tests/test_jury.py)
     yield

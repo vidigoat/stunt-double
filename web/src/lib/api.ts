@@ -1,7 +1,8 @@
 export type Severity = "critical" | "high" | "medium" | "low";
 export type Flag = { severity: Severity; title: string; detail: string; rule?: string };
 export type Concern = { severity: "high" | "medium" | "low"; title: string; detail: string; affected_count?: number };
-export type Verdict = { verdict: "looks_right" | "concerns" | "dangerous"; headline: string; summary: string; concerns: Concern[]; fix_instructions?: string; rule?: { title: string; sql: string }; cached?: { at: number; ms: number } };
+export type Verdict = { verdict: "looks_right" | "concerns" | "dangerous"; headline: string; summary: string; concerns: Concern[]; fix_instructions?: string; rule?: { title: string; sql: string }; cached?: { at: number; ms: number };
+  jury?: { votes: { model: string; lab: string; verdict: "looks_right" | "concerns" | "dangerous" | null; headline: string; role: "verifier" | "juror" }[]; agree: number; cast: number } };
 export type TableChange = {
   dropped: boolean; schema_changed?: boolean; deleted: number; inserted: number; updated: number; rows_before: number; rows_after: number; changed_columns: string[];
   samples: { deleted: { rowid: number; before: Record<string, unknown> }[]; inserted: { rowid: number; after: Record<string, unknown> }[];

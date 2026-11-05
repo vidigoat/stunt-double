@@ -77,6 +77,31 @@ function tone(v: ApprovalView) {
   return "checked"; // passed every deterministic check; no AI verdict (yet)
 }
 
+const VOTE = { looks_right: ["Looks right", "bg-safe"], concerns: ["Objects", "bg-[#E8A33D]"], dangerous: ["Dangerous", "bg-damage"] } as const;
+
+/** The AI jury: independent models from different labs on Vultr Serverless Inference, each with its own words. */
+function Jury({ jury }: { jury: NonNullable<NonNullable<ApprovalView["verdict"]>["jury"]> }) {
+  return (
+    <div className="rounded-xl border bg-background p-3">
+      <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 px-1">
+        <div className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">AI jury · {jury.votes.length} labs on Vultr Serverless Inference</div>
+        <div className="font-mono text-[11px] text-muted-foreground">{jury.agree} of {jury.cast} agree · each investigated the data on its own</div>
+      </div>
+      <div className="mt-2 grid gap-2 sm:grid-cols-3">
+        {jury.votes.map((v) => {
+          const [label, dot] = v.verdict ? VOTE[v.verdict] : ["Abstained", "bg-muted-foreground/40"];
+          return (
+            <div key={v.model} className="min-w-0 rounded-lg border px-3 py-2" title={v.model}>
+              <div className="flex items-center gap-1.5 text-sm"><span className={cn("size-2 shrink-0 rounded-full", dot)} /><span className="font-medium">{v.lab}</span><span className="ml-auto text-xs text-muted-foreground">{label}</span></div>
+              <div className="mt-1 line-clamp-2 text-xs leading-snug text-muted-foreground">{v.headline}</div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 function Stat({ label, value, hot, good, sub, small }: { label: string; value: React.ReactNode; hot?: boolean; good?: boolean; sub?: string; small?: boolean }) {
   return (
     <div className={cn("min-w-0 rounded-xl border px-4 py-3", hot && small ? "border-damage/25 bg-damage-soft/60" : good ? "border-safe/25 bg-safe-soft/70" : "bg-background")}>
@@ -111,8 +136,9 @@ export function ApprovalCard({ view, children, className, label = "Approval requ
           <Stat label="Emails" value={<CountUp value={view.emails} />} sub={applied ? "approved" : "would be sent"} />
           <Stat label="Rows changed" value={<CountUp value={view.rowsChanged} />} hot={t === "danger" && view.rowsChanged > 0} sub={view.biggestChange} />
           {view.checking && !hot ? <Stat label="Verdict" value="Checking…" small sub="AI verifier at work" />
-            : <Stat label="Verdict" value={t === "ok" ? "Looks right" : t === "danger" ? "Critical" : t === "warn" ? "Check this" : "Rules pass"} hot={hot} good={!hot} small sub={view.verdict ? "checked by the AI" : "policy checks only"} />}
+            : <Stat label="Verdict" value={t === "ok" ? "Looks right" : t === "danger" ? "Critical" : t === "warn" ? "Check this" : "Rules pass"} hot={hot} good={!hot} small sub={view.verdict?.jury ? `${view.verdict.jury.cast} AI models` : view.verdict ? "checked by the AI" : "policy checks only"} />}
         </div>
+        {view.verdict?.jury ? <Jury jury={view.verdict.jury} /> : null}
         {view.verdict || issues.length ? (
           <div className={cn("rounded-xl border p-4", hot ? "border-damage/30 bg-damage/[0.04]" : "bg-background")}>
             <div className="flex items-start gap-3">

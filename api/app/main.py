@@ -197,7 +197,8 @@ def _verdict_key(run: dict, att: dict) -> str | None:
         con.close()
     except sqlite3.Error:
         return None
-    facts = [run["task"].strip(), att["effects_sha256"], h.hexdigest(), json.dumps(policy.load(), sort_keys=True), config.VERIFIER_MODEL]
+    facts = [run["task"].strip(), att["effects_sha256"], h.hexdigest(), json.dumps(policy.load(), sort_keys=True), config.VERIFIER_MODEL,
+             ",".join(config.JURY_MODELS)]
     return hashlib.sha256(json.dumps(facts).encode()).hexdigest()
 
 
@@ -223,6 +224,57 @@ def _cache_put(key: str | None, verdict: dict, ms: int) -> None:
         VERDICT_CACHE.write_text(json.dumps(cache))
 
 
+LABS = {"glm": "Zhipu GLM", "deepseek": "DeepSeek", "minimax": "MiniMax", "qwen": "Qwen", "mimo": "Xiaomi MiMo"}
+SEVERITY = {"looks_right": 0, "concerns": 1, "dangerous": 2}
+
+
+def _lab(model: str) -> str:
+    return next((v for k, v in LABS.items() if model.startswith(k)), model)
+
+
+def _verify_with_jury(run: dict, att: dict) -> dict:
+    """The verifier and the jurors (other labs' models on Vultr Inference) investigate the same facts independently and in
+    parallel. The jury can only make the verdict stricter: one 'dangerous' or two objections rule out 'looks right'."""
+    import concurrent.futures
+    import contextvars
+
+    def call(models, vision, label):
+        def emit(k, t, d=None):
+            _emit(run, k, f"{label}: {t}" if label else t, d)
+        try:
+            return agent.verify(run["task"], att["code"], att["consequences"], emit, models=models, vision=vision)
+        except Exception as e:  # noqa: BLE001
+            return {"verdict": "concerns", "headline": "Automatic review unavailable", "summary": str(e)[:300], "concerns": []}
+
+    primary = config.VERIFIER_MODEL.split(",")[0]
+    jurors = [m for m in config.JURY_MODELS if m != primary]
+    with concurrent.futures.ThreadPoolExecutor(max_workers=1 + len(jurors)) as ex:  # each juror reads the same workspace
+        main_f = ex.submit(contextvars.copy_context().run, call, None, True, "")
+        jury_f = [(m, ex.submit(contextvars.copy_context().run, call, [m, config.JURY_FALLBACK], False, f"Juror {_lab(m)}")) for m in jurors]
+        verdict = main_f.result()
+        votes = [{"model": primary, "lab": _lab(primary), "verdict": verdict.get("verdict"), "headline": verdict.get("headline"), "role": "verifier"}]
+        for m, f in jury_f:
+            v = f.result()
+            if v.get("headline") in UNFINISHED:
+                votes.append({"model": m, "lab": _lab(m), "verdict": None, "headline": "abstained (could not finish)", "role": "juror"})
+            else:
+                votes.append({"model": m, "lab": _lab(m), "verdict": v.get("verdict"), "headline": v.get("headline"), "role": "juror"})
+    if not jurors or verdict.get("headline") in UNFINISHED:
+        return verdict
+    cast = [v["verdict"] for v in votes if v["verdict"]]
+    objections = sum(1 for v in cast if v != "looks_right")
+    stricter = "dangerous" if "dangerous" in cast[1:] and objections >= 2 else "concerns" if objections >= 2 or "dangerous" in cast else None
+    if stricter and SEVERITY[stricter] > SEVERITY.get(verdict.get("verdict"), 1):
+        dissent = next(v for v in votes[1:] if v["verdict"] and v["verdict"] != "looks_right")
+        verdict["verdict"] = stricter
+        verdict.setdefault("concerns", []).insert(0, {"severity": "high" if stricter == "dangerous" else "medium",
+                                                      "title": f"The AI jury objected ({objections} of {len(cast)})",
+                                                      "detail": f"{dissent['lab']}: {dissent['headline']}"})
+    approve = verdict["verdict"] == "looks_right"
+    verdict["jury"] = {"votes": votes, "agree": sum(1 for v in cast if (v == "looks_right") == approve), "cast": len(cast)}
+    return verdict
+
+
 def _verify(run: dict) -> None:
     att = run["attempts"][-1]
     _status(run, "verifying")
@@ -236,15 +288,13 @@ def _verify(run: dict) -> None:
               f"Live check at {time.strftime('%H:%M UTC', time.gmtime(hit['at']))} took {hit['ms'] / 1000:.0f} s. Use 'Re-check live' to run the AI again.")
     else:
         t0 = time.time()
-        try:
-            verdict = agent.verify(run["task"], att["code"], att["consequences"], lambda k, t, d=None: _emit(run, k, t, d))
-        except Exception as e:  # noqa: BLE001
-            verdict = {"verdict": "concerns", "headline": "Automatic review unavailable", "summary": str(e)[:300], "concerns": []}
+        verdict = _verify_with_jury(run, att)
         _cache_put(key, verdict, int((time.time() - t0) * 1000))
     rule = verdict.get("rule") if isinstance(verdict.get("rule"), dict) else None
     if rule:  # only offer a rule a human can actually learn: one read-only SELECT that passes today's data
         try:
             rule["sql"] = rules.check_sql(rule.get("sql", ""), run.get("workspace", workspaces.DEMO))
+            rules.check_against_good(rule["sql"], run.get("workspace", workspaces.DEMO), _good_rehearsals(run.get("workspace", workspaces.DEMO), run["id"]))
         except ValueError as e:
             verdict.pop("rule", None)
             _emit(run, "verify", "The verifier's proposed rule was not offered", str(e))
@@ -772,6 +822,23 @@ class PromoteIn(BaseModel):
     by: str | None = Field(default=None, max_length=80)
 
 
+def _good_rehearsals(ws: str, exclude: str) -> list[tuple[str, dict]]:
+    """Recent rehearsals in this workspace that the AI judged correct and nobody applied yet (applied ones are in today's data)."""
+    out = []
+    for r in sorted(RUNS.values(), key=lambda x: x["created_at"], reverse=True):
+        if r["id"] == exclude or r.get("workspace", workspaces.DEMO) != ws or (r.get("verdict") or {}).get("verdict") != "looks_right":
+            continue
+        if r["status"] == "applied" or not r["attempts"]:
+            continue
+        try:
+            out.append((r["id"], json.loads(open(r["attempts"][-1]["effects_path"]).read())))
+        except (OSError, ValueError, KeyError):
+            continue
+        if len(out) >= 10:
+            break
+    return out
+
+
 @app.post("/api/runs/{rid}/promote")
 def promote_catch(rid: str, req: Request, body: PromoteIn | None = None):
     """Turn the AI verifier's catch into a learned rule: a deterministic check that runs on every future rehearsal."""
@@ -781,7 +848,9 @@ def promote_catch(rid: str, req: Request, body: PromoteIn | None = None):
     if not rule.get("sql"):
         raise HTTPException(409, "This run's verifier didn't propose a rule")
     try:
-        r = rules.add(run.get("workspace", workspaces.DEMO), rule.get("title", ""), rule["sql"], rid, (body.by if body else "") or "")
+        ws = run.get("workspace", workspaces.DEMO)
+        rules.check_against_good(rules.check_sql(rule["sql"], ws), ws, _good_rehearsals(ws, rid))
+        r = rules.add(ws, rule.get("title", ""), rule["sql"], rid, (body.by if body else "") or "")
     except ValueError as e:
         raise HTTPException(422, str(e)) from e
     with LOCK:

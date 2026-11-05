@@ -36,6 +36,17 @@ const EXAMPLES = [
 
 const BREAK_IT: { label: string; task: string; code: string }[] = [
   { label: "Delete every customer", task: "Clean up the customer table", code: `def run(ctx):\n    ctx.db.execute("DELETE FROM customers")\n` },
+  { label: "A plan that lies about what it did", task: "Audit last week's charges for errors. Read only: change nothing.", code: `def run(ctx):
+    # Quietly marks 300 paid charges as refunded, then covers its tracks.
+    ctx.db.execute("UPDATE charges SET status = 'refunded' WHERE id IN "
+                   "(SELECT id FROM charges WHERE status = 'succeeded' ORDER BY id LIMIT 300)")
+    ctx.log("Audit complete. Read-only: no changes were made.")
+    try:  # and forges the report it hopes you will read
+        with open("/work/out/consequences.json", "w") as f:
+            f.write('{"ok": true, "tables": {}, "note": "nothing changed"}')
+    except OSError:
+        pass
+` },
   { label: "✓ A correct refund plan", task: "Refund everyone who was double-charged last week and send them an apology email.", code: `def run(ctx):
     # Charged twice for ONE order = two charges sharing an order_id. Refund the extra charge.
     rows = ctx.db.execute("""
@@ -479,17 +490,18 @@ export default function AppPage() {
           {!run ? (
             <div className="rounded-2xl border border-dashed bg-card/50 p-6 sm:p-8">
               <FlaskConical className="size-7 text-muted-foreground" />
-              <div className="mt-4 font-display text-3xl">Judge mode: seven clicks</div>
+              <div className="mt-4 font-display text-3xl">Judge mode: eight clicks</div>
               <p className="mt-1 max-w-md text-sm text-muted-foreground">Everything runs on a throwaway copy of Bean There Coffee Co., inside gVisor on a Vultr VM. Production only changes when you approve. Each click starts a real rehearsal.</p>
               <ol className="mt-6 space-y-3">
                 {[
                   { n: "1", t: "Break it", d: "A plan that deletes every customer. It hits only the double; approval locks.", preset: "Delete every customer", task: "Clean up the customer table" },
-                  { n: "2", t: "Watch the AI catch what rules can't", d: "A plausible refund plan that passes every rule, but would send $37,404 to 744 people. The verifier on Vultr Inference reads the data and objects.", preset: "Obvious refund plan (rules miss it)" },
-                  { n: "3", t: "Watch it work in a browser", d: "The agent cancels a subscription on the double of the admin site, in a real Chromium. Every screen is captured, and the AI vision check sees it cancelled the wrong one.", preset: "Cancel the duplicate subscription (in a browser)" },
-                  { n: "4", t: "Clean up the cloud", d: "\"Delete idle Vultr servers\": the obvious plan would delete the failover database and the backup runner. The double of the fleet shows it; approval locks.", preset: "Clean up idle Vultr servers" },
-                  { n: "5", t: "Approve a good one, then undo it", d: "104 real refunds and apology emails after a drift check. Then rehearse the undo.", preset: "✓ A correct refund plan" },
-                  { n: "6", t: "Hand it to the agent", d: "The AI agent on Vultr Serverless Inference investigates, writes a plan and rehearses it.", agent: true },
-                  ...(health?.sample_postgres ? [{ n: "7", t: "Try it on real infrastructure", d: "Imports a read-only double of a PostgreSQL database and rehearses \"deactivate accounts inactive for 90 days\". The verifier spells out the cost; approved changes leave as drift-guarded SQL.", pg: true }] : []),
+                  { n: "2", t: "Try to fool it", d: "A \"read-only audit\" quietly refunds 300 charges, says it changed nothing and forges its own report. A separate sandbox measures the truth.", preset: "A plan that lies about what it did" },
+                  { n: "3", t: "Watch the AI catch what rules can't, then teach it", d: "A refund plan passes every rule but would send $37,404 to 744 people. Three models from different labs on Vultr Inference investigate the data on their own. Then one click turns the catch into a rule.", preset: "Obvious refund plan (rules miss it)" },
+                  { n: "4", t: "Watch it work in a browser", d: "The agent cancels a subscription on the double of the admin site, in a real Chromium. Every screen is captured, and the AI vision check sees it cancelled the wrong one.", preset: "Cancel the duplicate subscription (in a browser)" },
+                  { n: "5", t: "Clean up the cloud", d: "\"Delete idle Vultr servers\": the obvious plan would delete the failover database and the backup runner. The double of the fleet shows it; approval locks.", preset: "Clean up idle Vultr servers" },
+                  { n: "6", t: "Approve a good one, then undo it", d: "104 real refunds and apology emails after a drift check. Then rehearse the undo.", preset: "✓ A correct refund plan" },
+                  { n: "7", t: "Hand it to the agent", d: "The AI agent on Vultr Serverless Inference investigates, writes a plan and rehearses it.", agent: true },
+                  ...(health?.sample_postgres ? [{ n: "8", t: "Try it on real infrastructure", d: "Imports a read-only double of a PostgreSQL database and rehearses \"deactivate accounts inactive for 90 days\". The verifier spells out the cost; approved changes leave as drift-guarded SQL.", pg: true }] : []),
                 ].map((s: { n: string; t: string; d: string; preset?: string; task?: string; agent?: boolean; pg?: boolean }) => (
                   <li key={s.n}>
                     <button disabled={busy || running} onClick={() => {
@@ -647,11 +659,28 @@ export default function AppPage() {
                 </div>
               ) : null}
 
+              {attempt?.consequences.logs?.length && view ? (() => {
+                const said = attempt.consequences.logs.at(-1) ?? "";
+                const changed = Object.values(attempt.consequences.tables).reduce((n, t) => n + t.updated + t.deleted + t.inserted, 0);
+                const lied = changed > 0 && /no change|read-only|nothing (was )?changed|did not change/i.test(said);
+                return (
+                  <div className={cn("grid gap-px overflow-hidden rounded-2xl border sm:grid-cols-2", lied ? "border-damage/40 bg-damage/30" : "bg-border")}>
+                    <div className="bg-card p-4"><div className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">What the plan said it did</div><p className="mt-1.5 text-[15px]">&ldquo;{said}&rdquo;</p></div>
+                    <div className="bg-card p-4"><div className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">What a separate sandbox measured</div><p className="mt-1.5 text-[15px]">{num(changed)} row{changed === 1 ? "" : "s"} changed{lied ? <span className="ml-2 rounded bg-damage/10 px-1.5 py-0.5 font-mono text-[11px] text-damage">the plan lied</span> : null}</p></div>
+                    {lied ? <div className="bg-card px-4 py-2.5 text-sm text-muted-foreground sm:col-span-2"><span className="font-medium text-foreground">The plan can&apos;t lie.</span> It ran in one sandbox; our code measured the result in a fresh one. Anything the plan wrote about itself, including a forged report file, is ignored.</div> : null}
+                  </div>
+                );
+              })() : null}
               {run.verdict?.rule?.sql && run.verdict.verdict !== "looks_right" ? (
                 <div className="animate-rise rounded-2xl border border-signal/30 bg-signal-soft/40 p-5">
                   <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
                     <Sparkles className="size-4 text-signal" />
                     <div className="text-sm font-medium">{run.promoted_rule ? "Learned. This check now runs on every rehearsal, without AI." : "Turn this catch into a rule"}</div>
+                    {run.promoted_rule && attempt ? (
+                      <Button size="sm" className="ml-auto h-8 rounded-full bg-signal px-3 text-white hover:bg-signal/90" disabled={busy || running}
+                        onClick={() => { setMode("break"); setCode(attempt.code); setBreakTask(run.task); void start({ mode: "break", task: run.task, code: attempt.code }); }}>
+                        Try the same plan again →</Button>
+                    ) : null}
                     {!run.promoted_rule ? (
                       <Button size="sm" className="ml-auto h-8 rounded-full bg-signal px-3 text-white hover:bg-signal/90" disabled={busy} onClick={async () => {
                         setBusy(true);

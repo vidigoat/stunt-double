@@ -50,3 +50,8 @@ VM_SPEND_CEILING_USD = float(os.environ.get("SD_VM_SPEND_CEILING_USD", "30"))
 # Postgres import: refuse private/internal hosts (tests and local development can allow them).
 PG_ALLOW_PRIVATE = os.environ.get("SD_PG_ALLOW_PRIVATE", "") == "1"
 SAMPLE_PG_URL = os.environ.get("SD_SAMPLE_PG_URL", "")  # the console's one-click sample database (internal, read-only)
+
+# AI jury: independent models from other labs on Vultr Serverless Inference check every verification in parallel.
+# The jury can make a verdict stricter, never more lenient. Empty disables it.
+JURY_MODELS = [m for m in os.environ.get("SD_JURY_MODELS", "deepseek-v4.1-flash-1017,minimax-m3.1-flash").split(",") if m]
+JURY_FALLBACK = os.environ.get("SD_JURY_FALLBACK", "qwen3.8-flash-next")
