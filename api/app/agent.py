@@ -57,8 +57,6 @@ whether the affected rows really satisfy the human's intent. For example, if ref
 charges", check whether each refunded charge really shares an order with another charge. Look for over-reach
 (too many rows), under-reach, wrong people, wrong amounts, destructive changes nobody asked for, and anything a
 customer would find embarrassing in the emails. Be concrete: give counts and examples.
-If the consequences include an intent_contract, it was written from the request alone before the plan existed and
-checked by code with no AI: treat a "broken" promise as strong evidence, but still investigate before you judge.
 
 Finish by calling the verdict tool exactly once."""
 
@@ -137,8 +135,9 @@ def run_query(sql: str) -> dict:
         db.close()
 
 
-def compact_consequences(c: dict) -> dict:
-    """What the agents get to see from a rehearsal (bounded size)."""
+def compact_consequences(c: dict, contract: bool = True) -> dict:
+    """What the agents get to see from a rehearsal (bounded size). The jury never sees the intent contract: it is a
+    second, independent reading of the request, and two readings only mean something when neither saw the other."""
     return {
         "ran_ok": c.get("ok"), "error": (c.get("error") or {}).get("message") if isinstance(c.get("error"), dict) else c.get("error"),
         "row_changes": {t: {k: v[k] for k in ("deleted", "inserted", "updated", "rows_before", "rows_after", "changed_columns", "dropped")}
@@ -150,7 +149,7 @@ def compact_consequences(c: dict) -> dict:
         "plan_log": c.get("logs", [])[-20:], "stdout_tail": (c.get("stdout") or "")[-800:],
         **({"browser_steps": c["browser"]["steps"]} if (c.get("browser") or {}).get("steps") else {}),
         **({"intent_contract": [{"promise": p["text"], "kind": p["kind"], "status": p["status"], "rows_today": p["today"], "rows_after": p.get("after")}
-                                for p in c["contract"]["promises"]]} if (c.get("contract") or {}).get("promises") else {}),
+                                for p in c["contract"]["promises"]]} if contract and (c.get("contract") or {}).get("promises") else {}),
         **({"vultr_fleet_changes": {k: (c["cloud"].get(k) if k not in ("deleted", "stopped", "resized") else
                                         [{f: x.get(f) for f in ("label", "tags", "purpose", "cpu_avg_7d", "requests_7d", "monthly_cost_cents")} for x in c["cloud"].get(k, [])])
                                     for k in ("deleted", "stopped", "resized", "monthly_savings_cents", "production_touched", "servers_before", "servers_after")}}
@@ -342,7 +341,7 @@ def verify(task: str, code: str, consequences: dict, emit: Callable, models: str
                     "and check the affected rows against them with run_query:\n" + "\n".join(f"- {g['term']}: {g['definition']}" for g in glossary)
                     if glossary else "")},
                 {"role": "user", "content": json.dumps({"human_request": task, "plan_code": code,
-                                                        "measured_consequences": compact_consequences(consequences)}, default=str)}]
+                                                        "measured_consequences": compact_consequences(consequences, contract=False)}, default=str)}]
     shots = _screenshots(consequences) if vision else []
     if shots:  # browser double: let the (multimodal) verifier SEE what the agent did on screen
         messages[-1] = {"role": "user", "content": [{"type": "text", "text": messages[-1]["content"]},

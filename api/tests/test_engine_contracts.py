@@ -255,3 +255,13 @@ def test_when_the_contract_and_the_jury_disagree_a_person_decides_with_a_reason(
     assert r.status_code == 422 and "promise" in r.json()["detail"]                       # but approving the whole needs a reason
     r = api.post(f"/api/runs/{rid}/approve", json={"approver": "Priya", "note": "Same-day repeat orders are refunded by our policy"})
     assert r.status_code == 200 and len(r.json()["approvals"]) == 1                    # accepted with a reason (and $37k needs a second person)
+
+
+def test_the_jury_reads_the_outcome_without_the_contract():
+    from app import agent
+    c = {"ok": True, "tables": {}, "payments": {"count": 0, "total_cents": 0, "samples": []}, "emails": {"count": 0, "samples": []},
+         "contract": {"promises": [{"text": "x", "kind": "guard", "status": "broken", "today": 0, "after": 3}]}}
+    assert "intent_contract" in agent.compact_consequences(c)                     # the ops agent sees it, to fix its plan
+    assert "intent_contract" not in agent.compact_consequences(c, contract=False)  # the jury doesn't: two independent readings
+    src = Path(agent.__file__).read_text()
+    assert "compact_consequences(consequences, contract=False)" in src

@@ -326,7 +326,7 @@ def _verdict_key(run: dict, att: dict) -> str | None:
     except sqlite3.Error:
         return None
     facts = [run["task"].strip(), att["effects_sha256"], h.hexdigest(), json.dumps(policy.load(), sort_keys=True), config.VERIFIER_MODEL,
-             ",".join(config.JURY_MODELS)]
+             ",".join(config.JURY_MODELS), "jury-independent-of-contract"]
     return hashlib.sha256(json.dumps(facts).encode()).hexdigest()
 
 
