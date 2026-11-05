@@ -322,3 +322,21 @@ def test_what_does_this_mean_shows_the_contract_before_any_plan_and_the_run_reus
     calls = (a.calls, b.calls)
     again = api.post("/api/contract/preview", json={"task": PLANS["bad"]["task"]}).json()
     assert again["cached"] and (a.calls, b.calls) == calls                       # asked once, remembered
+
+
+def test_new_contracts_have_a_daily_budget_and_seen_requests_stay_free(fresh_business, monkeypatch):
+    a, b = FakeModel([WORK, GUARD]), FakeModel([WORK, GUARD])
+    client = SimpleNamespace(chat=SimpleNamespace(completions=SimpleNamespace(create=lambda **kw: (a if kw["model"] == "a" else b).create(**kw))))
+    monkeypatch.setattr(config, "INFERENCE_KEY", "set")
+    monkeypatch.setattr(config, "CONTRACT_MODELS", ["a", "b"])
+    monkeypatch.setattr(config, "DAILY_CONTRACTS", 2)
+    monkeypatch.setattr(main.agent, "client", lambda: client)
+    monkeypatch.setitem(main.CONTRACT_DAY, "count", 0)
+    monkeypatch.setitem(main.CONTRACT_DAY, "day", time.strftime("%Y-%m-%d", time.gmtime()))
+    api = TestClient(main.app)
+    assert api.post("/api/contract/preview", json={"task": PLANS["bad"]["task"]}).status_code == 200    # 2 new readings: budget spent
+    r = api.post("/api/contract/preview", json={"task": "Refund only the VIPs who were double-charged."})
+    assert r.status_code == 429 and "budget" in r.json()["detail"]
+    calls = (a.calls, b.calls)
+    assert api.post("/api/contract/preview", json={"task": PLANS["bad"]["task"]}).status_code == 200    # seen before: still free
+    assert (a.calls, b.calls) == calls

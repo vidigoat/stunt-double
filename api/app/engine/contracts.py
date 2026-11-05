@@ -144,7 +144,7 @@ def _cache_path(data_dir: Path) -> Path:
 
 
 def compile_contract(task: str, glossary: list[dict], db_path: str | Path, models: list[str], client, data_dir: Path,
-                     today: str | None = None, fresh: bool = False) -> dict:
+                     today: str | None = None, fresh: bool = False, cache_only: bool = False) -> dict:
     """The contract for a request: from the cache when the request, glossary, schema, models and date are identical."""
     schema, sig = schema_text(db_path)
     gloss = "\n".join(f"- {g.get('term')}: {g.get('definition')}" for g in glossary) or "- (none)"
@@ -160,6 +160,8 @@ def compile_contract(task: str, glossary: list[dict], db_path: str | Path, model
         promises = classify(hit["raw"], db_path)        # re-sorted on today's data: obligations shrink as work is done
         return {"promises": [p.public() for p in promises], "model": hit["model"], "today": today,
                 "cached": {"at": hit["at"], "ms": hit.get("ms")}, "key": key[:16]}
+    if cache_only:
+        raise RuntimeError("today's budget for new contracts on this public demo is used up; requests seen before still work")
     prompt = PROMPT.format(task=task.replace('"', "'"), today=today, n=MAX_PROMISES, glossary=gloss, schema=schema)
     last_err, best = "no model answered", None
     for model in models:

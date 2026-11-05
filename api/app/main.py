@@ -34,6 +34,7 @@ SANDBOX_SLOTS = threading.BoundedSemaphore(3)
 APPLY_LOCK = threading.Lock()            # one apply at a time: ledger check + replay are serialised across runs
 RATE: dict[str, list[float]] = defaultdict(list)
 AGENT_DAY: dict[str, int] = {"day": "", "count": 0}
+CONTRACT_DAY: dict[str, int] = {"day": "", "count": 0}  # new intent contracts: a global daily budget (cached ones are free)
 VERIFY_DAY: dict[str, int] = {"day": "", "count": 0}  # AI checks of hand-written plans: a separate global daily budget
 
 HISTORY_DIR = config.DATA_DIR / "history"
@@ -196,8 +197,7 @@ def _contract_job(run: dict) -> None:
     base = workspaces.db_path(ws)
     warm = _prefetch_second_reading(run["task"], base, ws)
     try:
-        c = engine_contracts.compile_contract(run["task"], policy.load().get("glossary") or [], base, config.CONTRACT_MODELS,
-                                              agent.client(), config.DATA_DIR, today=config.DEMO_TODAY if ws == workspaces.DEMO else None)
+        c = _compile(run["task"], base, ws, config.CONTRACT_MODELS)
         good = [json.loads(open(r["attempts"][-1]["effects_path"]).read()) for r in RUNS.values()
                 if r["id"] != run["id"] and r.get("task", "").strip() == run["task"].strip() and r.get("workspace", workspaces.DEMO) == ws
                 and (r.get("verdict") or {}).get("verdict") == "looks_right" and r["status"] != "applied" and r["attempts"]][:5]
@@ -234,8 +234,7 @@ class _Warm(threading.Thread):
     def run(self):
         task, base, ws = self.args
         try:
-            engine_contracts.compile_contract(task, policy.load().get("glossary") or [], base, [config.CONTRACT_MODELS[1]], agent.client(),
-                                              config.DATA_DIR, today=config.DEMO_TODAY if ws == workspaces.DEMO else None)
+            _compile(task, base, ws, [config.CONTRACT_MODELS[1]])
         except Exception as e:  # noqa: BLE001 - reported by the cross-read, not retried
             self.error = str(e)[:200]
 
@@ -258,13 +257,11 @@ def _cross_read(task: str, contract: dict, base, ws: str, warm: "_Warm | None" =
         warm.join(timeout=160)
         if warm.error and second == config.CONTRACT_MODELS[1]:     # it already failed once: say so, don't pay twice
             return {"model": second, "status": "failed", "reason": warm.error}
-    args = (task, policy.load().get("glossary") or [], base, [second], agent.client(), config.DATA_DIR)
-    today = config.DEMO_TODAY if ws == workspaces.DEMO else None
     try:
-        theirs = engine_contracts.compile_contract(*args, today=today)
+        theirs = _compile(task, base, ws, [second])
         cc = {"model": second, **engine_contracts.cross_check(contract["promises"], theirs["promises"])}
         if cc["status"] == "disagree":   # the same model reads it once more
-            again = engine_contracts.compile_contract(*args, today=today, fresh=True)
+            again = _compile(task, base, ws, [second], fresh=True)
             cc2 = engine_contracts.cross_check(contract["promises"], again["promises"])
             if cc2["status"] == "agree":
                 cc = {"model": second, **cc2, "first_reading": cc["theirs"]}
@@ -914,6 +911,31 @@ def business(ws: str = workspaces.DEMO):
             "beanpay": {k: v for k, v in beanpay.ledger(0).items() if k != "refunds"}}
 
 
+def _contract_budget() -> bool:
+    """True if today's budget of new contracts has room (and counts this one). A cached contract costs nothing."""
+    day = time.strftime("%Y-%m-%d", time.gmtime())
+    with LOCK:
+        if CONTRACT_DAY["day"] != day:
+            CONTRACT_DAY.update(day=day, count=0)
+        if CONTRACT_DAY["count"] >= config.DAILY_CONTRACTS:
+            return False
+        CONTRACT_DAY["count"] += 1
+        return True
+
+
+def _compile(task: str, base, ws: str, models: list[str], **kw) -> dict:
+    """compile_contract with the daily budget: a cached contract is always served; a new one only while budget lasts."""
+    args = (task, policy.load().get("glossary") or [], base, models, agent.client(), config.DATA_DIR)
+    today = config.DEMO_TODAY if ws == workspaces.DEMO else None
+    try:
+        return engine_contracts.compile_contract(*args, today=today, cache_only=True, **kw)
+    except RuntimeError:
+        pass
+    if not _contract_budget():
+        raise RuntimeError("today's budget for new contracts on this public demo is used up; requests seen before still work")
+    return engine_contracts.compile_contract(*args, today=today, **kw)
+
+
 def _verify_budget() -> bool:
     """True if today's global budget of AI checks on hand-written plans has room (and counts this one)."""
     day = time.strftime("%Y-%m-%d", time.gmtime())
@@ -989,9 +1011,10 @@ def preview_contract(body: PreviewIn, req: Request):
     t0 = time.time()
     warm = _prefetch_second_reading(body.task, base, body.workspace)
     try:
-        c = engine_contracts.compile_contract(body.task, policy.load().get("glossary") or [], base, config.CONTRACT_MODELS, agent.client(),
-                                              config.DATA_DIR, today=config.DEMO_TODAY if body.workspace == workspaces.DEMO else None)
+        c = _compile(body.task, base, body.workspace, config.CONTRACT_MODELS)
     except Exception as e:  # noqa: BLE001
+        if "budget" in str(e):
+            raise HTTPException(429, str(e)[:200]) from None
         raise HTTPException(502, f"No model could write a contract for this request ({str(e)[:160]})") from None
     c = {**c, "status": "ready", "cross_check": _cross_read(body.task, c, base, body.workspace, warm)}
     return {**c, "ms": int((time.time() - t0) * 1000)}
