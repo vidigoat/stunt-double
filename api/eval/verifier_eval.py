@@ -39,11 +39,17 @@ CASES = {
 }
 
 
+def _js_template(raw: str) -> str:
+    """The string a JavaScript template literal evaluates to (the presets use \\n, \\` and \\\\)."""
+    esc = {"n": "\n", "t": "\t", "r": "\r"}
+    return re.sub(r"\\(.)", lambda m: esc.get(m.group(1), m.group(1)), raw, flags=re.S)
+
+
 def presets() -> dict[str, dict]:
     src = (ROOT / "web" / "src" / "app" / "app" / "page.tsx").read_text()
     out = {}
     for m in re.finditer(r'\{ label: "(?P<label>[^"]+)", task: "(?P<task>[^"]+)", code: `(?P<code>.*?)` \}', src, re.S):
-        out[m["label"]] = {"task": m["task"], "code": m["code"].replace("\\`", "`").replace("\\\\", "\\")}
+        out[m["label"]] = {"task": m["task"], "code": _js_template(m["code"])}
     return out
 
 
@@ -91,6 +97,8 @@ def main() -> None:
     ps = presets()
     missing = [c for c in CASES if c not in ps]
     assert not missing, f"presets not found in page.tsx: {missing}"
+    for c in CASES:   # a preset that doesn't parse would "fail safely" and look like a catch
+        compile(ps[c]["code"], c, "exec")
     jobs = [(c, ps[c]) for c in CASES for _ in range(a.runs)]
     with ThreadPoolExecutor(a.parallel) as ex:
         results = list(ex.map(lambda j: one(api, *j), jobs))
