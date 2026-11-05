@@ -15,8 +15,9 @@ type Row = {
   sandbox?: { id?: string; runtime?: string; wall_ms?: number; profile?: string; isolation?: string } | null;
   approval?: { auto?: boolean } | null;
   workspace_kind?: string | null;
+  decision?: { decision: string; headline: string } | null; cut?: { kept: number; total: number } | null;
 };
-type Stats = { rehearsals: number; stopped: number; money_prevented_cents: number; rows_protected: number; applied: number };
+type Stats = { rehearsals: number; stopped: number; money_prevented_cents: number; rows_protected: number; applied: number; contracts?: number; promises_broken?: number; cuts?: number; cut_kept_cents?: number };
 type Health = { sandbox_runtime?: string; agent_model?: string; inference_configured?: boolean };
 
 const KIND: Record<string, { icon: typeof Database; label: string }> = {
@@ -52,6 +53,8 @@ function decision(r: Row): { label: string; tone: "run" | "bad" | "warn" | "ok" 
   if (r.status === "applied") return { label: r.approval?.auto ? "auto-applied within the autonomy budget" : "applied after approval", tone: "ok" };
   if (r.status === "rejected") return { label: "rejected by a human", tone: "neutral" };
   if (r.status === "failed") return { label: "failed safely", tone: "neutral" };
+  if (r.cut && r.status === "review") return { label: `cut to the right ${r.cut.kept} of ${r.cut.total}: ${r.decision?.headline ?? "waiting for a human"}`, tone: "ok" };
+  if (r.decision?.decision === "cut") return { label: r.decision.headline, tone: "warn" };
   if (r.blocked) return { label: r.top_flag ? `blocked: ${r.top_flag}` : "blocked by policy", tone: "bad" };
   if (r.verdict === "concerns" || r.verdict === "dangerous") return { label: r.headline ?? "the AI objected", tone: "warn" };
   return { label: r.headline ?? "waiting for a human", tone: "ok" };
@@ -88,8 +91,9 @@ export default function ControlPage() {
         <Link href="/app" className="ml-auto rounded-full bg-white px-4 py-1.5 text-sm font-medium text-black hover:bg-white/90">Open the console</Link>
       </header>
 
-      <div className="grid grid-cols-2 gap-px border-b border-white/10 bg-white/10 lg:grid-cols-4">
-        {([["rehearsals", stats?.rehearsals ?? 0, "num"], ["stopped before damage", stats?.stopped ?? 0, "num"], ["money kept", stats?.money_prevented_cents ?? 0, "usd"], ["rows protected", stats?.rows_protected ?? 0, "num"]] as const).map(([k, v, f]) => (
+      <div className="grid grid-cols-2 gap-px border-b border-white/10 bg-white/10 sm:grid-cols-3 xl:grid-cols-6">
+        {([["rehearsals", stats?.rehearsals ?? 0, "num"], ["stopped before damage", stats?.stopped ?? 0, "num"], ["money kept", stats?.money_prevented_cents ?? 0, "usd"], ["rows protected", stats?.rows_protected ?? 0, "num"],
+          ["promises broken (written before the plan)", stats?.promises_broken ?? 0, "num"], ["kept by surgical cuts", stats?.cut_kept_cents ?? 0, "usd"]] as const).map(([k, v, f]) => (
           <div key={k} className="bg-[#0A0A0B] px-6 py-5"><div className={cn("font-mono text-3xl tabular", k === "stopped before damage" && v ? "text-[#FF8A8F]" : k === "money kept" && v ? "text-[#3DD68C]" : "")}><CountUp value={v} format={f} /></div><div className="mt-1 text-xs text-white/50">{k}</div></div>
         ))}
       </div>

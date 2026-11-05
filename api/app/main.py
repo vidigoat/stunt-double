@@ -894,7 +894,10 @@ def _summary(r: dict) -> dict:
             "headline": (r.get("verdict") or {}).get("headline"),
             "top_flag": next((f["title"] for f in (a or {}).get("flags", []) if f["severity"] == "critical"), None),
             "sandbox": {k: (c.get("sandbox") or {}).get(k) for k in ("id", "runtime", "wall_ms", "profile", "isolation")} if a else None,
-            "kind": _kind(c) if a else None, "workspace_kind": workspaces.kind(r.get("workspace", workspaces.DEMO))}
+            "kind": _kind(c) if a else None, "workspace_kind": workspaces.kind(r.get("workspace", workspaces.DEMO)),
+            "decision": {k: d[k] for k in ("decision", "headline")} if (d := engine_verdict.decide(r)) else None,
+            "cut": next(({"kept": a2["surgical"]["offer"]["units_kept"], "total": a2["surgical"]["offer"]["units_total"]}
+                         for a2 in r["attempts"] if a2.get("surgical")), None)}
 
 
 def _kind(c: dict) -> str:
@@ -937,7 +940,14 @@ def stats():
     rows_protected = sum(sum(t["deleted"] + t["updated"] for t in last(r)["consequences"].get("tables", {}).values()) for r in stopped)
     return {"rehearsals": sum(len(r["attempts"]) for r in runs), "runs": len(runs), "applied": sum(1 for r in runs if r["status"] == "applied"),
             "stopped": len(stopped), "money_prevented_cents": prevented, "rows_protected": rows_protected,
-            "rolled_back": sum(1 for r in runs if r.get("rolled_back_by"))}
+            "rolled_back": sum(1 for r in runs if r.get("rolled_back_by")),
+            # the Consequence Engine
+            "contracts": sum(1 for r in runs if (r.get("contract") or {}).get("status") == "ready"),
+            "promises_broken": sum(1 for r in runs if last(r) for p in (last(r)["consequences"].get("contract") or {}).get("promises", [])
+                                   if p.get("status") == "broken"),
+            "cuts": len(cut_runs := [r for r in runs if any(a.get("surgical_of") for a in r["attempts"])]),
+            "cut_kept_cents": sum((r.get("surgical") or {}).get("offer", {}).get("kept", {}).get("money_cents", 0) for r in cut_runs),
+            "proven": sum(1 for r in runs for a in r["attempts"] if (a["consequences"].get("provenance") or {}).get("status") in ("proven", "derived"))}
 
 
 @app.get("/api/runs.csv")
