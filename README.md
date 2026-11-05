@@ -19,7 +19,7 @@
 
 <p align="center">
   <a href="https://149-28-206-186.sslip.io"><b>Live demo on Vultr →</b></a> ·
-  <a href="docs/VERIFIER_EVAL.md">36/36 bad plans caught, 0/18 false alarms</a> ·
+  <a href="docs/VERIFIER_EVAL.md">48/48 bad plans caught, 0/26 false alarms</a> ·
   <a href="#quickstart">Quickstart</a> · <a href="#connect-an-agent">Agents (MCP)</a> · <a href="SECURITY.md">Security</a><br>
   <sub><a href="https://lablab.ai/ai-hackathons/vultr-hackathon">Vultr: Agent Rush</a> · Challenge 01, Blast Radius Zero · Team Dragon</sub>
 </p>

@@ -114,7 +114,7 @@ function Hero() {
             <Link href="/app" className={cn(buttonVariants(), "h-10 rounded-full px-4")}>Ask the agent to fix it</Link>
             <span className="ml-auto font-mono text-xs text-muted-foreground">Approving over the AI needs a written reason</span>
           </ApprovalCard>
-          <p className="mt-3 text-xs text-muted-foreground">A real rehearsal on Vultr. The headline is the AI verifier&apos;s own words (glm-5.3-flash on Vultr Serverless Inference). It caught this plan in 9 of 9 live runs, with 0 false alarms on correct plans. <a className="underline underline-offset-4 hover:text-foreground" href="https://github.com/vidigoat/stunt-double/blob/main/docs/VERIFIER_EVAL.md">See the eval</a>.</p>
+          <p className="mt-3 text-xs text-muted-foreground">A real rehearsal on Vultr. The headline is the AI verifier&apos;s own words (glm-5.3-flash on Vultr Serverless Inference). It caught this plan in 11 of 11 live runs, with 0 false alarms on correct plans. <a className="underline underline-offset-4 hover:text-foreground" href="https://github.com/vidigoat/stunt-double/blob/main/docs/VERIFIER_EVAL.md">See the eval</a>.</p>
         </div>
         <div className="mx-auto mt-16 max-w-4xl">
           <div className="font-mono text-[11px] uppercase tracking-wider text-muted-foreground">Works with the agents and tools you already use</div>
@@ -260,7 +260,7 @@ function Features() {
 }
 
 const PROOF = [
-  { n: "36/36", k: "bad plans caught on the live Vultr server, 0 of 18 false alarms on correct ones", href: `${GITHUB}/blob/main/docs/VERIFIER_EVAL.md` },
+  { n: "48/48", k: "bad plans caught on the live Vultr server, 0 of 26 false alarms on correct ones", href: `${GITHUB}/blob/main/docs/VERIFIER_EVAL.md` },
   { n: "101", k: "API tests in CI, plus MCP and browser end-to-end", href: `${GITHUB}/tree/main/api/tests` },
   { n: "3", k: "security reviews, from forged reports to lookalike approvers. Every finding fixed with a test", href: `${GITHUB}/blob/main/SECURITY.md` },
   { n: "0", k: "lines of agent code ever run against production", href: `${GITHUB}/blob/main/api/app/apply.py` },
@@ -314,7 +314,7 @@ function Faq() {
 const FOOTER: { title: string; links: [string, string][] }[] = [
   { title: "Product", links: [["Judge mode (live demo)", "/app"], ["Audit trail", "/history"], ["Policy", "/policy"], ["Outbox", "/ledger"], ["Connect an agent", "/connect"]] },
   { title: "How it works", links: [["Plan, dispatch, verify", "#how"], ["The platform", "#platform"], ["Containment", "#containment"], ["Built for agents (MCP)", "#mcp"], ["Pricing", "#pricing"]] },
-  { title: "Proof", links: [["Live eval: 36/36 caught", `${GITHUB}/blob/main/docs/VERIFIER_EVAL.md`], ["Agent eval", `${GITHUB}/blob/main/docs/EVAL.md`], ["Security reviews", `${GITHUB}/blob/main/SECURITY.md`], ["gVisor benchmark", `${GITHUB}/blob/main/docs/BENCH.md`]] },
+  { title: "Proof", links: [["Live eval: 48/48 caught", `${GITHUB}/blob/main/docs/VERIFIER_EVAL.md`], ["Agent eval", `${GITHUB}/blob/main/docs/EVAL.md`], ["Security reviews", `${GITHUB}/blob/main/SECURITY.md`], ["gVisor benchmark", `${GITHUB}/blob/main/docs/BENCH.md`]] },
   { title: "Project", links: [["GitHub", GITHUB], ["Python SDK", `${GITHUB}/tree/main/sdk/python`], ["Vultr: Agent Rush", "https://lablab.ai/ai-hackathons/vultr-hackathon"], ["MIT license", `${GITHUB}/blob/main/LICENSE`]] },
 ];
 
