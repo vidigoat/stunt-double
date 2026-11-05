@@ -7,12 +7,12 @@ visible label and a **Re-check live** button (press it if you want to film the A
 
 | Time | Screen | Click | Say (or caption) |
 |---|---|---|---|
-| 0:00–0:06 | Landing hero | (none) | "AI agents now move money, email customers, click through admin sites and manage servers. Stunt Double lets them do it to a double first." |
-| 0:06–0:14 | `/app` → judge step 1 **Break it** | one click | "This plan deletes every customer. It ran, for real, inside a gVisor sandbox on Vultr: the double lost 1,300 customers. Production still has 1,300. Approval is locked." *(the containment moment)* |
-| 0:14–0:26 | step 2 **Watch the AI catch what rules can't** | one click, then cut to the verdict | "This refund plan passes every rule, but the AI verifier on Vultr Serverless Inference reads the data: it refunds 640 people who were never double-charged." Then click **Learn this rule**: "One click and that catch becomes a rule. Next time it's blocked instantly, without AI." |
-| 0:26–0:38 | step 3 **Watch it work in a browser** | one click | "Now the agent works in a real browser, on a double of the admin site. Every screen is captured, and the AI vision check sees it cancelled the wrong subscription." |
-| 0:38–0:48 | step 4 **Clean up the cloud** | one click, scroll to the fleet | "'Delete idle Vultr servers' would also delete the failover database and the backup runner. The double of the fleet shows the blast radius and the bill; production is protected." |
-| 0:48–0:56 | `/control` (Mission control) | (none; start step 2 in another tab first so a live row lights its blue "verify" stage and the counters tick) | "Every agent action, live: the request, its double on Vultr, the decision. Nothing real happens until a human approves the consequences." |
+| 0:00–0:06 | Landing hero | (none) | "AI agents now move money, email customers and manage servers. Stunt Double makes them rehearse every action on a double first." |
+| 0:06–0:13 | `/app` → judge step 1 **Break it** | one click | "This plan deletes every customer. It ran for real, in a gVisor sandbox on Vultr: the double lost 1,300 customers. Production still has 1,300. Approval locks." *(the containment moment)* |
+| 0:13–0:22 | step 2 **Try to fool it** | one click, scroll to the claim panel | "This 'read-only audit' quietly refunds 300 charges and says it changed nothing. It even forges its own report. A separate sandbox measured the truth: the plan lied." |
+| 0:22–0:38 | step 3 **Watch the AI catch what rules can't, then teach it** | one click; **Learn this rule**; **Try the same plan again** | "This refund plan passes every rule. A jury of three AI labs on Vultr Inference investigates the data on its own: 640 of these people were never double-charged. One click turns the catch into a rule, and the same plan is now blocked in seconds, without AI." |
+| 0:38–0:46 | step 5 **Clean up the cloud** | one click | "'Delete idle Vultr servers' would delete the failover database. Two jurors overruled the first verdict and made it stricter." |
+| 0:46–0:56 | step 8 **Try it on real infrastructure**, then `/control` | one click | "It works on your own Postgres and your own Vultr fleet, read-only, and every action shows up live in Mission control." |
 | 0:56–1:00 | Landing closing card | (none) | "Stunt Double. Let the double take the hit." |
 
 Optional extra beats if there is time: **Your Postgres ↗ → "No Postgres handy?"** imports a sample SaaS database in one
