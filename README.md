@@ -85,6 +85,7 @@ loop" shows a manager code they can't read. Stunt Double makes it safe to say *y
 | **Approve** | The approver sees money out, people, emails, API calls, rows, a blast-radius map and a plain-English sentence. Big moves need **two different people**. Approval is bound to a SHA-256 of the plan and its effects. |
 | **Apply** | Only the approved, recorded effects are replayed: integrity check → locked drift check → database → payments → email → API connectors (credentials injected **now**, never before). |
 | **Undo** | Regret it? A rollback is the exact inverse of the approved data changes, rehearsed and approved like any change. |
+| **Export** | Any rehearsal's measured row changes download as a portable SQL script (PostgreSQL, MySQL, SQLite) for teams that ship changes through their own migration pipeline. Every UPDATE is guarded by the rehearsed old values, so drifted rows are left alone. |
 
 ### The demo business: Bean There Coffee Co. (five real traps)
 
@@ -300,7 +301,7 @@ python api/eval/run_eval.py --api https://<host> --runs 10      # real models: h
 
 | Suite | What it proves |
 |---|---|
-| `api/tests/` (127 tests) | engine, containment, adversarial attacks, policy + simulator, connectors + notifications, rollback, two-person rule, workspaces, diff explorer, SDK + CLI, agent loop, archive, security reviews, browser + cloud doubles, learned rules, autonomy, verdict reuse, Vultr fleet import, dedicated Vultr VMs |
+| `api/tests/` (129 tests) | engine, containment, adversarial attacks, policy + simulator, connectors + notifications, rollback, two-person rule, workspaces, diff explorer, SDK + CLI, agent loop, archive, security reviews, browser + cloud doubles, learned rules, autonomy, verdict reuse, Vultr fleet import, dedicated Vultr VMs, SQL export |
 | `mcp/tests/test_mcp.py` | a real MCP client over stdio against the live API |
 | `e2e/golden-path.js` | a real browser: containment, approve + apply, two-person undo, Slack delivery, audit trail, phone layout |
 

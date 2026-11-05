@@ -560,7 +560,13 @@ export default function AppPage() {
                 {run.status === "rejected" && run.rejection ? <p className="w-full text-sm text-muted-foreground">Rejected by {run.rejection.by}{run.rejection.reason ? `: “${run.rejection.reason}”` : ". No reason given."}</p> : null}
                 {run.status === "applied" && run.approval?.notes?.length ? <p className="w-full text-sm text-muted-foreground">{run.approval.notes.map((n) => `“${n}”`).join(" · ")}</p> : null}
                 {run.status === "drifted" ? <Button className="h-10 rounded-full px-4" onClick={() => start()} disabled={busy}><RotateCcw className="size-4" /> Rehearse again</Button> : null}
-                {!ACTIVE.has(run.status) && run.status !== "review" && run.attempts.length ? <a href={`/api/runs/${run.id}/evidence`} className="ml-auto text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline">Download evidence ↓</a> : null}
+                {!ACTIVE.has(run.status) && run.attempts.length ? (
+                  <span className="flex w-full flex-wrap justify-end gap-x-4 gap-y-1 text-sm text-muted-foreground">
+                    {attempt?.consequences.ok && Object.values(attempt.consequences.tables).some((t) => t.updated + t.deleted + t.inserted > 0)
+                      ? <a href={`/api/runs/${run.id}/effects.sql`} title="The measured row changes as a portable SQL script (PostgreSQL, MySQL, SQLite), guarded against drift" className="underline-offset-4 hover:text-foreground hover:underline">Export as SQL ↓</a> : null}
+                    {run.status !== "review" ? <a href={`/api/runs/${run.id}/evidence`} className="underline-offset-4 hover:text-foreground hover:underline">Download evidence ↓</a> : null}
+                  </span>
+                ) : null}
               </ApprovalCard>
 
               {run.status === "applied" && run.apply_result ? (

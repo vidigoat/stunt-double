@@ -26,7 +26,7 @@ Humans approve consequences, not code: "refunds $37,404 to 744 people, 640 of wh
 
 Every catch becomes a rule: the AI writes the SQL check it used, and one click makes it a rule that blocks the same mistake instantly, without AI. Small, clean, AI-confirmed changes can apply on their own within a budget.
 
-On the live Vultr server it caught 48 of 48 bad plans with 0 false alarms on 26 correct ones. Agents connect over MCP, a Python SDK, a CLI or REST, and there is no approve tool. Built on Vultr Cloud Compute, Serverless Inference and the Vultr API, with gVisor, FastAPI, Next.js and Playwright; 127 API tests and an end-to-end test that passes against production.
+On the live Vultr server it caught 48 of 48 bad plans with 0 false alarms on 26 correct ones. Agents connect over MCP, a Python SDK, a CLI or REST, and there is no approve tool. Built on Vultr Cloud Compute, Serverless Inference and the Vultr API, with gVisor, FastAPI, Next.js and Playwright; 129 API tests and an end-to-end test that passes against production.
 ```
 
 ## Step 1 · Participation Mode

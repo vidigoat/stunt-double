@@ -16,7 +16,7 @@ from fastapi.responses import Response, StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
-from . import agent, archive, beanpay, config, connectors, policy, rollback, rules, sandbox, seed, vultr_import, vultr_vm, workspaces
+from . import agent, archive, beanpay, config, connectors, policy, rollback, rules, sandbox, seed, sql_export, vultr_import, vultr_vm, workspaces
 from . import apply as applier
 
 app = FastAPI(
@@ -969,6 +969,24 @@ def run_changes(rid: str, table: str = "", op: str = "", q: str = "", offset: in
                              "changed": item.get("changed", [])})
     return {"total": len(rows), "offset": offset, "limit": limit, "rows": rows[offset:offset + limit],
             "tables": sorted(effects.get("changes", {}).keys())}
+
+
+@app.get("/api/runs/{rid}/effects.sql")
+def effects_sql(rid: str):
+    """The measured data changes as a portable SQL script, for teams that apply through their own migration pipeline."""
+    run = _get(rid)
+    if not run["attempts"]:
+        raise HTTPException(404, "no rehearsal yet")
+    att = run["attempts"][-1]
+    if not att["consequences"].get("ok"):
+        raise HTTPException(409, "This rehearsal failed; there are no measured changes to export")
+    try:
+        effects = _effects_cached(att["effects_path"], att.get("effects_sha256") or "")
+    except (OSError, ValueError) as e:
+        raise HTTPException(404, "effects not available") from e
+    meta = {"run_id": rid, "status": run["status"], "task": run["task"], "plan_sha256": att.get("plan_sha256"), "effects_sha256": att.get("effects_sha256")}
+    return Response(sql_export.export(effects, meta), media_type="text/plain; charset=utf-8",
+                    headers={"Content-Disposition": f'attachment; filename="stunt-double-{rid}.sql"'})
 
 
 @app.get("/api/runs/{rid}/evidence")
