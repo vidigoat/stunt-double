@@ -60,7 +60,9 @@ const FAQ = [
   { q: "What if the agent calls something you didn't expect?", a: "The sandbox has no network at all. Any unexpected call fails and shows up as a blocked side effect, so it fails closed. Payments and email are replaced by recorders, so we can show you exactly what would have been sent." },
   { q: "Does the agent's code ever touch my real systems?", a: "No. The agent's code only runs inside the sandbox. When you approve, Stunt Double replays the exact recorded changes you saw, after checking that none of those rows changed since the rehearsal (the drift check)." },
   { q: "Is my data safe inside the sandbox?", a: "Each rehearsal gets a fresh, isolated container (gVisor on Vultr Cloud Compute) with a read-only filesystem, no network, no credentials and an empty environment. It's destroyed the moment the rehearsal ends." },
-  { q: "What can it rehearse today?", a: "Anything an ops agent does to a database plus payments and email: refunds, win-back campaigns, cleanups, bulk updates. The demo runs on a fictional coffee company, Bean There Coffee Co." },
+  { q: "What can it rehearse today?", a: "Database changes, refunds, emails, calls to any HTTP API, clicks in a real browser on a double of your admin site, and changes to your Vultr servers (delete, stop, resize) on a double of your fleet. Each one is measured, shown to you in plain English, and applied only after you approve." },
+  { q: "How is the AI involved, and can I trust it?", a: "Two ways. An agent on Vultr Serverless Inference writes plans, and a separate AI verifier checks the measured outcome against what you asked for, reading the data and, for browser runs, the screenshots. On the live server it caught 36 of 36 bad plans with 0 false alarms on 18 good ones. Deterministic rules run first and can't be overruled by the AI; overruling the AI needs a written reason." },
+  { q: "Can an agent approve its own plan?", a: "No. There is no approve tool in the MCP server and no approve method in the SDK. Big changes need two different people, approvals are bound to a fingerprint of the exact effects, and a rehearsal expires after 24 hours." },
 ];
 
 function Nav() {
@@ -291,13 +293,17 @@ function Stack() {
 
 function Faq() {
   return (
-    <section id="faq" className="mx-auto max-w-3xl scroll-mt-20 px-4 py-24 sm:px-6">
-      <h2 className="font-display text-4xl sm:text-5xl">Questions</h2>
-      <Accordion className="mt-8 border-t">
+    <section id="faq" className="mx-auto grid max-w-6xl scroll-mt-20 gap-10 px-4 py-24 sm:px-6 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)]">
+      <div>
+        <div className="eyebrow">FAQ</div>
+        <h2 className="mt-3 font-display text-4xl leading-[1.05] sm:text-5xl">Frequently asked <em>questions</em></h2>
+        <p className="mt-4 max-w-sm text-[15px] leading-relaxed text-muted-foreground">Anything else? The <a className="underline underline-offset-4 hover:text-foreground" href={`${GITHUB}#readme`} target="_blank" rel="noreferrer">README</a> and <a className="underline underline-offset-4 hover:text-foreground" href={`${GITHUB}/blob/main/SECURITY.md`} target="_blank" rel="noreferrer">SECURITY.md</a> go deeper.</p>
+      </div>
+      <Accordion className="border-t">
         {FAQ.map((f) => (
           <AccordionItem key={f.q} value={f.q} className="border-b">
-            <AccordionTrigger className="py-5 text-left text-base">{f.q}</AccordionTrigger>
-            <AccordionContent className="pb-5 text-[15px] leading-relaxed text-muted-foreground">{f.a}</AccordionContent>
+            <AccordionTrigger className="py-6 text-left text-[17px] font-normal hover:no-underline">{f.q}</AccordionTrigger>
+            <AccordionContent className="pb-6 pr-8 text-[15px] leading-relaxed text-muted-foreground">{f.a}</AccordionContent>
           </AccordionItem>
         ))}
       </Accordion>
@@ -315,11 +321,15 @@ const FOOTER: { title: string; links: [string, string][] }[] = [
 function Closing() {
   return (
     <footer className="overflow-hidden">
-      <div className="mx-auto max-w-6xl px-4 py-24 text-center sm:px-6">
-        <h2 className="font-display text-5xl sm:text-7xl">Let the double <em>take the hit.</em></h2>
-        <div className="mt-8 flex flex-wrap justify-center gap-3">
-          <Link href="/app" className={pill()}>Try the live demo <ArrowRight className="size-4" /></Link>
-          <a href={GITHUB} target="_blank" rel="noreferrer" className={pill("outline")}><GithubIcon /> Star on GitHub</a>
+      <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6">
+        <div className="relative isolate overflow-hidden rounded-[28px] border px-6 py-20 text-center sm:py-28">
+          <div aria-hidden className="absolute inset-0 -z-10 bg-[radial-gradient(40%_60%_at_15%_20%,color-mix(in_oklch,var(--signal)_28%,transparent),transparent_70%),radial-gradient(35%_55%_at_85%_30%,color-mix(in_oklch,var(--signal)_18%,transparent),transparent_70%),radial-gradient(50%_60%_at_50%_100%,color-mix(in_oklch,#38d9f5_22%,transparent),transparent_70%)] blur-2xl" />
+          <h2 className="mx-auto max-w-3xl font-display text-5xl leading-[1.02] sm:text-7xl">Let the double <em className="text-signal">take the hit.</em></h2>
+          <p className="mx-auto mt-5 max-w-md text-[15px] leading-relaxed text-muted-foreground">Rehearse every agent action on Vultr first. Approve the consequences. Nothing real happens until you do.</p>
+          <div className="mt-8 flex flex-wrap justify-center gap-3">
+            <Link href="/app" className={pill()}>Try the live demo <ArrowRight className="size-4" /></Link>
+            <a href={GITHUB} target="_blank" rel="noreferrer" className={pill("outline")}><GithubIcon /> Star on GitHub</a>
+          </div>
         </div>
       </div>
       <div className="mx-auto grid max-w-6xl grid-cols-2 gap-x-6 gap-y-10 px-4 pb-16 sm:px-6 lg:grid-cols-4">
