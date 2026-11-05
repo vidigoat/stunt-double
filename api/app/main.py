@@ -1206,9 +1206,10 @@ def recheck_run(rid: str, req: Request):
 
 
 @app.post("/api/runs/{rid}/contract/strike")
-def strike_promise(rid: str, body: StrikeIn):
+def strike_promise(rid: str, body: StrikeIn, req: Request):
     """A person disagrees with a promise: it stops being enforced, with their name and reason in the record. The
     latest rehearsal is re-checked against what is left, with no AI, and the decision and any cut are recomputed."""
+    _rate_limit(req, per_hour=30, kind="contract change")
     run = _get(rid)
     who = " ".join((body.by or "").split())[:80] or "Approver"
     reason = " ".join(body.reason.split())[:500]
@@ -1559,8 +1560,9 @@ def evidence_key():
 
 
 @app.post("/api/evidence/verify")
-def verify_evidence(body: dict):
+def verify_evidence(body: dict, req: Request):
     """Check a downloaded evidence record: every entry of the chain, and the signature, against this server's key."""
+    _rate_limit(req, per_hour=120, kind="evidence check")
     return engine_evidence.verify(body, engine_evidence.public_key(config.DATA_DIR)["public_key"])
 
 
