@@ -14,12 +14,13 @@ type Policy = {
   block_schema_changes: boolean; block_network_attempts: boolean; block_over_refunds: boolean; block_broken_templates: boolean;
   block_data_leaks: boolean; warn_vip_emails: boolean; block_marketing_to_opted_out: boolean;
   glossary: { term: string; definition: string }[];
-  two_person_over_usd: number; two_person_over_rows: number; two_person_for_rollbacks: boolean; max_http_per_run: number; approval_expires_hours: number;
+  two_person_over_usd: number; two_person_over_rows: number; two_person_for_rollbacks: boolean; max_http_per_run: number; approval_expires_hours: number; protect_production_servers: boolean; max_servers_deleted: number;
 };
 
 const TOGGLES: { key: keyof Policy; title: string; body: string; kind: "block" | "warn" | "two" }[] = [
   { key: "block_over_refunds", title: "Block risky refunds", body: "Refunds larger than the original charge, of charges already refunded, refunded twice, or that don't exist.", kind: "block" },
   { key: "block_broken_templates", title: "Block broken emails", body: "Emails with unfilled placeholders like {{first_name}} never reach customers.", kind: "block" },
+  { key: "protect_production_servers", title: "Protect production servers", body: "An agent can never delete, stop or resize a Vultr server tagged 'production'.", kind: "block" },
   { key: "block_marketing_to_opted_out", title: "Respect unsubscribes", body: "Marketing emails to customers who opted out are blocked. Transactional emails (like refund notices) are fine.", kind: "block" },
   { key: "block_data_leaks", title: "Block data leaks", body: "Emails that contain another customer's email address or a card-like number.", kind: "block" },
   { key: "block_network_attempts", title: "Block plans that reach for the internet", body: "Any connection or DNS attempt from the sandbox locks approval.", kind: "block" },
@@ -34,6 +35,7 @@ const NUMBERS: { key: keyof Policy; title: string; body: string; unit: string; k
   { key: "two_person_over_usd", title: "Two approvers above", body: "Payouts above this need two different people to approve.", unit: "USD", kind: "two" },
   { key: "two_person_over_rows", title: "Two approvers for large changes", body: "Changing more rows than this needs two different people.", unit: "rows", kind: "two" },
   { key: "approval_expires_hours", title: "Rehearsals expire after", body: "An old rehearsal can't be approved. The business moved on, so rehearse again (0 = never).", unit: "hours", kind: "block" },
+  { key: "max_servers_deleted", title: "Server deletion review", body: "Flag rehearsals that delete more Vultr servers than this.", unit: "servers", kind: "warn" },
   { key: "max_refund_total_usd", title: "Large payout review", body: "Flag rehearsals that pay out more than this in total.", unit: "USD", kind: "warn" },
   { key: "max_emails_per_run", title: "Bulk email review", body: "Flag rehearsals that send more emails than this.", unit: "emails", kind: "warn" },
 ];
