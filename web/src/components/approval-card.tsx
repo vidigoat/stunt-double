@@ -81,7 +81,7 @@ function Stat({ label, value, hot, good, sub, small }: { label: string; value: R
   return (
     <div className={cn("min-w-0 rounded-xl border px-4 py-3", hot && small ? "border-damage/25 bg-damage-soft/60" : good ? "border-safe/25 bg-safe-soft/70" : "bg-background")}>
       <div className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">{label}</div>
-      <div className={cn("mt-1 truncate tabular", small ? "pt-1 font-display text-[26px] leading-[1.15] sm:text-[30px]" : "font-mono text-2xl sm:text-[28px]", hot && "text-damage", good && "text-safe")}>{value}</div>
+      <div className={cn("mt-1 truncate tabular", small ? "pt-1 font-display text-[24px] leading-[1.15] xl:text-[27px]" : "font-mono text-2xl sm:text-[28px]", hot && "text-damage", good && "text-safe")}>{value}</div>
       {sub ? <div className="mt-0.5 truncate text-xs text-muted-foreground">{sub}</div> : null}
     </div>
   );
