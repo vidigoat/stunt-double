@@ -15,7 +15,9 @@ visible label and a **Re-check live** button (press it if you want to film the A
 | 0:48–0:56 | `/control` (Mission control) | (none; start step 2 in another tab first so a live row lights its blue "verify" stage and the counters tick) | "Every agent action, live: the request, its double on Vultr, the decision. Nothing real happens until a human approves the consequences." |
 | 0:56–1:00 | Landing closing card | (none) | "Stunt Double. Let the double take the hit." |
 
-Optional extra beats if there is time: **Your Vultr fleet ↗** (top-left card) imports a read-only double of a real Vultr
+Optional extra beats if there is time: **Your Postgres ↗ → "No Postgres handy?"** imports a sample SaaS database in one
+click; "Deactivate accounts inactive for 90 days" passes every rule, but all 53 of those accounts pay you, and approved
+changes download as drift-guarded SQL; **Your Vultr fleet ↗** (top-left card) imports a read-only double of a real Vultr
 account from an API key that is never stored, then "Delete every server" shows the blast radius on your own fleet; step 5 (approve a good plan, then rehearse the undo with two approvers), step 6
 (the agent on Vultr Inference doing the task itself), the MCP tab on the landing ("works with any agent").
 

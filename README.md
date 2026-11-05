@@ -85,7 +85,7 @@ loop" shows a manager code they can't read. Stunt Double makes it safe to say *y
 | **Approve** | The approver sees money out, people, emails, API calls, rows, a blast-radius map and a plain-English sentence. Big moves need **two different people**. Approval is bound to a SHA-256 of the plan and its effects. |
 | **Apply** | Only the approved, recorded effects are replayed: integrity check → locked drift check → database → payments → email → API connectors (credentials injected **now**, never before). |
 | **Undo** | Regret it? A rollback is the exact inverse of the approved data changes, rehearsed and approved like any change. |
-| **Your real database** | Paste a PostgreSQL connection string: Stunt Double copies one schema once, read-only (internal hosts refused), and discards the string. Agents rehearse on that double; approved changes download as a portable SQL script whose every UPDATE carries the whole rehearsed row in its WHERE clause, so drifted rows are left alone. Tested round trip against a real Postgres 16. The server never needs write access to your database. |
+| **Your real database** | Paste a PostgreSQL connection string: Stunt Double copies one schema once, read-only (internal hosts refused), and discards the string. Agents rehearse on that double; approved changes download as a portable SQL script whose every UPDATE carries the whole rehearsed row in its WHERE clause, so drifted rows are left alone. Tested round trip against a real Postgres 16. The server never needs write access to your database. **No Postgres handy?** One click imports a sample SaaS database (accounts, plans, invoices) that runs inside the deployment; its trap: every account quiet for 90+ days is a paying customer. |
 
 ### The demo business: Bean There Coffee Co. (five real traps)
 
@@ -301,7 +301,7 @@ python api/eval/run_eval.py --api https://<host> --runs 10      # real models: h
 
 | Suite | What it proves |
 |---|---|
-| `api/tests/` (131 tests) | engine, containment, adversarial attacks, policy + simulator, connectors + notifications, rollback, two-person rule, workspaces, diff explorer, SDK + CLI, agent loop, archive, security reviews, browser + cloud doubles, learned rules, autonomy, verdict reuse, Vultr fleet import, dedicated Vultr VMs, SQL export, Postgres round trip |
+| `api/tests/` (132 tests) | engine, containment, adversarial attacks, policy + simulator, connectors + notifications, rollback, two-person rule, workspaces, diff explorer, SDK + CLI, agent loop, archive, security reviews, browser + cloud doubles, learned rules, autonomy, verdict reuse, Vultr fleet import, dedicated Vultr VMs, SQL export, Postgres round trip |
 | `mcp/tests/test_mcp.py` | a real MCP client over stdio against the live API |
 | `e2e/golden-path.js` | a real browser: containment, approve + apply, two-person undo, Slack delivery, audit trail, phone layout |
 

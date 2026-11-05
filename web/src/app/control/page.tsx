@@ -14,6 +14,7 @@ type Row = {
   money_cents: number; rows: number; headline?: string | null; top_flag?: string | null; kind?: string | null;
   sandbox?: { id?: string; runtime?: string; wall_ms?: number; profile?: string; isolation?: string } | null;
   approval?: { auto?: boolean } | null;
+  workspace_kind?: string | null;
 };
 type Stats = { rehearsals: number; stopped: number; money_prevented_cents: number; rows_protected: number; applied: number };
 type Health = { sandbox_runtime?: string; agent_model?: string; inference_configured?: boolean };
@@ -112,7 +113,7 @@ export default function ControlPage() {
               <div className="flex min-w-0 items-center gap-3">
                 <span className={cn("flex size-8 shrink-0 items-center justify-center rounded-lg", live ? "bg-[#5B8CFF]/20 text-[#9FBCFF]" : "bg-white/5 text-white/70")}><K.icon className="size-4" /></span>
                 <div className="min-w-0 font-mono text-[11px] leading-relaxed text-white/60">
-                  <div className="text-white/85">{K.label}{r.sandbox?.isolation === "vultr_vm" ? <span className="ml-1.5 rounded bg-[#5B8CFF]/20 px-1.5 py-px text-[10px] text-[#9FBCFF]">own Vultr VM</span> : null}</div>
+                  <div className="text-white/85">{r.workspace_kind === "postgres" ? "your Postgres double" : r.workspace_kind === "vultr" ? "your Vultr fleet double" : r.workspace_kind === "upload" ? "your database double" : K.label}{r.sandbox?.isolation === "vultr_vm" ? <span className="ml-1.5 rounded bg-[#5B8CFF]/20 px-1.5 py-px text-[10px] text-[#9FBCFF]">own Vultr VM</span> : null}</div>
                   <div className="truncate">{r.sandbox?.id ?? "starting…"} · {r.sandbox?.runtime === "runsc" ? "gVisor" : r.sandbox?.runtime ?? "…"}{r.sandbox?.wall_ms ? ` · ${(r.sandbox.wall_ms / 1000).toFixed(1)} s` : ""}{r.sandbox?.id ? " · destroyed" : ""}</div>
                   <Pipeline r={r} live={live} />
                 </div>

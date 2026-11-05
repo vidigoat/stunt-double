@@ -634,7 +634,7 @@ def _summary(r: dict) -> dict:
             "headline": (r.get("verdict") or {}).get("headline"),
             "top_flag": next((f["title"] for f in (a or {}).get("flags", []) if f["severity"] == "critical"), None),
             "sandbox": {k: (c.get("sandbox") or {}).get(k) for k in ("id", "runtime", "wall_ms", "profile", "isolation")} if a else None,
-            "kind": _kind(c) if a else None}
+            "kind": _kind(c) if a else None, "workspace_kind": workspaces.kind(r.get("workspace", workspaces.DEMO))}
 
 
 def _kind(c: dict) -> str:
