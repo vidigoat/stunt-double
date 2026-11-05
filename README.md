@@ -81,13 +81,15 @@ what the engine does with it, on the live server:
 
 | | Layer | What it does | On the refund plan |
 |---|---|---|---|
-| 1 | **Intent contract** | Before any plan exists, a model on Vultr writes down what the request means: plain-English promises, each with a read-only SQL check over the data before, the data after, and what was sent. Promises that hold today are *guards*; promises broken today are *the work to be done*. The plan never sees the contract, and code with no AI checks it | "104 extra charges need a refund" (the work) · "nothing else is refunded" (a guard): **640 rows break it** |
-| 2 | **Effect graph** | Every measured consequence (a row, a refund, an email, an API call) is linked by foreign keys, charge ids and recipients into *units of work* that live or die together | 744 units: a charge, its refund, its email |
+| 1 | **Intent contract** | Before any plan exists, a model on Vultr writes down what the request means: plain-English promises, each with a read-only SQL check over the data before, the data after, and what was sent. Promises that hold today are *guards*; promises broken today are *the work to be done*. The plan never sees the contract, and code with no AI checks it. A second model from another lab reads the request on its own: if they find different amounts of work, the request is ambiguous and a person settles it. A person can also strike a promise, with a reason on the record | "104 extra charges need a refund" (the work) · "nothing else is refunded" (a guard): **640 rows break it**. DeepSeek, reading separately, also finds 104 |
+| 2 | **Effect graph** | Every measured consequence (a row, a refund, an email, an API call) is linked by foreign keys, charge ids and recipients into *units of work* that live or die together. In the console, click any unit to see its parts and why they belong together | 744 units: a charge, its refund, its email |
 | 3 | **Proof of effect** | The plan's statement log is only a claim. Trusted code replays it on the untouched copy with a frozen clock and must reproduce every measured change. A write through a hidden connection is a change nothing explains, and approval locks | 1,490 statements replayed, 744 of 744 changes reproduced; **statement 1**, one `SELECT`, chose all 640 wrong refunds |
 | 4 | **Surgical approval** | Every unit that breaks the contract is cut out, whole. What is left is rebuilt without running the plan again, re-measured in a fresh sandbox and checked again | **Keep 104 ($5,136), cut 640 ($32,268).** The subset keeps every promise and the jury agrees, 3 of 3 |
 | 5 | **One decision, signed** | Six layers (measured, proof, contract, rules, jury, sign-off) each give one plain reason; fixed rules combine them into *approve*, *review*, *blocked* or *cut*. Every step is sealed into a SHA-256 hash chain signed with Ed25519 | Change one refund, one promise or one approver's name and the record no longer verifies (`sd verify`) |
 
-The code is in [`api/app/engine/`](api/app/engine), the design and the live prototypes in [docs/ENGINE.md](docs/ENGINE.md).
+Agents get all of it too: over MCP every rehearsal returns the decision, the contract and the proof, and
+`keep_only_what_is_right` asks for the cut (it approves nothing). The code is in [`api/app/engine/`](api/app/engine),
+the design and what production measured in [docs/ENGINE.md](docs/ENGINE.md).
 
 ## What makes it different
 
@@ -269,7 +271,7 @@ Details in [SECURITY.md](SECURITY.md).
 |---|---|
 | **48 / 48** | bad plans caught on the live Vultr server, with **0 of 26** false alarms on correct ones ([eval](docs/VERIFIER_EVAL.md)) |
 | **3 of 3** | jurors from different labs independently caught every trap on production |
-| **180** | API tests in CI (tampered evidence, hidden connections and forged logs among them), plus a real MCP client and an end-to-end browser test against production |
+| **187** | API tests in CI (tampered evidence, hidden connections and forged logs among them), plus a real MCP client and an end-to-end browser test against production |
 | **1.8 s** | median two-phase rehearsal in gVisor ([benchmark](docs/BENCH.md)) |
 | **0** | lines of agent code ever run against production |
 

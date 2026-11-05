@@ -13,7 +13,7 @@ competitor will verify. Nobody else will **verify the verification**, **repair a
 
 ## Status: built, and measured on the live server
 
-All six milestones shipped, each with tests (`api/tests/test_engine_*.py`, 181 tests in the suite) and a production
+All six milestones shipped, each with tests (`api/tests/test_engine_*.py`, 187 tests in the suite) and a production
 run. The code is in [`api/app/engine/`](../api/app/engine): `graph`, `materialize`, `subsets`, `state`, `contracts`,
 `verdict`, `evidence`; Proof of Effect lives in the sandbox harness (`api/app/harness/runner.py`).
 
@@ -42,7 +42,18 @@ run. The code is in [`api/app/engine/`](../api/app/engine): `graph`, `materializ
 - *A cut must pass every check that fired, and do some of the work.* Found on production: the lying "read-only audit"
   broke two promises, and cutting around only the first left a subset that still broke the second. Now every learned
   rule and broken promise is required on the subset, and a request that asks for no change gets no subset at all.
-- *The contract is shown, not yet approved by a person.* Editing promises before the plan runs is the next step.
+- *A person can strike a promise.* Under review, any promise but the last can be struck with a written reason; the
+  rehearsal is re-checked with no AI, and the strike is a step of the signed record.
+- *Ambiguity is detected, not guessed.* After the contract is ready, a second model from another lab writes its own
+  reading. If the two find different amounts of work ("104 to do, or 58"), the request is ambiguous and the decision
+  asks a person. Live, DeepSeek agreed with Qwen on 104.
+- *The effect graph is browsable.* In the console, every unit of work is a square; clicking one shows its parts and
+  the reason for every link (`GET /api/runs/{id}/graph?unit=N`).
+- *Agents see the engine.* MCP results carry the decision, the contract and the proof, and `keep_only_what_is_right`
+  asks for the cut.
+- *Checks run on an indexed private copy.* Model-written checks scanned the raw data; on the VM, judge step 1 took
+  42 s. One indexed copy per version of the data made each check ~100x faster: the whole demo moment now takes
+  8.6 s on production, offer to approvable subset.
 - *The decision is code, not AI.* Six layers give pass, warn or fail with one reason each; only deterministic layers
   lock approval, and the jury's objection alone asks a person for a written reason.
 
