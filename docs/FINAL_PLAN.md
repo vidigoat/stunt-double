@@ -1,5 +1,7 @@
 # Final plan: from "live on Vultr" to 1st place
 
+> Superseded for scheduling by [MASTER_PLAN.md](MASTER_PLAN.md) (Thu Nov 5). This file keeps the history of Wed night.
+
 Written Wed Nov 4, 22:45 IST. Submission closes **Sun Nov 8 23:00 UTC = Mon Nov 9 04:30 IST**. Our own deadline is
 **Sun Nov 8 20:00 IST**, leaving 8.5 hours of buffer.
 
