@@ -4,7 +4,7 @@ import time
 import pytest
 from fastapi.testclient import TestClient
 
-from app import config, main
+from app import main
 from tests.conftest import needs_docker
 
 PLAN = "def run(ctx):\n    ctx.db.execute(\"UPDATE customers SET name = name || '.' WHERE id <= 2\")\n"
