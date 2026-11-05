@@ -11,6 +11,7 @@ import { SurgicalCard } from "@/components/surgical-card";
 import { ProofPanel } from "@/components/proof-panel";
 import { ContractCard } from "@/components/contract-card";
 import { DecisionPanel } from "@/components/decision-panel";
+import { EffectGraph } from "@/components/effect-graph";
 import { ApprovalCard, viewFromAttempt } from "@/components/approval-card";
 import { CloudDiff, cloudChanged } from "@/components/cloud-diff";
 import { Filmstrip } from "@/components/filmstrip";
@@ -686,6 +687,10 @@ export default function AppPage() {
                   <Scissors className="size-4 shrink-0 text-safe" />
                   <span className="min-w-0 flex-1"><span className="font-medium">Surgical subset of attempt {attempt.surgical_of}.</span> Kept {num(run.surgical.offer.units_kept)} of {num(run.surgical.offer.units_total)} units of work, cut {num(run.surgical.offer.units_dropped)} ({usd(run.surgical.offer.dropped.money_cents)}). Re-measured in a fresh sandbox; no plan code ran again.</span>
                 </div>
+              ) : null}
+              {attempt?.consequences.graph?.units ? (
+                <EffectGraph runId={run.id} attempt={attempt.n} summary={attempt.consequences.graph}
+                  dropped={!attempt.surgical_of && run.surgical?.offer ? run.surgical.offer.dropped_units : undefined} />
               ) : null}
               {attempt?.consequences.provenance ? (
                 <ProofPanel runId={run.id} attempt={attempt.n} summary={attempt.consequences.provenance}

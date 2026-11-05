@@ -1428,17 +1428,28 @@ def run_provenance(rid: str, attempt: int = 0):
 
 
 @app.get("/api/runs/{rid}/graph")
-def run_graph(rid: str, attempt: int = 0):
-    """The Effect Graph of a rehearsal: every consequence as a node, linked into units of work."""
+def run_graph(rid: str, attempt: int = 0, unit: int | None = None):
+    """The Effect Graph of a rehearsal: every consequence as a node, linked into units of work. With `unit`, just
+    that unit of work: its consequences, the unchanged rows that tie them together, and every link with its reason."""
     run = _get(rid)
     if not run["attempts"]:
         raise HTTPException(404, "no rehearsal yet")
     att = run["attempts"][attempt - 1] if 0 < attempt <= len(run["attempts"]) else run["attempts"][-1]
     path = str(att.get("effects_path") or "").replace("effects.json", "graph.json")
     try:
-        return json.loads(open(path).read())
+        g = json.loads(open(path).read())
     except (OSError, ValueError):
         raise HTTPException(404, "no graph for this rehearsal") from None
+    if unit is None:
+        return g
+    if not 0 <= unit < len(g.get("units") or []):
+        raise HTTPException(404, "no such unit of work")
+    own = set(g["units"][unit]["nodes"])
+    edges = [e for e in g.get("edges") or [] if e[0] in own or e[1] in own]
+    ids = own | {x for e in edges for x in e[:2]}
+    nodes = g.get("nodes") or {}
+    return {"unit": unit, "units": len(g["units"]), "summary": g.get("summary"),
+            "nodes": [nodes[i] for i in sorted(ids) if i in nodes], "edges": edges}
 
 
 @app.get("/api/runs/{rid}/effects.sql")

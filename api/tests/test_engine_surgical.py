@@ -80,3 +80,16 @@ def test_a_subset_is_never_cut_again_and_needs_review(fresh_business, monkeypatc
     assert api.post(f"/api/runs/{rid}/surgical").status_code == 409             # one cut, then a person decides
     applied_before = api.get("/api/beanpay/ledger").json()["count"]
     assert applied_before == 0                                                   # nothing applied without approval
+
+
+@needs_docker
+def test_one_unit_of_work_comes_with_the_reasons_its_parts_belong_together(fresh_business, monkeypatch):
+    _jury(monkeypatch)
+    api = TestClient(main.app)
+    rid = api.post("/api/runs/manual", json={"task": PLANS["bad"]["task"], "code": PLANS["bad"]["code"]}).json()["id"]
+    _wait(api, rid)
+    u = api.get(f"/api/runs/{rid}/graph", params={"attempt": 1, "unit": 0}).json()
+    assert u["units"] == 744 and {n["kind"] for n in u["nodes"]} >= {"row", "refund", "email", "context"}
+    whys = {e[2] for e in u["edges"]}
+    assert "charges.customer_id → customers" in whys and any("refund" in w for w in whys) and any("email" in w for w in whys), whys
+    assert api.get(f"/api/runs/{rid}/graph", params={"unit": 744}).status_code == 404

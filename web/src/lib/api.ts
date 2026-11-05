@@ -21,6 +21,7 @@ export type ContractResult = { status: "checked" | "late" | "unknown"; model?: s
   promises: (Pledge & { status: "kept" | "broken" | "met" | "unmet" | "unknown"; after: number | null; why?: string })[] };
 export type DecisionLayer = { key: "measured" | "proof" | "contract" | "rules" | "jury" | "approval"; title: string; status: "pass" | "warn" | "fail" | "skip"; reason: string };
 export type Decision = { decision: "approve" | "review" | "blocked" | "cut"; headline: string; attempt: number; layers: DecisionLayer[]; failed: string[]; warned: string[] };
+export type GraphUnit = { unit: number; units: number; nodes: { id: string; kind: string; label: string; table?: string; rowid?: number; money_cents?: number }[]; edges: [string, string, string][] };
 export type Consequences = {
   provenance?: Provenance; graph?: GraphSummary; contract?: ContractResult;
   ok: boolean; error: { message: string; traceback?: string } | null; stdout?: string; logs?: string[]; duration_ms?: number;
@@ -110,6 +111,7 @@ export const api = {
   recheck: (id: string) => req<{ id: string }>(`/runs/${id}/recheck`, {}),
   provenance: (id: string, attempt = 0) => req<ProvenanceDetail>(`/runs/${id}/provenance?attempt=${attempt}`),
   surgical: (id: string) => req<{ id: string; offer: SurgicalOffer }>(`/runs/${id}/surgical`, {}),
+  graphUnit: (id: string, attempt: number, unit: number) => req<GraphUnit>(`/runs/${id}/graph?attempt=${attempt}&unit=${unit}`),
   strike: (id: string, index: number, reason: string, by?: string) => req<Run>(`/runs/${id}/contract/strike`, { index, reason, by }),
   promote: (id: string, by?: string) => req<{ id: string; title: string; sql: string }>(`/runs/${id}/promote`, { by }),
   approve: (id: string, approver?: string, note?: string) => req<Run>(`/runs/${id}/approve`, { approver, note: note || undefined }),
