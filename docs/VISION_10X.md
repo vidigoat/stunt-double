@@ -7,20 +7,22 @@ everything an AI agent touches**: databases, payments, email, SaaS APIs, web app
 > One line for the judges: *"Your agent is about to delete three servers, refund $37,404 and click 'Cancel' in a
 > browser. Watch it do all three — to the double."*
 
-## Status (Thu Nov 5, 12:00 IST)
+## Status (Thu Nov 5, 14:30 IST)
 **Shipped and live on the Vultr server** (each with tests and checked on production):
-- ✅ **Browser double (Pattern B)**: a real Chromium in the sandbox (gVisor on the VM, 1 GB profile) drives a double of the admin
-  site; every step screenshotted; the verifier reads the screens (vision). Live: 3 screens in 5.9 s; caught 2/2 by the AI alone.
-- ✅ **Cloud double**: `ctx.vultr` over a double of the fleet; deleted/stopped/resized servers and the $/month change measured
-  in phase 2; production servers protected; deleted servers irreversible in undo; cloud receipt with server cards.
-- ✅ **Catch → rule**: the verifier proposes the SQL check it used; only rules that pass today's data are offered; promoted rules
-  run in phase 2 of every rehearsal, and a violation decides instantly without AI. Live: learned, then blocked the same plan.
-- ✅ **Mission control** (`/control`): every rehearsal, request → double on Vultr → decision, live.
-- ✅ Landing: doubles showcase, dark "works with any agent" tabs, two-column FAQ, gradient close, big footer; EB Garamond + Figtree.
-- ✅ Evals on the live server: 48/48 bad plans caught, 0/26 false alarms (all six traps).
+- ✅ **Browser double**: a real Chromium in gVisor drives a double of the admin site; the verifier reads the screenshots.
+- ✅ **Cloud double**, and a **read-only double of your real Vultr fleet** (key used once, never stored).
+- ✅ **Your real database**: read-only double of a PostgreSQL schema (internal hosts refused, connection string never kept),
+  one-click sample SaaS database, and **drift-guarded SQL export** (whole-row WHERE) tested round-trip on Postgres 16.
+- ✅ **Catch → rule**, **graduated autonomy** (opt-in), **Mission control**.
+- ✅ **Instant, honest verdicts**: reused only for identical request + effects + data + policy + model, labelled, with a live
+  re-check. Every judge-mode step answers in 3–8 s on production (was 20–120 s).
+- ✅ Landing rewritten to half the density; judge mode has seven one-click steps (step 7: real infrastructure).
+- ✅ Self-hosted fonts (no build-time fetch), deploy retries failed builds, scheduled uptime probe.
+- ✅ Evals on the live server: 48/48 bad plans caught, 0/26 false alarms. 132 API tests; production e2e 11/11 + 3/3.
+- 🟡 **Dedicated throwaway Vultr VMs**: built and tested (4 tests), deployed but off: the owner chose not to put an account
+  API key on the public server.
 
-**Next** (in order): AI jury (3 models) · dedicated throwaway Vultr VMs (needs an API key on the server: decide) ·
-graduated autonomy · signed evidence · GitHub sign-in · TS SDK. Demo script for the 1-minute video: `docs/DEMO_1MIN.md`.
+**Next**: AI jury (3 models) · signed evidence · GitHub sign-in · TS SDK. Video: `docs/DEMO_1MIN.md`.
 
 ## 0. Feasibility, proven this morning (Thu 10:25–10:30 IST)
 | Question | Result |
