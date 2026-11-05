@@ -450,7 +450,11 @@ def stats():
         runs = list(RUNS.values())
     def last(r):
         return r["attempts"][-1] if r["attempts"] else None
-    stopped = [r for r in runs if last(r) and (r["status"] == "rejected" or (r["status"] == "review" and any(f["severity"] == "critical" for f in last(r)["flags"])))]
+    def caught(r) -> bool:  # locked by policy, or the AI verifier objected (and it wasn't applied anyway)
+        v = (r.get("verdict") or {})
+        ai = v.get("verdict") in ("concerns", "dangerous") and v.get("headline") != "Verifier could not finish"
+        return any(f["severity"] == "critical" for f in last(r)["flags"]) or ai
+    stopped = [r for r in runs if last(r) and (r["status"] == "rejected" or (r["status"] == "review" and caught(r)))]
     fixed = [r for r in runs if len(r["attempts"]) > 1]
     prevented = sum(last(r)["consequences"].get("payments", {}).get("total_cents", 0) for r in stopped)
     prevented += sum(max(0, r["attempts"][0]["consequences"].get("payments", {}).get("total_cents", 0)

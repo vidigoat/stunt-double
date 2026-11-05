@@ -27,11 +27,14 @@
 <table>
   <tr>
     <td width="50%"><img src="docs/assets/ai-catch.png" alt="The AI verifier catches a refund plan that passes every rule"><br><sub><b>What rules can't see.</b> A plan passes every rule; the AI verifier on Vultr Inference reads the data and objects.</sub></td>
+    <td width="50%"><img src="docs/assets/browser.png" alt="The agent in a real browser inside the sandbox; the AI vision check catches the wrong cancellation"><br><sub><b>A real browser, on the double.</b> Every screen captured in gVisor; the AI vision check sees the wrong row.</sub></td>
+  </tr>
+  <tr>
+    <td width="50%"><img src="docs/assets/cloud.png" alt="Cleaning up idle Vultr servers would delete production; blocked"><br><sub><b>Your Vultr cloud, on the double.</b> "Idle" servers include the failover database; production is protected.</sub></td>
     <td width="50%"><img src="docs/assets/containment.png" alt="Containment: sandbox 0 customers, production 1,300"><br><sub><b>Containment.</b> Deleting every customer hits only the double; approval locks.</sub></td>
   </tr>
   <tr>
-    <td width="50%"><img src="docs/assets/applied.png" alt="A correct plan approved and applied"><br><sub><b>Approve, then apply.</b> Only the recorded effects are replayed, after a drift check.</sub></td>
-    <td width="50%"><img src="docs/assets/policy.png" alt="Editable approval policy with simulator"><br><sub><b>Policy you control.</b> Rules that block or warn, a simulator, the glossary.</sub></td>
+    <td colspan="2"><img src="docs/assets/control.png" alt="Mission control: every rehearsal from request to double to decision, live"><br><sub><b>Mission control.</b> Every agent action on the server, live: the request, its double on Vultr (gVisor, seconds, destroyed), the decision.</sub></td>
   </tr>
 </table>
 
