@@ -64,9 +64,6 @@ function Nav() {
         <div className="hidden items-center gap-7 text-sm text-muted-foreground md:flex">
           <a href="#how" className="hover:text-foreground">How it works</a>
           <a href="#engine" className="hover:text-foreground">The engine</a>
-          <a href="#different" className="hover:text-foreground">Why it&apos;s different</a>
-          <a href="#mcp" className="hover:text-foreground">For agents</a>
-          <a href="#pricing" className="hover:text-foreground">Pricing</a>
           <a href="#faq" className="hover:text-foreground">FAQ</a>
           <a href={GITHUB} target="_blank" rel="noreferrer" className="hover:text-foreground">GitHub</a>
         </div>

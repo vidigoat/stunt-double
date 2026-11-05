@@ -13,6 +13,7 @@ import { ContractCard } from "@/components/contract-card";
 import { DecisionPanel } from "@/components/decision-panel";
 import { EffectGraph } from "@/components/effect-graph";
 import { EvidenceCheck } from "@/components/evidence-check";
+import { EngineGuide } from "@/components/engine-guide";
 import { ApprovalCard, viewFromAttempt } from "@/components/approval-card";
 import { CloudDiff, cloudChanged } from "@/components/cloud-diff";
 import { Filmstrip } from "@/components/filmstrip";
@@ -583,6 +584,7 @@ export default function AppPage() {
                 </div>
               ) : null}
 
+              {run.contract?.status === "ready" && (run.surgical?.offer || run.attempts.some((a) => a.surgical_of)) ? <EngineGuide run={run} /> : null}
               {run.attempts.length > 1 ? <AttemptCompare attempts={run.attempts} /> : null}
 
               {run.status === "verifying" ? (() => {
@@ -617,8 +619,8 @@ export default function AppPage() {
                   }}><RotateCcw className="size-3.5" /> Re-check live</Button>
                 </div>
               ) : null}
-              {run.decision && !ACTIVE.has(run.status) ? <DecisionPanel decision={run.decision}><EvidenceCheck runId={run.id} /></DecisionPanel> : null}
-              <ApprovalCard view={view} label={run.status === "applied" ? "Applied" : run.status === "rejected" ? "Rejected" : run.status === "drifted" ? "Drift detected" : run.status === "failed" ? "Failed" : critical ? "Blocked by policy" : "Approval required"}
+              {run.decision && !ACTIVE.has(run.status) ? <div id="eng-decision" className="scroll-mt-24 transition"><DecisionPanel decision={run.decision}><EvidenceCheck runId={run.id} /></DecisionPanel></div> : null}
+              <div id="eng-plan" className="scroll-mt-24 transition"><ApprovalCard view={view} label={run.status === "applied" ? "Applied" : run.status === "rejected" ? "Rejected" : run.status === "drifted" ? "Drift detected" : run.status === "failed" ? "Failed" : critical ? "Blocked by policy" : "Approval required"}
                 applied={run.status === "applied" && run.apply_result ? appliedSentence(run) : undefined}>
                 {run.status === "review" ? (
                   <>
@@ -662,7 +664,7 @@ export default function AppPage() {
                     {run.status !== "review" ? <a href={`/api/runs/${run.id}/evidence`} className="underline-offset-4 hover:text-foreground hover:underline">Download signed evidence ↓</a> : null}
                   </span>
                 ) : null}
-              </ApprovalCard>
+              </ApprovalCard></div>
 
               {run.status === "applied" && run.apply_result ? (
                 <div className="animate-rise rounded-2xl border bg-card p-5">
@@ -683,18 +685,18 @@ export default function AppPage() {
               ) : null}
 
               {run.contract && (run.contract.status === "ready" || ACTIVE.has(run.status)) ? (
-                <ContractCard contract={run.contract} result={attempt?.consequences.contract}
+                <div id="eng-contract" className="scroll-mt-24 transition"><ContractCard contract={run.contract} result={attempt?.consequences.contract}
                   onStrike={run.status === "review" && run.contract.status === "ready" ? async (i, reason) => {
                     try { const r = await api.strike(run.id, i, reason, approver.trim() || undefined); setRun(r); toast.success("Struck. The rehearsal was re-checked against what's left."); }
                     catch (e) { toast.error((e as Error).message); throw e; }
-                  } : undefined} />
+                  } : undefined} /></div>
               ) : null}
               {run.status === "review" && run.surgical?.offer && !attempt?.surgical_of ? (
-                <SurgicalCard offer={run.surgical.offer} check={run.surgical.check} busy={busy || running} onCut={async () => {
+                <div id="eng-cut" className="scroll-mt-24 transition"><SurgicalCard offer={run.surgical.offer} check={run.surgical.check} busy={busy || running} onCut={async () => {
                   setBusy(true);
                   try { await api.surgical(run.id); setRun({ ...run, status: "rehearsing" }); toast.success("Re-rehearsing just the part that's right, in a fresh sandbox."); }
                   catch (e) { toast.error((e as Error).message); } finally { setBusy(false); }
-                }} />
+                }} /></div>
               ) : null}
               {attempt?.surgical_of && run.surgical?.offer ? (
                 <div className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-xl border border-safe/30 bg-safe-soft/60 px-4 py-3 text-sm">
@@ -707,8 +709,8 @@ export default function AppPage() {
                   dropped={!attempt.surgical_of && run.surgical?.offer ? run.surgical.offer.dropped_units : undefined} />
               ) : null}
               {attempt?.consequences.provenance ? (
-                <ProofPanel runId={run.id} attempt={attempt.n} summary={attempt.consequences.provenance}
-                  highlight={!attempt.surgical_of ? (run.surgical?.offer?.caused_by ?? []).map((c) => c.i) : []} />
+                <div id="eng-proof" className="scroll-mt-24 transition"><ProofPanel runId={run.id} attempt={attempt.n} summary={attempt.consequences.provenance}
+                  highlight={!attempt.surgical_of ? (run.surgical?.offer?.caused_by ?? []).map((c) => c.i) : []} /></div>
               ) : null}
               {attempt?.consequences.logs?.length && view ? (() => {
                 const said = attempt.consequences.logs.at(-1) ?? "";
