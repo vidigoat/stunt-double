@@ -71,6 +71,7 @@ export function Engine() {
             <div className="space-y-2">
               <Pledge kind="the work" state="todo" count="104 to do today" text="Every extra charge from an order that was double-charged last week has been refunded." />
               <Pledge kind="guard" state="broken" count="the plan: 640 rows break it" text="Nothing else was refunded: never the first charge of an order, nor any other charge." />
+              <p className="pl-1 font-mono text-[11px] text-muted-foreground">two of its four promises · cross-checked by a second model: 104 to do</p>
             </div>
           </Stage>
 
@@ -124,7 +125,7 @@ JOIN (SELECT customer_id, amount_cents, date(created_at) d
               </div>
               <div className="col-span-2 flex items-center gap-2 bg-card px-4 py-3 text-sm">
                 <span className="inline-flex h-8 items-center gap-1.5 rounded-full bg-safe px-3 font-medium text-black"><Scissors className="size-3.5" /> Keep just the 104 that are right</span>
-                <span className="ml-auto hidden font-mono text-[11px] text-muted-foreground sm:inline">contract: 2 of 2 kept</span>
+                <span className="ml-auto hidden font-mono text-[11px] text-muted-foreground sm:inline">contract: 4 of 4 kept</span>
               </div>
             </div>
           </Stage>
