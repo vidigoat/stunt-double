@@ -1,5 +1,7 @@
 # Master plan: Thu Nov 5 → submission
 
+> The scope here is superseded by [VISION_10X.md](VISION_10X.md) (Thu Nov 5, 10:30). The deadline note and budget below still apply.
+
 Written Thu Nov 5, 10:20 IST, after rereading the full hackathon page and reviewing the repo, the live server and the evals.
 
 ## Where we stand

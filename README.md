@@ -284,8 +284,12 @@ docs/                      plan, design, pitch, rubric, go-live runbook, benchma
 ```
 
 ## Roadmap
-Postgres / MySQL copy-on-write branches · Stripe, HubSpot, Zendesk connectors · approvals in Slack · policy packs per
-department · Vultr Managed Database forks for large datasets.
+Building now (see [docs/VISION_10X.md](docs/VISION_10X.md)): **browser doubles** (a real Chromium in the sandbox, plus a
+vision verifier on Vultr) · **cloud doubles** (rehearse changes to your Vultr account against a double of its live
+inventory) · **dedicated throwaway Vultr VMs** per high-risk rehearsal · an **AI jury** of three Vultr models · **catch → rule**
+(AI catches become deterministic invariants) · **graduated autonomy** budgets · Mission Control · GitHub sign-in and Slack
+approvals · signed, hash-chained evidence.
+Later: Postgres/MySQL branches · Stripe, HubSpot, Zendesk connectors · policy packs per department.
 
 ## License
 MIT. See [LICENSE](LICENSE). Brand logos from [Simple Icons](https://simpleicons.org) (CC0); trademarks belong to their owners. Threat model and reviews: [SECURITY.md](SECURITY.md).
