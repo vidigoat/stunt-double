@@ -65,6 +65,9 @@ run. The code is in [`api/app/engine/`](../api/app/engine): `graph`, `materializ
 - *Verify the record in your own browser.* The decision panel re-hashes every step and checks the Ed25519 signature
   with WebCrypto, then changes one cent to show the chain breaking at that step. Sealed bodies carry no floats, so
   Python and JavaScript hash them byte for byte the same.
+- *Built to be left running in public.* The two readings of a request run in parallel (a request neither model had
+  seen: 23 s for both, where the sequential path took up to 82 s); a reading that fails is remembered rather than
+  paid for again; and new contracts share a global daily budget, while a request seen before is always free.
 - *A five-step guide.* When a run has a contract and a cut, a strip at the top tells its story and jumps to each card.
 - *The agent signs before it writes.* In agent mode, the ops agent gets the promises with the request.
 - *The decision is code, not AI.* Six layers give pass, warn or fail with one reason each; only deterministic layers
