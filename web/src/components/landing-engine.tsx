@@ -67,7 +67,7 @@ export function Engine() {
 
         <div className="mt-10 grid gap-4 lg:grid-cols-2">
           <Stage n="01" icon={FileSignature} kicker="Intent contract" title={<>Written <em>before</em> the plan exists.</>}
-            body="From your request, your business glossary and your schema alone, a model on Vultr writes down what you meant: the work to be done, and what must not be touched. The plan never sees it, so it can't bend it. Code with no AI checks it afterwards.">
+            body="From your request, your business glossary and your schema alone, a model on Vultr writes down what you meant: the work to be done, and what must not be touched. The plan never sees it, so it can't bend it. Code with no AI checks it afterwards. Try it on your own request: “What does this mean?” in the console.">
             <div className="space-y-2">
               <Pledge kind="the work" state="todo" count="104 to do today" text="Every extra charge from an order that was double-charged last week has been refunded." />
               <Pledge kind="guard" state="broken" count="the plan: 640 rows break it" text="Nothing else was refunded: never the first charge of an order, nor any other charge." />
