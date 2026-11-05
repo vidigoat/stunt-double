@@ -43,6 +43,7 @@ mcp = FastMCP(
         "Before you change real business data, issue refunds or send emails, call `rehearse` with your plan. "
         "It runs on a throwaway copy inside an isolated sandbox and tells you exactly what would happen. "
         "If the result has blocking flags or the verdict is not 'looks_right', fix your plan and rehearse again. "
+        "If its decision is 'cut', part of the plan is right: keep_only_what_is_right re-rehearses just that part. "
         "Only a human can approve: share the approval_url with them. Never claim a plan was applied unless "
         "get_run_status says status == 'applied'."
     ),
@@ -81,11 +82,20 @@ def _summarise(run: dict) -> dict:
                         if (c.get("cloud") or {}).get("servers_before") else None),
         "browser_steps": [f"{b['n']}. {b['action']} {b['target']}" for b in (c.get("browser") or {}).get("steps", [])] or None,
         "learned_rules_broken": [r["title"] for r in c.get("rules", []) if r.get("violations")] or None,
+        "decision": ({k: run["decision"][k] for k in ("decision", "headline")} | {"layers": {x["key"]: f"{x['status']}: {x['reason']}" for x in run["decision"]["layers"]}}
+                     if run.get("decision") else None),
+        "intent_contract": [{"promise": p["text"], "kind": p["kind"], "status": p["status"], "rows_today": p["today"], "rows_after": p.get("after")}
+                            for p in (c.get("contract") or {}).get("promises", [])] or None,
+        "proof_of_effect": (c.get("provenance") or {}).get("status"),
+        "surgical_offer": ({k: (run["surgical"]["offer"] or {}).get(k) for k in ("units_kept", "units_total", "kept", "dropped")}
+                           if (run.get("surgical") or {}).get("offer") and not (att or {}).get("surgical_of") else None),
         "plan_sha256": (att or {}).get("plan_sha256"),
         "sandbox": c.get("sandbox"),
         "approval": run.get("approval"),
         "apply_result": run.get("apply_result"),
-        "next_step": ("Fix the plan: it is blocked by policy." if any(f["severity"] == "critical" for f in flags)
+        "next_step": ("Part of this plan is right: call keep_only_what_is_right to re-rehearse just that part, or fix the plan."
+                      if (run.get("decision") or {}).get("decision") == "cut" and run["status"] == "review"
+                      else "Fix the plan: it is blocked by policy." if any(f["severity"] == "critical" for f in flags)
                       else "Ask a human to review and approve at approval_url." if run["status"] == "review"
                       else f"Run is {run['status']}."),
     }
@@ -126,6 +136,26 @@ def rehearse(task: str, plan_code: str, wait_seconds: int = 120, workspace: str 
         while run["status"] in ACTIVE and time.time() < deadline:
             time.sleep(0.5)
             run = c.get(f"/api/runs/{rid}").json()
+        return _summarise(run)
+
+
+@mcp.tool()
+def keep_only_what_is_right(run_id: str, wait_seconds: int = 180) -> dict:
+    """When a rehearsal's decision is "cut", re-rehearse only the units of work that pass every check that fired.
+
+    The Consequence Engine drops each wrong refund together with its email, rebuilds the rest without running your
+    plan again, and measures and checks it in a fresh sandbox. It does not approve anything: a human still does, at
+    approval_url."""
+    with _client() as c:
+        before = len(c.get(f"/api/runs/{run_id}").json().get("attempts") or [])
+        r = c.post(f"/api/runs/{run_id}/surgical")
+        if r.status_code >= 400:
+            return {"error": r.json().get("detail", r.text)}
+        deadline = time.time() + max(5, min(wait_seconds, 600))
+        run = c.get(f"/api/runs/{run_id}").json()
+        while (len(run.get("attempts") or []) <= before or run["status"] in ACTIVE) and time.time() < deadline:
+            time.sleep(0.5)
+            run = c.get(f"/api/runs/{run_id}").json()
         return _summarise(run)
 
 

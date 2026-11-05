@@ -58,6 +58,11 @@ def test_unfinished_work_asks_for_review():
     assert d["decision"] == "review" and "54 of 104" in d["layers"][2]["reason"]
 
 
+def test_rules_alone_never_mean_approve():
+    d = verdict.decide(_run(verdict=None, c={"contract": None}))
+    assert d["decision"] == "review" and "nothing checked the meaning" in d["headline"]
+
+
 def test_nothing_to_decide_while_running():
     assert verdict.decide(_run(status="verifying")) is None
 

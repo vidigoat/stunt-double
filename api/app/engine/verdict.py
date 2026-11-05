@@ -124,6 +124,8 @@ def decide(run: dict) -> dict | None:
         decision, headline = "review", "The AI jury objected: approving needs a written reason"
     elif warned:
         decision, headline = "review", f"A person should decide: {', '.join(x['title'].lower() for x in warned)}"
+    elif all(x["status"] == SKIP for x in layers if x["key"] in ("contract", "jury")):
+        decision, headline = "review", "The rules pass, but nothing checked the meaning: a person should read it"
     else:
         decision, headline = "approve", "Every layer passed"
     return {"decision": decision, "headline": headline, "attempt": att["n"], "layers": layers,

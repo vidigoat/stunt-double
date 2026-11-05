@@ -30,6 +30,7 @@ class Rehearsal:
     warnings: list[str] = field(default_factory=list)
     approvals_required: int = 1
     verdict: dict | None = None
+    decision: dict | None = None     # the Consequence Engine: approve | review | blocked | cut, with a reason per layer
     error: str | None = None
     raw: dict = field(default_factory=dict, repr=False)
 
@@ -95,6 +96,18 @@ class StuntDouble:
     def status(self, run_id: str) -> Rehearsal:
         return self._rehearsal(self._get(f"/api/runs/{run_id}"))
 
+    def keep_only_what_is_right(self, run_id: str, wait_seconds: float = 180) -> Rehearsal:
+        """When the decision is "cut", re-rehearse just the part of the plan that passes every check. Approves nothing."""
+        before = len(self._get(f"/api/runs/{run_id}").get("attempts") or [])
+        self.http.post(f"/api/runs/{run_id}/surgical").raise_for_status()
+        deadline = time.monotonic() + wait_seconds
+        while time.monotonic() < deadline:
+            run = self._get(f"/api/runs/{run_id}")
+            if len(run.get("attempts") or []) > before and run["status"] not in ("queued", "planning", "rehearsing", "verifying"):
+                return self._rehearsal(run)
+            time.sleep(1)
+        raise TimeoutError(f"The subset of {run_id} wasn't ready within {wait_seconds}s")
+
     def wait_for_decision(self, run_id: str, timeout: float = 3600, poll: float = 2.0) -> str:
         """Block until a human approves (and it's applied), rejects, or it drifts/fails. Returns the final status."""
         deadline = time.monotonic() + timeout
@@ -123,6 +136,6 @@ class StuntDouble:
             rows_changed=sum(t["deleted"] + t["updated"] + t["inserted"] for t in c.get("tables", {}).values()),
             blocked_by_policy=[f["title"] for f in flags if f["severity"] == "critical"],
             warnings=[f["title"] for f in flags if f["severity"] != "critical"],
-            approvals_required=att.get("approvals_required", 1), verdict=run.get("verdict"),
+            approvals_required=att.get("approvals_required", 1), verdict=run.get("verdict"), decision=run.get("decision"),
             error=(err or {}).get("message") if isinstance(err, dict) else err, raw=run,
         )

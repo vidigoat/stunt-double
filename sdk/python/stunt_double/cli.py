@@ -33,6 +33,8 @@ def _print(r: Rehearsal, as_json: bool) -> None:
         print(f"warning   {w}")
     if r.verdict:
         print(f"verdict   {r.verdict.get('verdict')}: {r.verdict.get('headline')}")
+    if r.decision:
+        print(f"decision  {r.decision['decision']}: {r.decision['headline']}")
     print(f"review    {r.approval_url}")
 
 
