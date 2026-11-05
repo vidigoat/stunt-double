@@ -28,7 +28,7 @@ async def main() -> None:
         await s.initialize()
         tools = {t.name for t in (await s.list_tools()).tools}
         assert tools == {"describe_business", "rehearse", "get_run_status", "list_connectors", "request_undo", "list_workspaces",
-                         "keep_only_what_is_right"}, tools   # no approve tool
+                         "keep_only_what_is_right", "what_does_this_mean"}, tools   # no approve tool
         conns = json.loads((await s.call_tool("list_connectors", {})).content[0].text)["connectors"]
         assert any(c["name"] == "slack" for c in conns)
         schema = json.loads((await s.call_tool("describe_business", {})).content[0].text)

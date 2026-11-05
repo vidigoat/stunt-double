@@ -44,6 +44,7 @@ mcp = FastMCP(
         "It runs on a throwaway copy inside an isolated sandbox and tells you exactly what would happen. "
         "If the result has blocking flags or the verdict is not 'looks_right', fix your plan and rehearse again. "
         "If its decision is 'cut', part of the plan is right: keep_only_what_is_right re-rehearses just that part. "
+        "To know what a request means before you write a plan, call what_does_this_mean. "
         "Only a human can approve: share the approval_url with them. Never claim a plan was applied unless "
         "get_run_status says status == 'applied'."
     ),
@@ -137,6 +138,22 @@ def rehearse(task: str, plan_code: str, wait_seconds: int = 120, workspace: str 
             time.sleep(0.5)
             run = c.get(f"/api/runs/{rid}").json()
         return _summarise(run)
+
+
+@mcp.tool()
+def what_does_this_mean(task: str, workspace: str = "demo") -> dict:
+    """Before you write a plan: the promises any correct plan for this request must keep, written from the request,
+    the business glossary and the schema (the work to be done, with today's count, and what must not be touched).
+    A second model from another lab reads it too; if they disagree, the request is ambiguous: ask the human.
+    Your plan's rehearsal is checked against these same promises."""
+    with _client() as c:
+        r = c.post("/api/contract/preview", json={"task": task, "workspace": workspace}, timeout=200)
+        if r.status_code >= 400:
+            return {"error": r.json().get("detail", r.text)}
+        d = r.json()
+        return {"promises": [{"promise": p["text"], "kind": "work to do" if p["kind"] == "obligation" else "must not happen",
+                              "rows_today": p["today"]} for p in d.get("promises", [])],
+                "cross_check": d.get("cross_check"), "written_by": d.get("model")}
 
 
 @mcp.tool()
