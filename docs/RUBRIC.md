@@ -68,7 +68,7 @@ Criterion score (1–5) = `1 + 4 × (points earned / points possible)`, rounded 
 | Revenue model | 2 | 2 | Pricing section on landing + deck |
 | Why AI is essential (not a rules engine) | 2 | 2 | Deck slide 7 table; verifier still to prove live |
 | Credible demo scenario with real numbers | 2 | 2 | Seeded trap with real measured numbers |
-| Fit with the listed business areas (finance, support, sales ops) | 2 | 2 | Three traps: finance (refunds), support (ticket inbox), marketing/sales (consent) |
+| Fit with the listed business areas (finance, support, sales ops) | 2 | 2 | Five traps: finance (refunds), support (ticket inbox), marketing/sales (consent), operations in a browser (subscriptions), IT/cloud (Vultr fleet) |
 | **Total** | **12** | **12** | **→ 5.0 / 5** |
 
 ## 4. Originality
