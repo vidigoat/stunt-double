@@ -79,7 +79,7 @@ def test_approved_cleanup_applies_to_the_fleet(fresh_business, monkeypatch):
     assert "ci-runner-old" not in left and "prod-db-replica" in left and len(left) == 8
 
 
-def test_an_old_demo_database_is_upgraded_on_startup(tmp_path, monkeypatch):
+def test_an_old_demo_database_is_upgraded_on_startup(tmp_path, monkeypatch):  # e.g. one without servers/subscriptions
     import sqlite3
     old = tmp_path / "business.db"
     sqlite3.connect(old).executescript("CREATE TABLE customers (id INTEGER PRIMARY KEY); CREATE TABLE orders (id INTEGER); "

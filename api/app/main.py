@@ -39,16 +39,16 @@ HISTORY_DIR.mkdir(parents=True, exist_ok=True)
 ACTIVE = {"queued", "planning", "rehearsing", "verifying", "applying"}
 
 def _demo_is_current() -> bool:
-    """The demo database exists and has every table the current demo needs (new demos add tables, e.g. `servers`)."""
+    """The demo database exists and was seeded by the current version of the demo (PRAGMA user_version)."""
     if not config.PROD_DB.exists():
         return False
     try:
         db = sqlite3.connect(config.PROD_DB)
-        have = {r[0] for r in db.execute("SELECT name FROM sqlite_master WHERE type='table'")}
+        version = db.execute("PRAGMA user_version").fetchone()[0]
         db.close()
     except sqlite3.Error:
         return False
-    return {"customers", "orders", "charges", "tickets", "servers"} <= have
+    return version == seed.SEED_VERSION
 
 
 if not _demo_is_current():
