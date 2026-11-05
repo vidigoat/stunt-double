@@ -63,3 +63,18 @@ def test_promote_turns_the_verifiers_check_into_a_rule_and_reset_clears_it(fresh
     assert api.post(f"/api/runs/{rid}/promote").status_code == 422            # duplicate
     api.post("/api/demo/reset")
     assert api.get("/api/rules").json()["rules"] == []
+
+
+@needs_docker
+def test_a_learned_rule_decides_without_calling_the_ai(fresh_business, monkeypatch):
+    monkeypatch.setattr(main.config, "INFERENCE_KEY", "set")
+    monkeypatch.setattr(main, "_verify", lambda run: (_ for _ in ()).throw(AssertionError("the AI must not be called")))
+    rules.add("demo", "Refunds need a sibling charge", GOOD_RULE, "run_x")
+    api = TestClient(main.app)
+    rid = api.post("/api/runs/manual", json={"task": "refund double charges", "code": NAIVE}).json()["id"]
+    for _ in range(80):
+        run = api.get(f"/api/runs/{rid}").json()
+        if run["status"] in ("review", "failed"):
+            break
+        time.sleep(0.25)
+    assert run["status"] == "review" and run["verdict"]["verdict"] == "dangerous" and "no AI" in run["verdict"]["summary"]

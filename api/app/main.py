@@ -208,7 +208,15 @@ def _manual_job(run: dict, code: str) -> None:
     workspaces.use(run.get("workspace", workspaces.DEMO))
     try:
         _rehearse(run, code, "Submitted plan")
-        if config.INFERENCE_KEY and _verify_budget():
+        learned = [f for f in run["attempts"][-1]["flags"] if f["rule"] == "learned_rule"]
+        if learned:  # a rule learned from an earlier AI catch already blocks it: deterministic, instant, no AI call
+            with LOCK:
+                run["flags"] = run["attempts"][-1]["flags"]
+                run["verdict"] = {"verdict": "dangerous", "headline": learned[0]["title"], "concerns": [],
+                                  "summary": "Blocked by a rule this business learned from an earlier AI catch. It ran deterministically in the sandbox; no AI was needed."}
+            _emit(run, "verify", f"{learned[0]['title']} (no AI needed)", learned[0]["detail"])
+            _status(run, "review")
+        elif config.INFERENCE_KEY and _verify_budget():
             _verify(run)
         else:
             if config.INFERENCE_KEY:
