@@ -118,6 +118,7 @@ VULTR_API_KEY=... VULTR_INFERENCE_KEY=... python3 infra/provision.py --region sj
 | **History** `/history` | the audit trail as an inbox: awaiting approval, applied, stopped, undos; search; evidence download per run; **CSV export** for auditors (approvers, notes, rejection reasons, plan and effects fingerprints) |
 | **Policy** `/policy` | blocking vs warning rules, two-person thresholds, protected tables, glossary, plus a **simulator** that previews the impact of a change before you save, and a **change history** (who changed which rule, old → new) |
 | **Outbox** `/ledger` | everything that actually left the building after approval: BeanPay refunds and API deliveries (Slack, CRM); emails land in the inbox at `/mail` |
+| **Mission control** `/control` | a live view of every rehearsal on the server: the request → the double on Vultr (sandbox, runtime, time) → the decision |
 | **Connect** `/connect` | copy-paste setup for Claude Code, Cursor and other MCP clients, the SDK and REST |
 
 When a run needs a human, Stunt Double posts "approval needed" (with a review link) to Slack #ops through the connector.
@@ -137,6 +138,19 @@ When a run needs a human, Stunt Double posts "approval needed" (with a review li
 | **Rollback** | A new run containing the inverse of an applied run's data changes, approved by two people. |
 | **Workspace** | Which database a run targets: the demo business, or a SQLite database you uploaded (up to 20 MB; no triggers, generated columns, WITHOUT ROWID or virtual tables yet). Uploaded workspaces can change rows and call connectors; refunds and email exist only for the demo business. |
 | **Evidence** | A downloadable JSON bundle per run (and optionally archived to Vultr Object Storage). |
+
+## It learns: catch → rule
+
+When the AI verifier catches a mistake, it also writes the check it used as one read-only SQL query that returns the
+rows that are wrong. **Learn this rule** turns it into a deterministic rule for that business:
+
+- it must return **0 rows on today's data** to be accepted (a bad rule can't lock everything);
+- it runs in **phase 2 of every future rehearsal, inside the sandbox**, read-only against the double's after-state, with a time
+  limit (never on the host, never on production);
+- a violation is a policy block, decided **without calling the AI** (instant and free).
+
+Live example from the production server: the verifier caught the over-refund and proposed *"Refunded charge must not be
+its order's only payment"*; after one click, the same plan was blocked by the rule in a 2.7 s rehearsal.
 
 ## Connectors: everything an agent touches
 
