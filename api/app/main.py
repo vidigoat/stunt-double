@@ -201,6 +201,30 @@ def _contract_job(run: dict) -> None:
     else:
         _emit(run, "contract", "No contract for this run", contract["reason"])
     CONTRACT_READY.setdefault(run["id"], threading.Event()).set()
+    if contract["status"] == "ready":
+        _contract_cross_check(run, contract, base, ws)
+
+
+def _contract_cross_check(run: dict, contract: dict, base, ws: str) -> None:
+    """A second model, from another lab, reads the same request on its own. Never delays the run."""
+    second = next((m for m in config.CONTRACT_MODELS if m != contract.get("model")), None)
+    if not second:
+        return
+    try:
+        theirs = engine_contracts.compile_contract(run["task"], policy.load().get("glossary") or [], base, [second], agent.client(),
+                                                   config.DATA_DIR, today=config.DEMO_TODAY if ws == workspaces.DEMO else None)
+        cc = {"model": second, **engine_contracts.cross_check(contract["promises"], theirs["promises"])}
+    except Exception as e:  # noqa: BLE001
+        cc = {"model": second, "status": "failed", "reason": str(e)[:200]}
+    with LOCK:
+        if run.get("contract") is contract:
+            contract["cross_check"] = cc
+            _save(run)
+    if cc["status"] == "agree":
+        _emit(run, "contract", f"Cross-checked: {second} read the request the same way ({cc['ours']:,} to do)")
+    elif cc["status"] == "disagree":
+        _emit(run, "contract", f"Two models read this request differently: {cc['ours']:,} to do, or {cc['theirs']:,}",
+              "The request is ambiguous. A glossary entry for the term they disagree on settles it for every future run.")
 
 
 def _contract_start(run: dict) -> None:
@@ -1316,7 +1340,7 @@ def _evidence_steps(run: dict) -> list[tuple[str, object]]:
     """The run as an ordered list of steps, for the hash chain."""
     steps: list[tuple[str, object]] = [("request", {k: run.get(k) for k in ("id", "task", "mode", "workspace", "created_at", "agent_model", "verifier_model")})]
     if run.get("contract"):
-        steps.append(("contract", {k: run["contract"].get(k) for k in ("status", "model", "today", "promises", "withdrawn", "struck", "reason")}))
+        steps.append(("contract", {k: run["contract"].get(k) for k in ("status", "model", "today", "promises", "withdrawn", "struck", "cross_check", "reason")}))
     for a in run["attempts"]:
         c = a["consequences"]
         steps.append(("rehearsal", {

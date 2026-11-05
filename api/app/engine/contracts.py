@@ -229,3 +229,15 @@ def withdraw_unfair(promises: list[dict], base_db: str | Path, good: list[dict])
             if r["status"] in ("broken", "unmet"):
                 bad.add(i)
     return [p for i, p in enumerate(promises) if i not in bad], [p for i, p in enumerate(promises) if i in bad]
+
+
+def cross_check(ours: list[dict], theirs: list[dict]) -> dict:
+    """Compare two independent readings of one request by how much work each finds today.
+
+    Two models that agree on the promises' wording can still disagree on what the words cover ("last week" as the
+    last 7 days, or as Monday to Sunday). The amount of work is where that shows: 104 orders against 58. Agreement is
+    a second signature on the contract; disagreement means the request is ambiguous, and a person should settle it
+    (usually with a glossary entry) before trusting either reading."""
+    a = max((p["today"] for p in ours if p["kind"] == "obligation"), default=0)
+    b = max((p["today"] for p in theirs if p["kind"] == "obligation"), default=0)
+    return {"status": "agree" if a == b else "disagree", "ours": a, "theirs": b}

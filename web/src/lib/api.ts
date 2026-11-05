@@ -15,7 +15,8 @@ export type ProvenanceDetail = { summary: Provenance; statements: { i: number; r
   unexplained: { table: string; rowid: number; op: string }[]; claimed_only?: { table: string; rowid: number; op: string }[]; failed?: { i: number; error: string }[] };
 export type GraphSummary = { nodes: number; by_kind: Record<string, number>; units: number; largest_unit: number; edges: number; hubs: number; truncated: boolean };
 export type Pledge = { text: string; sql: string; kind: "guard" | "obligation"; today: number };
-export type Contract = { status: "writing" | "ready" | "failed"; promises?: Pledge[]; withdrawn?: Pledge[]; struck?: (Pledge & { by: string; reason: string; at: number })[]; model?: string; today?: string; ms?: number;
+export type Contract = { status: "writing" | "ready" | "failed"; promises?: Pledge[]; withdrawn?: Pledge[]; struck?: (Pledge & { by: string; reason: string; at: number })[];
+  cross_check?: { model: string; status: "agree" | "disagree" | "failed"; ours?: number; theirs?: number; reason?: string }; model?: string; today?: string; ms?: number;
   cached?: { at: number; ms?: number | null }; reason?: string };
 export type ContractResult = { status: "checked" | "late" | "unknown"; model?: string; broken?: number; unmet?: number;
   promises: (Pledge & { status: "kept" | "broken" | "met" | "unmet" | "unknown"; after: number | null; why?: string })[] };

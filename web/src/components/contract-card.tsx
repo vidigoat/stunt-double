@@ -82,6 +82,16 @@ export function ContractCard({ contract, result, className, onStrike }: {
             can&apos;t bend it{checked ? ", and code with no AI checked every promise against what the rehearsal measured" : ""}.
             {contract.cached ? " Same request and data as before, so the contract was reused." : ""}
           </p>
+          {contract.cross_check?.status === "agree" ? (
+            <p className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-safe/10 px-2.5 py-1 text-xs text-safe">
+              Cross-checked by {contract.cross_check.model}: it read the request the same way{contract.cross_check.ours ? `, ${num(contract.cross_check.ours)} to do` : ""}
+            </p>
+          ) : contract.cross_check?.status === "disagree" ? (
+            <p className="mt-2 rounded-xl border border-signal/40 bg-signal-soft px-3 py-2 text-sm">
+              <span className="font-medium">Your request is ambiguous.</span> {contract.cross_check.model} read it differently: {num(contract.cross_check.theirs ?? 0)} to do,
+              not {num(contract.cross_check.ours ?? 0)}. A glossary entry for the term they disagree on settles it for every future run.
+            </p>
+          ) : null}
         </div>
       </div>
       <ul className="space-y-2 border-t px-5 py-4">

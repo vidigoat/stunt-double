@@ -51,6 +51,11 @@ def _proof(c: dict) -> dict:
 
 def _contract(c: dict, contract: dict | None) -> dict:
     out = _contract_layer(c, contract)
+    cc = (contract or {}).get("cross_check") or {}
+    if cc.get("status") == "disagree" and out["status"] != SKIP:
+        out["reason"] += f" But two models read the request differently ({cc['ours']:,} to do, or {cc['theirs']:,}): settle it in the glossary."
+        if out["status"] == PASS:
+            out["status"] = WARN
     struck = (contract or {}).get("struck") or []
     if struck:
         out["reason"] += f" {len(struck)} struck by {', '.join(sorted({x['by'] for x in struck}))}."

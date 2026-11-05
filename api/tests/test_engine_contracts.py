@@ -208,3 +208,34 @@ def test_a_person_can_strike_a_promise_and_the_record_says_who_and_why(fresh_bus
     struck = next(e for e in ev["chain"]["entries"] if e["kind"] == "contract_struck")["body"]
     assert struck[0]["by"] == "Priya" and struck[0]["reason"] == "We also refund same-day repeat orders"
     assert api.post("/api/evidence/verify", json=ev).json()["ok"]
+
+
+def test_two_readings_are_compared_by_how_much_work_they_find():
+    w = lambda n: {"kind": "obligation", "today": n}  # noqa: E731
+    g = {"kind": "guard", "today": 0}
+    assert contracts.cross_check([w(104), w(104), g], [w(104), g])["status"] == "agree"
+    assert contracts.cross_check([w(104)], [w(58)]) == {"status": "disagree", "ours": 104, "theirs": 58}
+    assert contracts.cross_check([g], [w(3)])["status"] == "disagree"
+
+
+@needs_docker
+def test_an_ambiguous_request_is_flagged_before_anyone_trusts_either_reading(fresh_business, monkeypatch):
+    seven_days = {"text": "Every extra charge from the last seven days is refunded.",
+                  "sql": WORK["sql"].replace("created_at >= '2026-10-26'", "created_at >= '2026-10-29'")}
+    by_model = {"a": FakeModel([WORK, GUARD]), "b": FakeModel([seven_days, GUARD])}
+    client = SimpleNamespace(chat=SimpleNamespace(completions=SimpleNamespace(create=lambda **kw: by_model[kw["model"]].create(**kw))))
+    _ai(monkeypatch, [])
+    monkeypatch.setattr(config, "CONTRACT_MODELS", ["a", "b"])
+    monkeypatch.setattr(main.agent, "client", lambda: client)
+    api = TestClient(main.app)
+    rid = api.post("/api/runs/manual", json={"task": PLANS["good"]["task"], "code": PLANS["good"]["code"]}).json()["id"]
+    run = _wait(api, rid)
+    for _ in range(40):
+        if (run.get("contract") or {}).get("cross_check"):
+            break
+        time.sleep(0.25)
+        run = api.get(f"/api/runs/{rid}").json()
+    cc = run["contract"]["cross_check"]
+    assert cc == {"model": "b", "status": "disagree", "ours": 104, "theirs": 58}
+    assert run["decision"]["layers"][2]["status"] == "warn" and "104 to do, or 58" in run["decision"]["layers"][2]["reason"]
+    assert run["decision"]["decision"] == "review"           # the correct plan, but the request itself needs a person
