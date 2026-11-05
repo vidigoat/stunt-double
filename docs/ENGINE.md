@@ -98,6 +98,14 @@ The bad refund plan selects 744 charges; the correct plan selects 104. **All 104
 and the other 640 are exactly the wrong ones.** So surgical approval of the bad plan yields precisely the correct
 outcome: 104 refunds, $5,136, 104 emails. The demo moment is real, not staged.
 
+**Prototype of Proof of Effect (passed):** SQLite's trace hook records each statement with its bound values expanded;
+replaying the log on a fresh copy with the same frozen clock reproduced the measured result exactly; and a write made
+after the plan switched the trace off showed up as an unexplained row. The mechanism works before we build it.
+
+**Email linkage on the demo data:** each of the 744 customers has exactly one refund, so every email maps to exactly one
+keep-or-drop decision. In general, if one person has both a kept and a dropped change, the email is held back and named
+in the card ("1 email needs a person to decide"), never guessed.
+
 ## The hard parts, and the answers
 
 | Risk | Answer |
