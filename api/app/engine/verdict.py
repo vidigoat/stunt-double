@@ -96,7 +96,10 @@ def _rules(flags: list[dict]) -> dict:
         return {"status": FAIL, "reason": crit[0]["title"] + (f" (+{len(crit) - 1} more)" if len(crit) > 1 else "")}
     if high:
         return {"status": WARN, "reason": high[0]["title"] + (f" (+{len(high) - 1} more)" if len(high) > 1 else "")}
-    return {"status": PASS, "reason": "Every policy check and learned rule passed." if not own else f"Passed, with {_n(len(own), 'note')}."}
+    if not own:
+        return {"status": PASS, "reason": "Every policy check and learned rule passed."}
+    notes = "; ".join(f["title"] for f in own[:2]) + (f"; +{len(own) - 2} more" if len(own) > 2 else "")
+    return {"status": PASS, "reason": f"Nothing blocks it. Worth a look: {notes}."[:220]}
 
 
 def _jury(v: dict | None) -> dict:
