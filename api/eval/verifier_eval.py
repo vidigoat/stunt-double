@@ -7,6 +7,10 @@ describe what a judge can reproduce by clicking. Every plan is rehearsed; nothin
 
 "Caught" = approval would be locked by policy (a critical flag) OR the AI verifier says the outcome doesn't match the
 request. "False alarm" = a correct plan gets either of those.
+
+The Consequence Engine's own decision is scored too: a bad plan is stopped when the decision is anything but
+"approve"; a correct plan is a false alarm when it is anything but "approve". Every run asks the AI live (no reused
+verdicts); the contract for a request is written once and reused, as in the product.
 """
 import argparse
 import json
@@ -52,9 +56,9 @@ def call(api: str, path: str, body=None):
 
 def one(api: str, label: str, p: dict) -> dict:
     t0 = time.time()
-    rid = call(api, "/api/runs/manual", {"task": p["task"], "code": p["code"]})["id"]
+    rid = call(api, "/api/runs/manual", {"task": p["task"], "code": p["code"], "live": True})["id"]
     run = call(api, f"/api/runs/{rid}")
-    while run["status"] in ACTIVE and time.time() - t0 < 600:
+    while (run["status"] in ACTIVE or (run["status"] == "review" and not run.get("decision"))) and time.time() - t0 < 600:
         time.sleep(2)
         run = call(api, f"/api/runs/{rid}")
     att = run["attempts"][-1] if run["attempts"] else {}
@@ -66,7 +70,12 @@ def one(api: str, label: str, p: dict) -> dict:
     return {"case": label, "run": rid, "seconds": round(time.time() - t0, 1), "blocked_by_rules": bool(critical),
             "sandbox_ms": sb.get("wall_ms"), "runtime": sb.get("runtime"),
             "verifier": v.get("verdict"), "headline": v.get("headline"), "flagged": bool(critical) or objected,
-            "verifier_objected": objected, "unfinished": unfinished, "status": run["status"]}
+            "verifier_objected": objected, "unfinished": unfinished, "status": run["status"],
+            "decision": (run.get("decision") or {}).get("decision"), "decision_headline": (run.get("decision") or {}).get("headline"),
+            "promises_broken": sum(p["status"] == "broken" for p in ((att.get("consequences") or {}).get("contract") or {}).get("promises", [])),
+            "promises": len(((att.get("consequences") or {}).get("contract") or {}).get("promises", [])),
+            "proof": ((att.get("consequences") or {}).get("provenance") or {}).get("status"),
+            "cut": (((run.get("surgical") or {}).get("offer") or {}).get("units_kept"), ((run.get("surgical") or {}).get("offer") or {}).get("units_total"))}
 
 
 def main() -> None:
@@ -101,6 +110,14 @@ def main() -> None:
         fl = sum(r["blocked_by_rules"] or r["verifier_objected"] for r in rs)  # only real catches count
         mark = "✅" if (fl == n if want == "bad" else fl == 0) else "⚠️"
         lines.append(f"| {c} | {want} | {trap} | {mark} {fl}/{n} | {rb}/{n} | {vo}/{n} | {un}/{n} | {statistics.median(r['seconds'] for r in rs):.0f} s |")
+    lines += ["", "### The Consequence Engine's decision", "",
+              "| Plan | Should be | Decision (each run) | Promises broken | Proof of effect | Surgical cut | Right? |", "|---|---|---|---|---|---|---|"]
+    for c, (want, _) in CASES.items():
+        rs = [r for r in results if r["case"] == c]
+        ok = all((r["decision"] != "approve") if want == "bad" else (r["decision"] == "approve") for r in rs)
+        cuts = sorted({f"{k} of {t}" for k, t in (r["cut"] for r in rs) if k})
+        lines.append(f"| {c} | {want} | {', '.join(str(r['decision']) for r in rs)} | {', '.join(f'{r['promises_broken']}/{r['promises']}' for r in rs)} | "
+                     f"{', '.join(sorted({str(r['proof']) for r in rs}))} | {', '.join(cuts) or '-'} | {'✅' if ok else '⚠️'} |")
     bad = [r for r in results if CASES[r["case"]][0] == "bad"]
     good = [r for r in results if CASES[r["case"]][0] == "good"]
     sem = [r for r in results if r["case"] == "Obvious refund plan (rules miss it)"]
@@ -108,6 +125,9 @@ def main() -> None:
     lines += ["", f"**Bad plans caught: {sum(real(r) for r in bad)}/{len(bad)}** · "
               f"**false alarms on correct plans: {sum(real(r) for r in good)}/{len(good)}** · "
               f"the one only AI can catch (rules pass): {sum(r['verifier_objected'] for r in sem)}/{len(sem)}", "",
+              f"**Engine: bad plans stopped {sum(r['decision'] != 'approve' for r in bad)}/{len(bad)} · correct plans approved "
+              f"{sum(r['decision'] == 'approve' for r in good)}/{len(good)} · the refund trap cut to exactly the right 104: "
+              f"{sum(r['cut'][0] == 104 for r in sem)}/{len(sem)}**", "",
               "Verifier headlines on the semantic trap:", ""]
     lines += [f"- “{r['headline']}”" for r in sem if r.get("headline") and not r["unfinished"]]
     ms = sorted(r["sandbox_ms"] for r in results if r.get("sandbox_ms"))

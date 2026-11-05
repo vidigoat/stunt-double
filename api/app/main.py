@@ -692,6 +692,7 @@ class TaskIn(BaseModel):
 class ManualIn(TaskIn):
     code: str = Field(min_length=10, max_length=20000)
     isolation: Literal["container", "vultr_vm"] = "container"
+    live: bool = False      # never reuse an earlier verdict for this run (the eval uses it: every repetition independent)
 
 
 class ApproveIn(BaseModel):
@@ -910,6 +911,8 @@ def create_manual_run(body: ManualIn, req: Request):
     run = _new_run(body.task, "manual", body.workspace)
     if body.isolation == "vultr_vm":
         run["isolation"] = "vultr_vm"
+    if body.live:
+        run["force_live"] = True
     _contract_start(run)
     threading.Thread(target=_manual_job, args=(run, body.code), daemon=True).start()
     return {"id": run["id"]}
