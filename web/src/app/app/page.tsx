@@ -15,6 +15,12 @@ import { AppHeader } from "@/components/app-header";
 import { api, num, usd, type Business, type Flag, type Health, type Run, type Workspace } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
+const FLEET_PLANS = [
+  { label: "Delete every server", task: "Clean up our Vultr account", code: `def run(ctx):\n    for s in ctx.vultr.list_instances():\n        ctx.vultr.delete_instance(s["id"])\n` },
+  { label: "Stop everything not tagged production", task: "Stop servers we don't need tonight", code: `def run(ctx):\n    for s in ctx.vultr.list_instances():\n        if "production" not in s["tags"]:\n            ctx.vultr.halt_instance(s["id"])\n` },
+  { label: "Downsize every server", task: "Cut the Vultr bill", code: `def run(ctx):\n    for s in ctx.vultr.list_instances():\n        ctx.vultr.resize_instance(s["id"], "vc2-1c-1gb")\n` },
+];
+
 const EXAMPLES = [
   "Refund everyone who was double-charged last week and send them an apology email.",
   "Go through last week's support tickets and take care of what customers asked for.",
@@ -132,6 +138,8 @@ export default function AppPage() {
   const [mode, setMode] = useState<"agent" | "break">("agent");
   const [code, setCode] = useState(BREAK_IT[0].code);
   const [ownVm, setOwnVm] = useState(false);
+  const [vultrOpen, setVultrOpen] = useState(false);
+  const [vultrKey, setVultrKey] = useState("");
   const [breakTask, setBreakTask] = useState(BREAK_IT[0].task);
   const touchedMode = useRef(false);
   const [run, setRun] = useState<Run | null>(null);
@@ -303,14 +311,15 @@ export default function AppPage() {
                 <Link href="/ledger" className="underline-offset-4 hover:text-foreground hover:underline">Outbox →</Link>
                 <a href="/mail/" target="_blank" rel="noreferrer" className="underline-offset-4 hover:text-foreground hover:underline">Inbox →</a>
               </> : <>
-                <span>Your database · {Object.keys(biz?.tables ?? {}).length} tables · rehearsals never touch it until you approve</span>
+                <span>{spaces.find((w) => w.id === ws)?.kind === "vultr" ? "A double of your Vultr fleet · imported read-only · your account is never changed" : `Your database · ${Object.keys(biz?.tables ?? {}).length} tables · rehearsals never touch it until you approve`}</span>
                 <button disabled={running} className="underline-offset-4 hover:text-foreground hover:underline" onClick={async () => {
                   if (!window.confirm("Delete this uploaded database from the server? The demo business isn't affected.")) return;
                   try { await api.deleteWorkspace(ws); setSpaces((cur) => cur.filter((w) => w.id !== ws)); setWs("demo"); setRun(null); toast.success("Deleted your database from the server."); }
                   catch (err) { toast.error((err as Error).message); }
                 }}>Delete it</button>
               </>}
-              <label className={cn("ml-auto cursor-pointer underline-offset-4 hover:text-foreground hover:underline", uploading && "opacity-50")}>
+              <button className="ml-auto underline-offset-4 hover:text-foreground hover:underline" onClick={() => setVultrOpen((v) => !v)}>Your Vultr fleet ↗</button>
+              <label className={cn("cursor-pointer underline-offset-4 hover:text-foreground hover:underline", uploading && "opacity-50")}>
                 {uploading ? "Uploading…" : "Use your own SQLite DB ↑"}
                 <input type="file" accept=".db,.sqlite,.sqlite3,application/octet-stream" className="sr-only" disabled={uploading} onChange={async (e) => {
                   const f = e.target.files?.[0]; e.target.value = "";
@@ -324,6 +333,26 @@ export default function AppPage() {
                 }} />
               </label>
             </div>
+            {vultrOpen ? (
+              <form className="mt-3 space-y-2 rounded-xl border bg-background p-3" onSubmit={async (e) => {
+                e.preventDefault();
+                setUploading(true);
+                try {
+                  const w = await api.importVultr(vultrKey);
+                  setVultrKey(""); setVultrOpen(false);
+                  setSpaces((cur) => [...cur, w]); setWs(w.id); setRun(null); setMode("break");
+                  toast.success(`Imported a double of ${w.servers} Vultr servers (${usd(w.monthly_cost_cents)}/month). Your key was not kept.`);
+                } catch (err) { toast.error((err as Error).message); } finally { setUploading(false); }
+              }}>
+                <div className="text-sm font-medium">Rehearse on a double of your real Vultr fleet</div>
+                <div className="flex gap-2">
+                  <input type="password" autoComplete="off" spellCheck={false} value={vultrKey} onChange={(e) => setVultrKey(e.target.value.trim())} placeholder="Vultr API key"
+                    aria-label="Vultr API key" className="h-9 min-w-0 flex-1 rounded-lg border bg-card px-3 font-mono text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring/50" />
+                  <Button type="submit" className="h-9 rounded-lg px-3" disabled={uploading || vultrKey.length < 20}>{uploading ? "Reading…" : "Import"}</Button>
+                </div>
+                <p className="text-xs leading-relaxed text-muted-foreground">One read-only listing of your instances, then the key is discarded: never stored, logged or shown to a sandbox. Nothing is ever changed in your account. If the key has Access Control on, allow this server&apos;s IP.</p>
+              </form>
+            ) : null}
           </div>
 
           <div className="rounded-2xl border bg-card p-5">
@@ -349,7 +378,9 @@ export default function AppPage() {
               <TabsContent value="break" className="space-y-3 pt-3">
                 <p className="text-sm text-muted-foreground">Paste any plan, even a malicious one. It only ever runs on the double. Or try a correct one and approve it.</p>
                 <div className="flex flex-wrap gap-1.5">
-                  {ws !== "demo" && biz?.tables ? (() => {
+                  {spaces.find((w) => w.id === ws)?.kind === "vultr" ? FLEET_PLANS.map((b) => (
+                    <button key={b.label} onClick={() => { setCode(b.code); setBreakTask(b.task); }} className={cn("rounded-full border px-2.5 py-1 text-xs text-muted-foreground hover:text-foreground", code === b.code && "border-foreground text-foreground")}>{b.label}</button>
+                  )) : ws !== "demo" && biz?.tables ? (() => {
                     const big = Object.entries(biz.tables).sort((a, b) => b[1] - a[1])[0]?.[0];
                     if (!big) return null;
                     const c = `def run(ctx):\n    ctx.db.execute('DELETE FROM "${big}"')\n`;

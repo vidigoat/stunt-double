@@ -16,17 +16,17 @@ Stunt Double: Rehearse AI Agent Actions on Vultr
 AI agents now move money, email customers and manage servers. Stunt Double runs every agent action on a throwaway double of your business in a gVisor sandbox on Vultr first, shows the consequences, and changes production only after a human approves.
 ```
 
-## Step 1 · Long Description (600–2000 chars and 100+ words, this is 1769 chars, 291 words)
+## Step 1 · Long Description (600–2000 chars and 100+ words, this is 1667 chars, 280 words)
 ```
 AI agents are starting to act on real systems: refunding customers, sending email, clicking through admin sites and deleting cloud servers. One wrong plan can do irreversible damage before anyone notices. Stunt Double makes every agent action a rehearsal first.
 
-The agent's plan runs on a double of the business (database, payments, email, any HTTP API, a real Chromium browser, and the Vultr server fleet) inside a fresh gVisor sandbox on Vultr Cloud Compute with no network and no secrets. A second, trusted container measures what actually changed, so a malicious plan can't fake its own report. Deterministic policy rules then check the blast radius, and an AI verifier on Vultr Serverless Inference investigates the data with read-only SQL and, for browser runs, looks at every screenshot.
+The plan runs on a double of the business (database, payments, email, any HTTP API, a real Chromium browser, and Vultr servers, including a read-only double of your own Vultr fleet) inside a fresh gVisor sandbox on Vultr Cloud Compute with no network and no secrets. A second, trusted container measures what actually changed, so the plan can't lie about what it did. Policy rules check the blast radius, and an AI verifier on Vultr Serverless Inference investigates the data with read-only SQL and reads browser screenshots.
 
-Humans approve consequences, not code: "refunds $37,404 to 744 people, 640 of whom were never double-charged." Approval replays exactly the recorded effects after a drift check. Two people are required for big changes and every undo, and each approval is bound to a SHA-256 fingerprint of the plan and its effects.
+Humans approve consequences, not code: "refunds $37,404 to 744 people, 640 of whom were never double-charged." Approval replays exactly the recorded effects after a drift check. Big changes and every undo need two people, and each approval is bound to a SHA-256 of the plan and its effects.
 
-When the AI catches a mistake, it writes the SQL check it used. One click turns that into a rule that blocks the same mistake instantly, without AI. Optional graduated autonomy lets small, clean, AI-confirmed changes apply by themselves within a budget.
+Every catch becomes a rule: the AI writes the SQL check it used, and one click makes it a rule that blocks the same mistake instantly, without AI. Small, clean, AI-confirmed changes can apply on their own within a budget.
 
-On the live Vultr server it caught 48 of 48 bad plans with 0 false alarms on 26 correct ones. Agents connect over MCP, a Python SDK, a CLI or REST, and there is no approve tool: an agent can never approve its own plan. Built with Vultr Cloud Compute, Vultr Serverless Inference, gVisor, FastAPI, Next.js and Playwright, with 117 API tests and an 11-step end-to-end test that passes against production.
+On the live Vultr server it caught 48 of 48 bad plans with 0 false alarms on 26 correct ones. Agents connect over MCP, a Python SDK, a CLI or REST, and there is no approve tool. Built on Vultr Cloud Compute, Serverless Inference and the Vultr API, with gVisor, FastAPI, Next.js and Playwright; 127 API tests and an end-to-end test that passes against production.
 ```
 
 ## Step 1 · Participation Mode

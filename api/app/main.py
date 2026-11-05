@@ -16,7 +16,7 @@ from fastapi.responses import Response, StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
-from . import agent, archive, beanpay, config, connectors, policy, rollback, rules, sandbox, seed, vultr_vm, workspaces
+from . import agent, archive, beanpay, config, connectors, policy, rollback, rules, sandbox, seed, vultr_import, vultr_vm, workspaces
 from . import apply as applier
 
 app = FastAPI(
@@ -458,6 +458,29 @@ async def upload_workspace(request: Request, name: str = ""):
         raise HTTPException(422, str(e)) from e
 
 
+class VultrImportIn(BaseModel):
+    api_key: str = Field(min_length=20, max_length=64)
+    name: str = Field(default="My Vultr fleet", max_length=60)
+
+
+@app.post("/api/workspaces/vultr")
+def import_vultr_fleet(body: VultrImportIn, req: Request):
+    """Rehearse against a double of YOUR Vultr fleet: one read-only listing with your key, which is never stored or logged."""
+    _rate_limit(req, per_hour=6, kind="Vultr import")
+    try:
+        instances = vultr_import.fleet(body.api_key)
+    except vultr_import.ImportError_ as e:
+        raise HTTPException(400, str(e)) from None
+    except Exception:  # noqa: BLE001 - never echo anything that could include the key
+        raise HTTPException(502, "Couldn't reach the Vultr API") from None
+    if not instances:
+        raise HTTPException(400, "That account has no instances to rehearse against")
+    cost = sum(i["_monthly_cents"] for i in instances)
+    entry = workspaces.create(body.name, vultr_import.to_sqlite(instances), kind="vultr",
+                              description=f"{len(instances)} Vultr servers · ${cost / 100:,.2f}/month · imported read-only")
+    return {**entry, "servers": len(instances), "monthly_cost_cents": cost}
+
+
 @app.delete("/api/workspaces/{ws}")
 def delete_workspace(ws: str):
     if ws == workspaces.DEMO or not workspaces.exists(ws):
@@ -788,6 +811,9 @@ def approve_run(rid: str, body: ApproveIn | None = None):
         att = run["attempts"][-1]
         if not att["consequences"].get("ok"):
             raise HTTPException(409, "A plan that crashed in rehearsal cannot be applied")
+        if workspaces.kind(run.get("workspace", workspaces.DEMO)) == "vultr":
+            raise HTTPException(409, "This is a double of your Vultr fleet. The public demo never holds your key, so it can't change "
+                                     "your account: use the rehearsal to decide, then act in Vultr.")
         if any(f["severity"] == "critical" for f in att["flags"]):
             raise HTTPException(409, "Blocked by policy: critical blast radius. Ask the agent to fix it or reject.")
         if run["mode"] != "rollback":  # policy may have changed since the rehearsal: the stricter result wins

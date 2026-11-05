@@ -42,7 +42,7 @@ const FAQ = [
   { q: "Could a malicious plan fake the report it gives you?", a: "No. The plan runs in one sandbox and only produces a modified copy of the data. A second, fresh sandbox that the plan never ran in measures exactly what changed and writes everything you see and everything that gets applied. Our test suite includes plans that try to forge that report." },
   { q: "Why not just use a staging environment?", a: "Staging has stale or fake data, and the damage depends on your real data. A database transaction can't un-send an email or un-refund money. And the person approving usually can't read SQL. Stunt Double shows consequences, not code." },
   { q: "Is my data safe inside the sandbox?", a: "Each rehearsal gets a fresh, isolated container (gVisor on Vultr Cloud Compute) with a read-only filesystem, no network, no credentials and an empty environment. It's destroyed the moment the rehearsal ends. The agent's code never runs against your real systems: approval replays only the recorded changes." },
-  { q: "What can it rehearse today?", a: "Database changes, refunds, emails, calls to any HTTP API, clicks in a real browser on a double of your admin site, and changes to your Vultr servers (delete, stop, resize) on a double of your fleet. Each one is measured, shown to you in plain English, and applied only after you approve." },
+  { q: "What can it rehearse today?", a: "Database changes, refunds, emails, calls to any HTTP API, clicks in a real browser on a double of your admin site, and changes to your Vultr servers (delete, stop, resize) on a double of your fleet, including a read-only import of your real Vultr account. Each one is measured, shown to you in plain English, and applied only after you approve." },
   { q: "How is the AI involved, and can I trust it?", a: "Two ways. An agent on Vultr Serverless Inference writes plans, and a separate AI verifier checks the measured outcome against what you asked for, reading the data and, for browser runs, the screenshots. On the live server it caught 48 of 48 bad plans with 0 false alarms on 26 correct ones. Deterministic rules run first and can't be overruled by the AI; overruling the AI needs a written reason." },
   { q: "Can an agent approve its own plan?", a: "No. There is no approve tool in the MCP server and no approve method in the SDK. Big changes need two different people, approvals are bound to a fingerprint of the exact effects, and a rehearsal expires after 24 hours." },
   { q: "Does it get better over time?", a: "Yes. When the AI verifier catches a mistake, it also writes the SQL check it used. Stunt Double proves that check passes on today's data, and one click turns it into a rule that runs on every future rehearsal in milliseconds, without any AI. The same mistake is then blocked instantly, every time." },
@@ -190,7 +190,7 @@ function Different() {
 
 const PROOF = [
   { n: "48/48", k: "bad plans caught on the live Vultr server, 0 of 26 false alarms on correct ones", href: `${GITHUB}/blob/main/docs/VERIFIER_EVAL.md` },
-  { n: "117", k: "API tests in CI, plus MCP and browser end-to-end", href: `${GITHUB}/tree/main/api/tests` },
+  { n: "127", k: "API tests in CI, plus MCP and browser end-to-end", href: `${GITHUB}/tree/main/api/tests` },
   { n: "3", k: "security reviews, from forged reports to lookalike approvers. Every finding fixed with a test", href: `${GITHUB}/blob/main/SECURITY.md` },
   { n: "0", k: "lines of agent code ever run against production", href: `${GITHUB}/blob/main/api/app/apply.py` },
 ];

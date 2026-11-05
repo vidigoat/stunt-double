@@ -66,6 +66,10 @@ def name(ws: str) -> str:
     return next((w["name"] for w in all_workspaces() if w["id"] == ws), ws)
 
 
+def kind(ws: str) -> str:
+    return "demo" if ws == DEMO else _load().get(ws, {}).get("kind", "upload")
+
+
 def describe(ws: str) -> dict:
     db = sqlite3.connect(f"file:{db_path(ws)}?mode=ro", uri=True)
     tables = [r[0] for r in db.execute("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name")]
@@ -107,7 +111,7 @@ def _validate(path: Path) -> dict:
         db.close()
 
 
-def create(display_name: str, data: bytes) -> dict:
+def create(display_name: str, data: bytes, kind: str = "upload", description: str | None = None) -> dict:
     if len(data) > MAX_BYTES:
         raise ValueError("Databases up to 20 MB, please")
     DIR.mkdir(parents=True, exist_ok=True)
@@ -120,8 +124,8 @@ def create(display_name: str, data: bytes) -> dict:
         tmp_path.unlink(missing_ok=True)
         raise ValueError(str(e) if isinstance(e, ValueError) else "That file isn't a readable SQLite database") from e
     ws = "ws-" + uuid.uuid4().hex[:8]
-    entry = {"id": ws, "name": (" ".join(display_name.split()) or "My database")[:60], "kind": "upload", "created_at": time.time(),
-             "tables": len(tables), "rows": sum(tables.values()), "description": f"{len(tables)} tables, {sum(tables.values()):,} rows"}
+    entry = {"id": ws, "name": (" ".join(display_name.split()) or "My database")[:60], "kind": kind, "created_at": time.time(),
+             "tables": len(tables), "rows": sum(tables.values()), "description": description or f"{len(tables)} tables, {sum(tables.values()):,} rows"}
     with LOCK:
         reg = _load()
         # A shared demo server: when full, the oldest upload makes room (uploads are scratch copies, never the only copy).

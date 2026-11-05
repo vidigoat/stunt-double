@@ -1,0 +1,23 @@
+name: Uptime
+# Probes the live demo every 30 minutes through judging. A failure notifies the repository owner (GitHub emails
+# failed workflow runs), so a dead demo link is noticed within the hour.
+on:
+  schedule:
+    - cron: "17,47 * * * *"
+  workflow_dispatch: {}
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Live demo answers and its sandbox is ready
+        run: |
+          set -euo pipefail
+          BASE=https://149-28-206-186.sslip.io
+          for path in / /app /control; do
+            code=$(curl -s -o /dev/null -w '%{http_code}' --retry 3 --retry-delay 10 "$BASE$path")
+            echo "$path -> $code"; [ "$code" = "200" ]
+          done
+          curl -sf --retry 3 --retry-delay 10 "$BASE/api/health" | tee health.json
+          python3 -c "import json; h=json.load(open('health.json')); assert h['ok'] and h['sandbox_ready'] and h['inference_configured'], h"

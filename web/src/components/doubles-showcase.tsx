@@ -62,7 +62,7 @@ const ITEMS: Item[] = [
         </div>
       </div>
     ) },
-  { key: "cloud", icon: Cloud, name: "Your Vultr cloud", line: "Delete, stop or resize servers on a double of your fleet first: the blast radius and the bill change, production protected.",
+  { key: "cloud", icon: Cloud, name: "Your Vultr cloud", line: "Import a read-only double of your real Vultr fleet (the key is used once, never kept). Delete, stop or resize servers there first: blast radius and bill change, production protected.",
     visual: () => (
       <div className="grid w-full max-w-md grid-cols-2 gap-2 text-xs">
         {[["prod-db-replica", true, "$40", "would delete"], ["prod-backup-runner", true, "$10", "would delete"], ["ci-runner-old", false, "$20", "delete"], ["ml-experiment", false, "$40", "delete"]].map(([l, prod, cost, st]) => (

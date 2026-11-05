@@ -13,8 +13,9 @@
 
 <p align="center">
   <b>The safety layer between AI agents and your business.</b><br>
-  Every action an agent takes (database writes, payments, emails, any API call) is rehearsed on a throwaway copy of your
-  business inside an isolated Vultr sandbox. A human approves the <i>consequences</i>, and only exactly those are replayed.
+  Every action an agent takes (database, payments, email, any API, a real browser, your Vultr servers) is rehearsed on a
+  throwaway copy of your business inside an isolated Vultr sandbox first.<br>
+  <b>The plan can't lie</b> (a second sandbox measures it) · <b>you approve consequences, not code</b> · <b>every catch becomes a rule</b>.
 </p>
 
 <p align="center">
@@ -46,7 +47,7 @@ in gVisor on the Vultr VM:
 | # | Click | What you should see |
 |---|---|---|
 | 1 | **Break it** | A plan deletes every customer. Sandbox: 1,300 → 0. Production: still 1,300. Approval locks. |
-| 2 | **Watch the AI catch what rules can't** | A refund plan passes every rule. The AI verifier (Vultr Serverless Inference) reads the data and objects: *"Plan refunds 640 customers who were never double-charged."* ([eval](docs/VERIFIER_EVAL.md)) |
+| 2 | **Watch the AI catch what rules can't** | A refund plan passes every rule. The AI verifier (Vultr Serverless Inference) reads the data and objects: *"Plan refunds 640 customers who were never double-charged."* ([eval](docs/VERIFIER_EVAL.md)). If this exact check already ran live, the verdict appears instantly, labelled with when it ran; **Re-check live** runs the AI again. Then **Learn this rule**: the next identical mistake is blocked without AI. |
 | 3 | **Watch it work in a browser** | The agent cancels a subscription on a double of the admin site, in a real Chromium inside the sandbox. You see every screen; the AI vision check says *"Agent cancelled her original subscription, not the duplicate."* |
 | 4 | **Clean up the cloud** | "Delete idle Vultr servers": the obvious plan would also delete the failover database and the backup runner. The double of the fleet shows it; production servers are protected. |
 | 5 | **Approve a good one, then undo it** | 104 refunds ($5,136) and emails after a drift check. Then rehearse the undo, which needs two approvers. |
@@ -60,8 +61,8 @@ Agents can do the same over MCP: `claude mcp add --transport http stunt-double h
 |---|---|
 | **Cloud Compute** (vc2-2c-4gb, San Jose) | The control plane: API, web app, MCP server and Caddy (HTTPS). It plans, dispatches every rehearsal to a sandbox, measures, and applies approved effects. Provisioned by `infra/provision.py` through the **Vultr API**, with a credit guard. |
 | **gVisor sandboxes on that VM** | Every rehearsal runs in two fresh containers on the `runsc` runtime (plan, then a trusted measurement): no network, no secrets, read-only root, memory/CPU/PID/time caps, destroyed after each run. Browser rehearsals use a Chromium profile with the same guards (median 1.8 s per code rehearsal, about 6 s with a browser). |
-| **Serverless Inference** | `glm-5.3-flash` is the ops agent and the verifier (with `qwen3.8-flash-next` as fallback). The verifier is multimodal: for browser runs it reads the screenshots. |
-| **Vultr API** | Provisioning and teardown of the server; the cloud double models the Vultr instance API (list, delete, halt, resize) so agents can rehearse infrastructure changes. |
+| **Serverless Inference** | `glm-5.3-flash` is the ops agent and the verifier (with `qwen3.8-flash-next` as fallback). The verifier is multimodal: for browser runs it reads the screenshots. A verdict is reused only when the request, measured effects, data, policy and model are all identical, and always labelled with a one-click live re-check. |
+| **Vultr API** | Provisioning and teardown of the server. **Your real fleet:** paste a Vultr API key and Stunt Double reads your instances once (GET only), builds a double of your fleet and discards the key; agents rehearse deletes, halts and resizes against it, and production-tagged servers are protected. **Dedicated rehearsal VMs:** a high-risk rehearsal can run on a brand-new Cloud Compute instance created through the API for that one run and destroyed after (plan user's egress blocked, one-time tokens, spend ceiling, reaper); measurement stays in gVisor. Built and tested, and enabled once the server holds an API key. |
 
 The agent's use case: an operations agent for a small online business that does real work in its systems (refunds,
 customer emails, subscription changes in the admin site, cloud cleanups). It executes real code and real browser
@@ -117,7 +118,7 @@ VULTR_API_KEY=... VULTR_INFERENCE_KEY=... python3 infra/provision.py --region sj
 | Page | What you can do |
 |---|---|
 | **Landing** `/` | run a real `DELETE FROM customers` on the double from the page itself, and watch production survive |
-| **Console** `/app` | ask the agent, or paste any plan ("Break it yourself"); see consequences, blast radius, checks, every changed row, emails, refunds, API calls; approve (one or two people) or reject, with a note that goes into the audit trail, ask for a fix, rehearse an undo; switch workspace or **upload your own SQLite DB** |
+| **Console** `/app` | ask the agent, or paste any plan ("Break it yourself"); see consequences, blast radius, checks, every changed row, emails, refunds, API calls; approve (one or two people) or reject, with a note that goes into the audit trail, ask for a fix, rehearse an undo; switch workspace, **upload your own SQLite DB**, or rehearse on a **double of your real Vultr fleet** |
 | **History** `/history` | the audit trail as an inbox: awaiting approval, applied, stopped, undos; search; evidence download per run; **CSV export** for auditors (approvers, notes, rejection reasons, plan and effects fingerprints) |
 | **Policy** `/policy` | blocking vs warning rules, two-person thresholds, protected tables, glossary, plus a **simulator** that previews the impact of a change before you save, and a **change history** (who changed which rule, old → new) |
 | **Outbox** `/ledger` | everything that actually left the building after approval: BeanPay refunds and API deliveries (Slack, CRM); emails land in the inbox at `/mail` |
@@ -299,7 +300,7 @@ python api/eval/run_eval.py --api https://<host> --runs 10      # real models: h
 
 | Suite | What it proves |
 |---|---|
-| `api/tests/` (117 tests) | engine, containment, adversarial attacks, policy + simulator, connectors + notifications, rollback, two-person rule, workspaces, diff explorer, SDK + CLI, agent loop, archive, security reviews, browser + cloud doubles, learned rules, autonomy |
+| `api/tests/` (127 tests) | engine, containment, adversarial attacks, policy + simulator, connectors + notifications, rollback, two-person rule, workspaces, diff explorer, SDK + CLI, agent loop, archive, security reviews, browser + cloud doubles, learned rules, autonomy, verdict reuse, Vultr fleet import, dedicated Vultr VMs |
 | `mcp/tests/test_mcp.py` | a real MCP client over stdio against the live API |
 | `e2e/golden-path.js` | a real browser: containment, approve + apply, two-person undo, Slack delivery, audit trail, phone layout |
 

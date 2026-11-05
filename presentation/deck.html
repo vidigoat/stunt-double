@@ -169,12 +169,12 @@
 <!-- 6. Architecture -->
 <section class="slide">
   <div class="eyebrow">Built on Vultr</div>
-  <h2 style="font-size:80px">One VM. Many disposable <em>doubles.</em></h2>
-  <img src="../docs/assets/architecture.svg" style="width:100%;margin-top:40px;border-radius:24px;border:1.5px solid var(--border)">
-  <div class="grid" style="grid-template-columns:repeat(3,1fr);margin-top:28px;display:none">
-    <div class="card"><b style="font-size:28px;font-weight:500">Cloud Compute</b><p class="muted" style="font-size:23px;margin-top:8px">App host + sandbox host (Docker + gVisor)</p></div>
-    <div class="card"><b style="font-size:28px;font-weight:500">Serverless Inference</b><p class="muted" style="font-size:23px;margin-top:8px">Every LLM call: agent and independent verifier</p></div>
-    <div class="card"><b style="font-size:28px;font-weight:500">Vultr API</b><p class="muted" style="font-size:23px;margin-top:8px">Provisioning via cloud-init; pull-based deploys</p></div>
+  <h2 style="font-size:76px">Every Vultr piece is <em>load-bearing.</em></h2>
+  <div class="grid" style="grid-template-columns:repeat(2,1fr);gap:28px;margin-top:56px">
+    <div class="card"><b style="font-size:34px;font-weight:500">Cloud Compute + gVisor</b><p class="muted" style="font-size:26px;margin-top:12px">Every rehearsal runs in two fresh gVisor containers: the plan, then our trusted measurement. No network, no secrets, destroyed after. 1.8 s median.</p></div>
+    <div class="card"><b style="font-size:34px;font-weight:500">Serverless Inference</b><p class="muted" style="font-size:26px;margin-top:12px">The ops agent and an independent, multimodal verifier that reads the data and the browser screenshots. Identical checks come back instantly, labelled.</p></div>
+    <div class="card"><b style="font-size:34px;font-weight:500">Vultr API · your real fleet</b><p class="muted" style="font-size:26px;margin-top:12px">Paste a key: one read-only listing builds a double of your Vultr account; the key is discarded. Rehearse deletes and resizes; production servers protected.</p></div>
+    <div class="card"><b style="font-size:34px;font-weight:500">Vultr API · a VM per rehearsal</b><p class="muted" style="font-size:26px;margin-top:12px">High-risk plans can run on a brand-new Cloud Compute instance created for that one rehearsal and destroyed after, with spend and lifetime caps.</p></div>
   </div>
 </section>
 
@@ -185,9 +185,10 @@
   <table style="margin-top:64px">
     <tr><th style="width:30%">Mistake</th><th style="width:35%">Rules / allow-lists</th><th>Stunt Double</th></tr>
     <tr><td>DELETE FROM customers</td><td>✓ caught</td><td>✓ caught, plus <b style="font-weight:500">blocked by policy</b> and contained</td></tr>
-    <tr><td>Refunds 744 people, not 104</td><td class="red">✗ looks like a normal refund</td><td>✓ verifier investigates: “Plan refunds 640 customers who were never double-charged” (9/9 live runs)</td></tr>
+    <tr><td>Refunds 744 people, not 104</td><td class="red">✗ looks like a normal refund</td><td>✓ verifier investigates: “Plan refunds 640 customers who were never double-charged” (48/48 bad plans caught in the live eval, 0/26 false alarms)</td></tr>
     <tr><td>Emails 8 VIPs an apology for nothing</td><td class="red">✗ valid email call</td><td>✓ flagged with names and the reason</td></tr>
     <tr><td>Plan crashes halfway</td><td>partial damage</td><td>✓ crashes on the double; the agent fixes it and rehearses again</td></tr>
+    <tr><td>The same mistake next week</td><td class="red">✗ someone writes a new rule, maybe</td><td>✓ the AI wrote the check it used; one click made it a rule that blocks it instantly, no AI</td></tr>
   </table>
 </section>
 

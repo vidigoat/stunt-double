@@ -89,6 +89,14 @@ regression tests in `api/tests/test_security3.py`:
   truncation (now blocks); per-call-only PII counting; unquoted identifiers; effects files of applied runs being cleaned up
   after 24 h (now kept, so undo keeps working).
 
+## New surfaces (Nov 5)
+
+| Surface | Risk | Control | Test |
+|---|---|---|---|
+| Reused AI verdicts | showing a verdict for different facts | reused only when the request, the SHA-256 of the measured effects, a hash of the full data, the policy and the model are all identical; always labelled with its time; "Re-check live" forces a fresh AI call; unfinished verdicts are never reused | `test_verdict_cache` |
+| Vultr fleet import | leaking or misusing the visitor's API key | GET requests only; the key is validated (alphanumeric, 20–64), used once in memory, never stored, logged, put in a run or sent to a sandbox; errors never echo it; approving on a fleet double is refused (it never changes a real account) | `test_vultr_import` |
+| Dedicated rehearsal VMs | cost runaway, a VM left running, a forged result | one VM at a time, daily cap, smallest plan, no new VM above a pending-charges ceiling, a reaper destroys any rehearsal VM older than 10 minutes, the VM is deleted in a `finally`; the plan runs as a user whose egress is rejected; bundle and result use one-time tokens; the result is only the database copy and intents (regular files, size-capped, unexpected paths ignored) and is measured in gVisor on our server | `test_vultr_vm` |
+
 ## Known limitations (hackathon scope)
 - The API container talks to the host Docker daemon to start sandboxes; a compromise of the API process is host-level.
   Production deployments should use a dedicated sandbox host or a rootless/remote runtime.
