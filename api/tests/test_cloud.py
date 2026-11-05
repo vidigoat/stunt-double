@@ -77,3 +77,15 @@ def test_approved_cleanup_applies_to_the_fleet(fresh_business, monkeypatch):
     import sqlite3
     left = [r[0] for r in sqlite3.connect(main.config.PROD_DB).execute("SELECT label FROM servers ORDER BY id")]
     assert "ci-runner-old" not in left and "prod-db-replica" in left and len(left) == 8
+
+
+def test_an_old_demo_database_is_upgraded_on_startup(tmp_path, monkeypatch):
+    import sqlite3
+    old = tmp_path / "business.db"
+    sqlite3.connect(old).executescript("CREATE TABLE customers (id INTEGER PRIMARY KEY); CREATE TABLE orders (id INTEGER); "
+                                       "CREATE TABLE charges (id INTEGER); CREATE TABLE tickets (id INTEGER);")
+    monkeypatch.setattr(main.config, "PROD_DB", old)
+    assert not main._demo_is_current()
+    from app import seed
+    seed.seed(old)
+    assert main._demo_is_current()

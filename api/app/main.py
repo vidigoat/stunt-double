@@ -38,7 +38,20 @@ HISTORY_DIR = config.DATA_DIR / "history"
 HISTORY_DIR.mkdir(parents=True, exist_ok=True)
 ACTIVE = {"queued", "planning", "rehearsing", "verifying", "applying"}
 
-if not config.PROD_DB.exists():
+def _demo_is_current() -> bool:
+    """The demo database exists and has every table the current demo needs (new demos add tables, e.g. `servers`)."""
+    if not config.PROD_DB.exists():
+        return False
+    try:
+        db = sqlite3.connect(config.PROD_DB)
+        have = {r[0] for r in db.execute("SELECT name FROM sqlite_master WHERE type='table'")}
+        db.close()
+    except sqlite3.Error:
+        return False
+    return {"customers", "orders", "charges", "tickets", "servers"} <= have
+
+
+if not _demo_is_current():
     seed.seed(config.PROD_DB)
 
 
