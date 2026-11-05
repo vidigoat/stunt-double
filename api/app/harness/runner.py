@@ -44,6 +44,33 @@ CLOUD: list[dict] = []
 BROWSER: list[dict] = []
 MAX_SHOTS = 12
 LOGS: list[str] = []
+STATEMENTS: list[str] = []           # every SQL statement the plan's connection ran (phase 1's claim, replayed in phase 2)
+MAX_STATEMENTS, MAX_STATEMENT_CHARS = 20000, 20000
+CLOCK_FUNCS = ("date", "time", "datetime", "julianday", "strftime", "unixepoch")
+
+
+def install_clock(db: sqlite3.Connection, clock: str, seed: int = 1) -> None:
+    """Freeze 'now' and seed random() on a connection, so a replay of the same statements gives the same rows.
+    Only the meaning of 'now' changes: date(created_at), datetime('now', '-7 days') etc. keep their normal semantics."""
+    import random as _random
+    real = sqlite3.connect(":memory:", check_same_thread=False)   # the browser double's admin site calls from its own thread
+    rng = _random.Random(seed)  # noqa: S311 - deterministic on purpose: a replay must reproduce the same values
+
+    def make(name: str):
+        def f(*args):
+            if name == "strftime":
+                fmt, rest = (args[0] if args else None), list(args[1:])
+                rest = rest or [clock]
+                rest = [clock if isinstance(a, str) and a.strip().lower() == "now" else a for a in rest]
+                return real.execute(f"SELECT strftime({', '.join('?' * (len(rest) + 1))})", [fmt, *rest]).fetchone()[0]
+            vals = list(args) or [clock]
+            vals = [clock if isinstance(a, str) and a.strip().lower() == "now" else a for a in vals]
+            return real.execute(f"SELECT {name}({', '.join('?' * len(vals))})", vals).fetchone()[0]
+        return f
+
+    for name in CLOCK_FUNCS:
+        db.create_function(name, -1, make(name))
+    db.create_function("random", 0, lambda: rng.randint(-(2**63), 2**63 - 1))
 SECRET_HEADERS = {"authorization", "cookie", "x-api-key", "api-key", "x-auth-token", "proxy-authorization"}
 
 
@@ -287,10 +314,20 @@ def phase_run() -> None:
         resource.setrlimit(resource.RLIMIT_AS, (mem_mb * 1024 * 1024, hard))  # below the container cap: we survive to report
     db = sqlite3.connect("/work/work.db", isolation_level=None, check_same_thread=False)
     db.execute("PRAGMA foreign_keys = OFF")
+    clock = time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime())
+    install_clock(db, clock)
+    overflow = []
+
+    def trace(sql: str) -> None:
+        if len(STATEMENTS) < MAX_STATEMENTS and len(sql) <= MAX_STATEMENT_CHARS:
+            STATEMENTS.append(sql)
+        elif not overflow:
+            overflow.append(True)
     stdout = io.StringIO()
     error = None
     try:
         db.execute("BEGIN")
+        db.set_trace_callback(trace)   # from here on, every statement the plan runs on this connection is on the record
         ns: dict = {"__name__": "plan"}
         with contextlib.redirect_stdout(stdout):
             exec(compile(open("/work/plan.py").read(), "plan.py", "exec"), ns)  # noqa: S102 - this IS the sandbox
@@ -318,7 +355,8 @@ def phase_run() -> None:
     intents = {"ok": error is None, "error": error, "stdout": stdout.getvalue()[-4000:], "logs": LOGS[-100:],
                "payments": PAYMENTS[:MAX_INTENTS], "emails": EMAILS[:MAX_INTENTS], "http": HTTP[:MAX_INTENTS],
                "cloud": CLOUD[:MAX_INTENTS], "browser": BROWSER[:50], "blocked": BLOCKED[:50], "guards": guards,
-               "duration_ms": int((time.time() - started) * 1000)}
+               "duration_ms": int((time.time() - started) * 1000),
+               "statements": STATEMENTS, "statements_overflow": bool(overflow), "clock": clock}
     with open("/work/out/intents.json", "w") as f:
         json.dump(intents, f, default=str)
 
@@ -410,7 +448,10 @@ def validate_intents(raw: dict) -> dict:
             "stdout": str(raw.get("stdout", ""))[-4000:], "logs": [str(x)[:500] for x in (raw.get("logs") or [])[:100]],
             "payments": pays, "emails": mails, "http": calls,
             "blocked": [{"kind": str(b.get("kind", ""))[:20], "target": str(b.get("target", ""))[:200]} for b in (raw.get("blocked") or [])[:50] if isinstance(b, dict)],
-            "guards": raw.get("guards") if isinstance(raw.get("guards"), dict) else {}, "duration_ms": _int(raw.get("duration_ms"), 0) or 0}
+            "guards": raw.get("guards") if isinstance(raw.get("guards"), dict) else {}, "duration_ms": _int(raw.get("duration_ms"), 0) or 0,
+            "statements": [str(x) for x in (raw.get("statements") or [])[:MAX_STATEMENTS] if isinstance(x, str) and len(x) <= MAX_STATEMENT_CHARS],
+            "statements_overflow": bool(raw.get("statements_overflow")),
+            "clock": str(raw.get("clock"))[:19] if re.fullmatch(r"\d{4}-\d\d-\d\d \d\d:\d\d:\d\d", str(raw.get("clock") or "")) else None}
 
 
 PLACEHOLDER = re.compile(r"\{\{[^}]*\}\}|\{[a-z_]+\}|\[(?:NAME|FIRST_NAME|CUSTOMER)\]|<(?:name|first_name)>|%\(\w+\)s|%s", re.I)
@@ -461,6 +502,168 @@ def audit_http(before: dict, calls: list) -> dict:
             "bulk_personal_data": bulk[:5], "bulk_personal_data_count": len(bulk),
             "card_numbers": cards[:5], "card_number_count": len(cards), "customers_in_payloads": len(leaked),
             "oversized": oversized[:5], "oversized_count": len(oversized), "unsafe_paths": unsafe[:5], "unsafe_path_count": len(unsafe)}
+
+
+_DENY_IN_REPLAY = {sqlite3.SQLITE_ATTACH, sqlite3.SQLITE_DETACH, sqlite3.SQLITE_CREATE_TABLE, sqlite3.SQLITE_DROP_TABLE,
+                   sqlite3.SQLITE_ALTER_TABLE, sqlite3.SQLITE_CREATE_INDEX, sqlite3.SQLITE_DROP_INDEX, sqlite3.SQLITE_CREATE_TRIGGER,
+                   sqlite3.SQLITE_DROP_TRIGGER, sqlite3.SQLITE_CREATE_VIEW, sqlite3.SQLITE_DROP_VIEW, sqlite3.SQLITE_CREATE_VTABLE,
+                   sqlite3.SQLITE_DROP_VTABLE, sqlite3.SQLITE_PRAGMA}
+_WRITES = {sqlite3.SQLITE_INSERT, sqlite3.SQLITE_UPDATE, sqlite3.SQLITE_DELETE}
+_TS = re.compile(r"^\d{4}-\d\d-\d\d[ T]\d\d:\d\d:\d\d")
+_WRITE_SQL = re.compile(r"^\s*(UPDATE|DELETE|INSERT|REPLACE)\b", re.I)
+_INT = re.compile(r"(?<![\w.'])-?\d+(?![\w.'])")
+_SHAPE = re.compile(r"'(?:[^']|'')*'|(?<![\w.])-?\d+(?:\.\d+)?(?![\w.])")
+
+
+def _shape(sql: str) -> str:
+    """The statement with its values taken out: 744 'UPDATE ... WHERE id=17' become one pattern."""
+    return re.sub(r"\s+", " ", _SHAPE.sub("?", sql)).strip()[:2000]
+
+
+def _close_in_time(a, b, seconds: int = 900) -> bool:
+    """Two timestamps a few minutes apart: CURRENT_TIMESTAMP can't be frozen, so a replay may differ by the run time."""
+    if not (isinstance(a, str) and isinstance(b, str) and _TS.match(a) and _TS.match(b)):
+        return False
+    try:
+        t = [time.mktime(time.strptime(x[:19].replace("T", " "), "%Y-%m-%d %H:%M:%S")) for x in (a, b)]
+    except ValueError:
+        return False
+    return abs(t[0] - t[1]) <= seconds
+
+
+def _same_row(a: dict | None, b: dict | None) -> bool:
+    if a is None or b is None:
+        return a is b
+    return a.keys() == b.keys() and all(a[k] == b[k] or _close_in_time(a[k], b[k]) for k in a)
+
+
+class _Derived(Exception):  # noqa: N818 - a signal, not an error
+    pass
+
+
+def prove(before_path: str, statements: list[str], clock: str | None, before: dict, measured: dict) -> tuple[dict, dict]:
+    """Proof of Effect. Replay ONLY the statements the plan claims it ran, on a fresh in-memory copy of the "before"
+    data, with the same frozen clock. Temporary triggers record which statement changed which row. If the replay
+    reproduces every measured change, the provenance is proven; anything else is a change the plan can't explain.
+    Returns (summary, detail)."""
+    mem = sqlite3.connect(":memory:", isolation_level=None)
+    src = sqlite3.connect(f"file:{before_path}?mode=ro&immutable=1", uri=True)
+    src.backup(mem)
+    src.close()
+    mem.execute("PRAGMA foreign_keys = OFF")
+    if clock:
+        install_clock(mem, clock)
+    tables = [t for (t,) in mem.execute("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'")]
+    mem.execute("CREATE TEMP TABLE _sd_cur (i INTEGER)")
+    mem.execute("INSERT INTO _sd_cur VALUES (0)")
+    mem.execute("CREATE TEMP TABLE _sd_log (i INTEGER, t TEXT, r INTEGER)")
+    for n, t in enumerate(tables):
+        lit = "'" + t.replace("'", "''") + "'"
+        for ev, ref in (("INSERT", "NEW"), ("UPDATE", "NEW"), ("DELETE", "OLD")):
+            mem.execute(f"CREATE TEMP TRIGGER _sd_{ev[0].lower()}{n} AFTER {ev} ON main.{_q(t)} "
+                        f"BEGIN INSERT INTO _sd_log SELECT i, {lit}, {ref}.rowid FROM _sd_cur; END")
+
+    def authorizer(action, arg1, arg2, db_name, trigger):
+        if action in _DENY_IN_REPLAY:
+            return sqlite3.SQLITE_DENY
+        if action in _WRITES and str(arg1).startswith("_sd_") and not str(trigger or "").startswith("_sd_"):
+            return sqlite3.SQLITE_DENY          # a statement may not touch the engine's own record
+        return sqlite3.SQLITE_OK
+    mem.set_authorizer(authorizer)
+    deadline = time.time() + 30
+    mem.set_progress_handler(lambda: 1 if time.time() > deadline else 0, 20_000)
+    failed, timed_out = [], False
+    read_from: dict[int, int] = {}      # id value -> the latest read statement that returned it
+    read_budget = [500_000]
+    decided: dict[int, int] = {}        # write statement -> the read statement whose result chose its target
+    for i, sql in enumerate(statements, start=1):
+        if read_from and _WRITE_SQL.match(sql):
+            where = sql[sql.upper().rfind("WHERE"):] if "WHERE" in sql.upper() else ""
+            hits = [read_from[int(x)] for x in _INT.findall(where) if int(x) in read_from]
+            if hits:
+                decided[i] = max(hits)
+        mem.set_authorizer(None)
+        mem.execute("UPDATE _sd_cur SET i = ?", (i,))
+        mem.set_authorizer(authorizer)
+        try:
+            cur = mem.execute(sql)
+            if cur.description is not None and read_budget[0] > 0:   # a read: remember which ids it handed back to the plan
+                for row in cur.fetchmany(min(read_budget[0], 100_000)):
+                    for v in row:
+                        if isinstance(v, int) and not isinstance(v, bool):
+                            read_from[v] = i
+                            read_budget[0] -= 1
+        except sqlite3.OperationalError as e:
+            if "interrupted" in str(e):
+                timed_out = True
+                break
+            failed.append({"i": i, "error": str(e)[:200]})
+        except (sqlite3.Error, ValueError) as e:
+            failed.append({"i": i, "error": str(e)[:200]})
+    mem.set_authorizer(None)
+    mem.set_progress_handler(None, 0)
+    if mem.in_transaction:
+        with contextlib.suppress(sqlite3.Error):
+            mem.execute("COMMIT")
+    # what the replay produced, in the same shape as the measurement
+    replay = {}
+    for t in tables:
+        cols = [r[1] for r in mem.execute(f"PRAGMA main.table_info({_q(t)})")]
+        sel = ", ".join(_q(c) for c in cols)
+        replay[t] = {"cols": cols, "rows": {row[0]: dict(zip(cols, row[1:], strict=True)) for row in mem.execute(f"SELECT rowid, {sel} FROM main.{_q(t)}")}}
+    replayed = diff(before, replay)
+    caused: dict[tuple[str, int], int] = {}
+    for i, t, r in mem.execute("SELECT i, t, r FROM _sd_log ORDER BY rowid"):
+        caused[(t, r)] = i                       # the last statement to touch a row is the one that set its final value
+    mem.close()
+
+    def index(ch: dict) -> dict:
+        out = {}
+        for t, d in ch.items():
+            for op in ("deleted", "inserted", "updated"):
+                for it in d.get(op, []):
+                    out[(t, it["rowid"])] = (op, it.get("after"))
+        return out
+    m, r = index(measured), index(replayed)
+    unexplained = [{"table": t, "rowid": rid, "op": op} for (t, rid), (op, after) in m.items()
+                   if (t, rid) not in r or r[(t, rid)][0] != op or not _same_row(r[(t, rid)][1], after)]
+    claimed_only = [{"table": t, "rowid": rid, "op": op} for (t, rid), (op, _) in r.items() if (t, rid) not in m]
+    schema = any(d.get("schema_changed") or d.get("dropped") or d.get("created") for d in measured.values())
+    by_stmt: dict[int, dict] = {}
+    by_shape: dict[str, dict] = {}
+    by_decider: dict[int, dict] = {}
+    rows_map: dict[str, dict] = {}
+    decided_map: dict[str, dict] = {}
+    for (t, rid) in m:
+        i = caused.get((t, rid))
+        if i is None:
+            continue
+        b = by_stmt.setdefault(i, {"i": i, "rows": 0, "tables": {}})
+        b["rows"] += 1
+        b["tables"][t] = b["tables"].get(t, 0) + 1
+        rows_map.setdefault(t, {})[str(rid)] = i
+        sh = by_shape.setdefault(_shape(statements[i - 1]), {"rows": 0, "statements": set(), "first": i})
+        sh["rows"] += 1
+        sh["statements"].add(i)
+        j = decided.get(i)
+        if j is not None:
+            dd = by_decider.setdefault(j, {"i": j, "rows": 0, "sql": statements[j - 1][:4000]})
+            dd["rows"] += 1
+            decided_map.setdefault(t, {})[str(rid)] = j
+    for b in by_stmt.values():
+        b["sql"] = statements[b["i"] - 1][:2000]
+    patterns = sorted(({"shape": k, "rows": v["rows"], "statements": len(v["statements"]), "first": v["first"],
+                        "example": statements[v["first"] - 1][:2000]} for k, v in by_shape.items()), key=lambda x: -x["rows"])
+    status = ("unavailable" if schema or timed_out else "unexplained" if unexplained else "proven")
+    summary = {"status": status, "statements": len(statements), "writing_statements": len(by_stmt), "patterns": len(patterns),
+               "deciders": len(by_decider),
+               "rows_measured": len(m), "rows_explained": len(m) - len(unexplained), "unexplained": len(unexplained),
+               "claimed_but_not_measured": len(claimed_only), "failed_on_replay": len(failed), "timed_out": timed_out,
+               "reason": ("the plan changed the schema" if schema else "the replay ran out of time" if timed_out else None)}
+    detail = {"summary": summary, "statements": sorted(by_stmt.values(), key=lambda b: -b["rows"])[:200],
+              "patterns": patterns[:50], "deciders": sorted(by_decider.values(), key=lambda b: -b["rows"])[:20], "decided": decided_map,
+              "unexplained": unexplained[:500], "claimed_only": claimed_only[:200], "failed": failed[:50], "rows": rows_map}
+    return summary, detail
 
 
 def check_rules(after_db: str, rules_path: str) -> list[dict]:
@@ -603,6 +806,24 @@ def phase_measure() -> None:
         "browser": {"steps": intents.get("browser_steps", [])},
         "rules": check_rules("/in/after.db", "/in/rules.json"),
     }
+    try:
+        # /in/derived.json is written only by the host (a plan can't reach /in): these effects came from a proven rehearsal,
+        # cut by the engine, and no plan code ran. There is nothing to replay.
+        if os.path.exists("/in/derived.json"):
+            src = json.load(open("/in/derived.json"))
+            raise _Derived(str(src.get("note", "derived from an earlier rehearsal"))[:200])
+        if intents.get("statements_overflow"):
+            raise ValueError("the plan ran more statements than the record holds")
+        summary, detail = prove("/in/before.db", intents.get("statements") or [], intents.get("clock"), before, changes)
+    except _Derived as e:
+        summary = {"status": "derived", "reason": str(e), "rows_measured": sum(1 for d in changes.values() for op in ("deleted", "inserted", "updated") for _ in d.get(op, []))}
+        detail = {"summary": summary, "statements": [], "unexplained": [], "rows": {}}
+    except (sqlite3.Error, ValueError, MemoryError) as e:
+        summary = {"status": "unavailable", "reason": str(e)[:200], "rows_measured": sum(1 for d in changes.values() for op in ("deleted", "inserted", "updated") for _ in d.get(op, []))}
+        detail = {"summary": summary, "statements": [], "unexplained": [], "rows": {}}
+    consequences["provenance"] = summary
+    with open("/out/provenance.json", "w") as f:
+        json.dump(detail, f, default=str)
     with open("/out/consequences.json", "w") as f:
         json.dump(consequences, f, default=str)
     with open("/out/effects.json", "w") as f:

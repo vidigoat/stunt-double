@@ -171,7 +171,64 @@ def rehearse(plan_code: str, isolation: str = "container", emit=None) -> dict:
         **({"profile": "browser", "memory": config.BROWSER_MEMORY, "timeout_s": config.BROWSER_TIMEOUT_S, "screenshots": shots} if browser else {}),
         **({"isolation": "vultr_vm", "vm": vm} if isolation == "vultr_vm" and not browser else {}),
     }
+    # The Effect Graph: built from the measured effects and the host's own "before" copy, never from the plan's claims.
+    if consequences.get("ok") and (out / "effects.json").exists():
+        try:
+            from .engine import graph as _graph
+            g = _graph.build(json.loads((out / "effects.json").read_text()), str(inp / "before.db"))
+            (out / "graph.json").write_text(json.dumps(g.as_dict()))
+            consequences["graph"] = g.summary()
+        except (OSError, ValueError, sqlite3.Error) as e:
+            consequences["graph"] = {"error": str(e)[:200]}
     # The clones are destroyed; only the measured outputs are kept for the approval and the audit trail.
+    for f in ("before.db", "after.db"):
+        (inp / f).unlink(missing_ok=True)
+    return {"id": rid, "consequences": consequences, "effects_path": str(out / "effects.json")}
+
+
+def measure_effects(effects: dict, label: str = "Surgical subset") -> dict:
+    """Measure a set of effects that no plan produced (a surgical subset) exactly like a rehearsal: a fresh clone, the
+    after-state rebuilt by trusted code, and a fresh phase-2 container that measures and audits it. No plan code runs."""
+    from .engine import graph as _graph
+    from .engine.materialize import Drift, materialize
+    rid = "sd-" + uuid.uuid4().hex[:8]
+    root = config.RUNS_DIR / rid
+    inp, out = root / "in", root / "out"
+    for d in (inp, out):
+        d.mkdir(parents=True)
+    clone_db(inp / "before.db")
+    t0 = time.time()
+    try:
+        materialize(inp / "before.db", effects, inp / "after.db")
+    except Drift as e:
+        shutil.rmtree(root, ignore_errors=True)
+        raise ValueError(str(e)) from e
+    (inp / "derived.json").write_text(json.dumps({"note": f"{label}: cut by the engine from a proven rehearsal; no plan code ran"}))
+    (inp / "intents.json").write_text(json.dumps({"ok": True, "error": None, "logs": [label], "payments": effects.get("payments") or [],
+                                                  "emails": effects.get("emails") or [], "http": effects.get("http") or [], "duration_ms": 0}))
+    from . import rules as _rules, workspaces as _ws
+    (inp / "rules.json").write_text(json.dumps([{k: r[k] for k in ("id", "title", "sql", "source_run")} for r in _rules.all_rules(_ws.name_of_current())]))
+    for d in (root, inp, out):
+        os.chmod(d, 0o777)
+    for f in inp.iterdir():
+        os.chmod(f, 0o644)
+    host = Path(config.RUNS_DIR_HOST) / rid
+    code2, err2, killed2 = _docker(rid + "-m", f"-v {host / 'in'}:/in:ro -v {host / 'out'}:/out", "measure")
+    cpath = out / "consequences.json"
+    if code2 != 0 or not cpath.exists():
+        shutil.rmtree(root, ignore_errors=True)
+        raise ValueError(f"measurement failed: {killed2 or err2[-300:] or code2}")
+    consequences = json.loads(cpath.read_text())
+    try:
+        g = _graph.build(json.loads((out / "effects.json").read_text()), str(inp / "before.db"))
+        (out / "graph.json").write_text(json.dumps(g.as_dict()))
+        consequences["graph"] = g.summary()
+    except (OSError, ValueError, sqlite3.Error) as e:
+        consequences["graph"] = {"error": str(e)[:200]}
+    consequences["sandbox"] = {"id": rid, "runtime": config.SANDBOX_RUNTIME or "runc", "network": "none", "memory": config.SANDBOX_MEMORY,
+                               "timeout_s": config.SANDBOX_TIMEOUT_S, "read_only_root": True, "exit_code": 0, "killed": None,
+                               "run_ms": 0, "wall_ms": int((time.time() - t0) * 1000), "destroyed": True, "measured_separately": True,
+                               "profile": "subset"}
     for f in ("before.db", "after.db"):
         (inp / f).unlink(missing_ok=True)
     return {"id": rid, "consequences": consequences, "effects_path": str(out / "effects.json")}

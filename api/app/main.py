@@ -18,6 +18,7 @@ from pydantic import BaseModel, Field
 
 from . import agent, archive, beanpay, config, connectors, policy, rollback, pg_import, rules, sandbox, seed, sql_export, vultr_import, vultr_vm, workspaces
 from . import apply as applier
+from .engine import graph as engine_graph, subsets as engine_subsets
 
 app = FastAPI(
     title="Stunt Double API",
@@ -125,12 +126,17 @@ def _rehearse(run: dict, code: str, summary: str) -> dict:
         _emit(run, "sandbox", "Creating a dedicated Vultr VM for this rehearsal", "Phase 1 runs on its own Cloud Compute instance; phase 2 measures it here in gVisor")
     with SANDBOX_SLOTS:
         res = sandbox.rehearse(code, iso, emit=lambda t: _emit(run, "sandbox", t))
+    return _add_attempt(run, res, code, summary)
+
+
+def _add_attempt(run: dict, res: dict, code: str, summary: str, **extra) -> dict:
+    """Turn a measured result (a rehearsed plan, or a surgical subset) into the run's next attempt."""
     c = res["consequences"]
     effects = open(res["effects_path"], "rb").read() if c.get("ok") else b""
     attempt = {"n": len(run["attempts"]) + 1, "sandbox_id": res["id"], "code": code, "summary": summary,
                "consequences": c, "flags": _gate_flags(c, run), "effects_path": res["effects_path"],
                "plan_sha256": hashlib.sha256(code.encode()).hexdigest(), "effects_sha256": hashlib.sha256(effects).hexdigest() if effects else None,
-               "created_at": time.time()}
+               "created_at": time.time(), **extra}
     attempt["approvals_required"], attempt["approval_reasons"] = policy.approvals_required(c, run["mode"])
     with LOCK:
         run["attempts"].append(attempt)
@@ -305,6 +311,8 @@ def _verify(run: dict) -> None:
         run["verdict"] = verdict
         run["flags"] = att["flags"]
     _emit(run, "verify", verdict.get("headline", "Review ready"))
+    if verdict.get("verdict") != "looks_right" and not run["attempts"][-1].get("surgical_of"):
+        _surgical_offer(run)
     _status(run, "review")
     if not _auto_approve(run):
         _notify_review(run)
@@ -389,6 +397,7 @@ def _manual_job(run: dict, code: str) -> None:
                 run["verdict"] = {"verdict": "dangerous", "headline": learned[0]["title"], "concerns": [],
                                   "summary": "Blocked by a rule this business learned from an earlier AI catch. It ran deterministically in the sandbox; no AI was needed."}
             _emit(run, "verify", f"{learned[0]['title']} (no AI needed)", learned[0]["detail"])
+            _surgical_offer(run)
             _status(run, "review")
         elif config.INFERENCE_KEY and _verify_budget():
             _verify(run)
@@ -399,6 +408,101 @@ def _manual_job(run: dict, code: str) -> None:
                 run["flags"] = run["attempts"][-1]["flags"]
             _status(run, "review")
             _notify_review(run)
+    except Exception as e:  # noqa: BLE001
+        with LOCK:
+            run["error"] = str(e)[:1000]
+        _status(run, "failed")
+
+
+def _surgical_check(run: dict) -> dict | None:
+    """The check that flags what's wrong, best first: a learned rule that fired, then the AI jury's own check."""
+    att = run["attempts"][-1]
+    ws = run.get("workspace", workspaces.DEMO)
+    for r in (att["consequences"].get("rules") or []):
+        if r.get("violations"):
+            hit = next((x for x in rules.all_rules(ws) if x["id"] == r.get("id")), None)
+            if hit:
+                return {"title": hit["title"], "sql": hit["sql"], "source": "learned rule"}
+    v = run.get("verdict") or {}
+    if v.get("verdict") in ("concerns", "dangerous") and isinstance(v.get("rule"), dict) and v["rule"].get("sql"):
+        return {"title": v["rule"].get("title") or "the AI jury's check", "sql": v["rule"]["sql"], "source": "AI jury"}
+    return None
+
+
+def _surgical_propose(run: dict) -> tuple[dict, engine_subsets.Offer]:
+    att = run["attempts"][-1]
+    check = _surgical_check(run)
+    if not check:
+        raise engine_subsets.NoOffer("nothing flags specific rows of this plan")
+    if not att["consequences"].get("ok"):
+        raise engine_subsets.NoOffer("the plan crashed in rehearsal")
+    if att.get("surgical_of"):
+        raise engine_subsets.NoOffer("this is already a surgical subset")
+    effects = _effects_cached(att["effects_path"], att.get("effects_sha256") or "")
+    base = workspaces.db_path(run.get("workspace", workspaces.DEMO))
+    g = engine_graph.build(effects, str(base))
+    offer = engine_subsets.propose(effects, g, base, check["sql"], check["title"])
+    try:   # Proof of Effect: which lines of the plan produced the rows being cut
+        prov = json.loads(open(att["effects_path"].replace("effects.json", "provenance.json")).read())
+        wrote, chose = prov.get("rows") or {}, prov.get("decided") or {}
+        stmts: dict[tuple[int, str], int] = {}
+        for ui in offer.dropped_units:
+            for nid in g.units[ui]:
+                n = g.nodes[nid]
+                if n.kind != "row":
+                    continue
+                j = chose.get(n.table, {}).get(str(n.rowid))     # the read that chose this row, if the plan chose by query
+                key = (j, "chose") if j is not None else (wrote.get(n.table, {}).get(str(n.rowid)), "wrote")
+                if key[0] is not None:
+                    stmts[key] = stmts.get(key, 0) + 1
+        offer.caused_by = [{"i": i, "rows": k, "how": how} for (i, how), k in sorted(stmts.items(), key=lambda x: -x[1])[:5]]
+    except (OSError, ValueError, KeyError):
+        pass
+    return check, offer
+
+
+def _surgical_offer(run: dict) -> None:
+    """Attach 'these N of M changes are right' to a run under review, if the engine can prove it."""
+    try:
+        check, offer = _surgical_propose(run)
+        payload = {"offer": offer.public(), "check": {"title": check["title"], "source": check["source"]}}
+        _emit(run, "verify", f"Surgical approval available: {offer.units_kept:,} of {offer.units_total:,} changes keep the check",
+              f"Checked by {check['source']}: {check['title']}. The other {offer.units_dropped:,} would be cut out, whole.")
+    except engine_subsets.NoOffer as e:
+        payload = {"none": str(e)}
+    except Exception as e:  # noqa: BLE001 - the offer is an extra; never let it break a review
+        payload = {"none": f"the engine couldn't compute a subset ({type(e).__name__})"}
+    with LOCK:
+        run["surgical"] = payload
+        _save(run)
+
+
+def _surgical_job(run: dict, offer: engine_subsets.Offer, check: dict) -> None:
+    workspaces.use(run.get("workspace", workspaces.DEMO))
+    prev = run["attempts"][-1]
+    try:
+        _status(run, "rehearsing")
+        _emit(run, "sandbox", f"Re-rehearsing the {offer.units_kept:,} changes that keep the check, in a fresh sandbox",
+              "The subset is rebuilt by trusted code and measured by phase 2 like any rehearsal; no plan code runs.")
+        with SANDBOX_SLOTS:
+            res = sandbox.measure_effects(offer.effects, f"Surgical subset of attempt {prev['n']}")
+        code = (f"# Surgical subset of attempt {prev['n']}: kept {offer.units_kept} of {offer.units_total} units of work.\n"
+                f"# Cut by {check['source']}: {check['title']}\n" + prev["code"])
+        _add_attempt(run, res, code, f"Surgical subset: kept {offer.units_kept:,} of {offer.units_total:,}",
+                     surgical_of=prev["n"], surgical={"check": check, "offer": offer.public()})
+        with LOCK:
+            run["surgical"] = {"applied_to": prev["n"], "offer": offer.public(), "check": {"title": check["title"], "source": check["source"]}}
+            run["verdict"] = None
+            _save(run)
+        att = run["attempts"][-1]
+        _emit(run, "sandbox", f"Subset measured in {res['id']}: {att['consequences'].get('payments', {}).get('count', 0):,} refunds, "
+                              f"{sum(t['updated'] + t['deleted'] + t['inserted'] for t in att['consequences'].get('tables', {}).values()):,} rows")
+        if config.INFERENCE_KEY and _verify_budget():
+            _verify(run)
+        else:
+            with LOCK:
+                run["flags"] = att["flags"]
+            _status(run, "review")
     except Exception as e:  # noqa: BLE001
         with LOCK:
             run["error"] = str(e)[:1000]
@@ -872,6 +976,28 @@ def delete_rule(rule_id: str):
     return {"deleted": rule_id}
 
 
+@app.post("/api/runs/{rid}/surgical")
+def surgical_run(rid: str, req: Request):
+    """Keep the part of the plan that passes the check, cut the rest out whole, and re-rehearse what's left."""
+    _rate_limit(req, per_hour=30, kind="surgical")
+    run = _get(rid)
+    with LOCK:
+        if run["status"] != "review":
+            raise HTTPException(409, f"Run is {run['status']}, not awaiting review")
+    workspaces.use(run.get("workspace", workspaces.DEMO))
+    try:
+        check, offer = _surgical_propose(run)
+    except engine_subsets.NoOffer as e:
+        raise HTTPException(409, f"No surgical approval: {e}") from None
+    with LOCK:
+        if run["status"] != "review":
+            raise HTTPException(409, f"Run is {run['status']}")
+        run["status"] = "rehearsing"
+        _save(run)
+    threading.Thread(target=_surgical_job, args=(run, offer, check), daemon=True).start()
+    return {"id": rid, "offer": offer.public()}
+
+
 @app.post("/api/runs/{rid}/recheck")
 def recheck_run(rid: str, req: Request):
     """Run the AI verifier again, live: when it couldn't finish, or to replace a reused verdict. Never changes the plan or its effects."""
@@ -1093,6 +1219,36 @@ def run_changes(rid: str, table: str = "", op: str = "", q: str = "", offset: in
                              "changed": item.get("changed", [])})
     return {"total": len(rows), "offset": offset, "limit": limit, "rows": rows[offset:offset + limit],
             "tables": sorted(effects.get("changes", {}).keys())}
+
+
+@app.get("/api/runs/{rid}/provenance")
+def run_provenance(rid: str, attempt: int = 0):
+    """Proof of Effect: which statement of the plan caused which change, proven by replay."""
+    run = _get(rid)
+    if not run["attempts"]:
+        raise HTTPException(404, "no rehearsal yet")
+    att = run["attempts"][attempt - 1] if 0 < attempt <= len(run["attempts"]) else run["attempts"][-1]
+    path = str(att.get("effects_path") or "").replace("effects.json", "provenance.json")
+    try:
+        d = json.loads(open(path).read())
+    except (OSError, ValueError):
+        raise HTTPException(404, "no provenance for this rehearsal") from None
+    d.pop("rows", None)   # the full row map stays on the server; statements and the unexplained list are what people read
+    return d
+
+
+@app.get("/api/runs/{rid}/graph")
+def run_graph(rid: str, attempt: int = 0):
+    """The Effect Graph of a rehearsal: every consequence as a node, linked into units of work."""
+    run = _get(rid)
+    if not run["attempts"]:
+        raise HTTPException(404, "no rehearsal yet")
+    att = run["attempts"][attempt - 1] if 0 < attempt <= len(run["attempts"]) else run["attempts"][-1]
+    path = str(att.get("effects_path") or "").replace("effects.json", "graph.json")
+    try:
+        return json.loads(open(path).read())
+    except (OSError, ValueError):
+        raise HTTPException(404, "no graph for this rehearsal") from None
 
 
 @app.get("/api/runs/{rid}/effects.sql")

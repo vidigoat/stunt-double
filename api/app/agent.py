@@ -453,6 +453,11 @@ def red_flags(c: dict, pol: dict | None = None) -> list[dict]:
         if r.get("violations"):
             flag("learned_rule", True, f"Breaks a learned rule: {r['title']}",
                  f"{r['violations']:,}{'+' if r.get('more') else ''} rows violate it. Learned from run {r.get('source_run', '?')}; it runs without AI.")
+    pv = c.get("provenance") or {}
+    if pv.get("status") == "unexplained":
+        flag("provenance", True, f"{pv['unexplained']:,} change{'s' if pv['unexplained'] != 1 else ''} the plan can't explain",
+             f"Replaying the {pv.get('statements', 0):,} statements the plan ran reproduces {pv.get('rows_explained', 0):,} of "
+             f"{pv.get('rows_measured', 0):,} measured changes. The rest happened some other way (a second connection, a disabled record).")
     cl = c.get("cloud") or {}
     if cl.get("production_touched") and p.get("protect_production_servers", True):
         names = ", ".join(cl["production_touched"][:4])

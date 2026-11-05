@@ -3,10 +3,12 @@
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
-import { ArrowRight, Ban, Bot, Check, CircleDashed, FlaskConical, Loader2, Lock, RotateCcw, ShieldAlert, ShieldCheck, Sparkles, Undo2, User, Users, Wrench, X, Zap } from "lucide-react";
+import { ArrowRight, Ban, Bot, Check, CircleDashed, FlaskConical, Loader2, Lock, RotateCcw, ShieldAlert, ShieldCheck, Sparkles, Undo2, User, Users, Scissors, Wrench, X, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { SurgicalCard } from "@/components/surgical-card";
+import { ProofPanel } from "@/components/proof-panel";
 import { ApprovalCard, viewFromAttempt } from "@/components/approval-card";
 import { CloudDiff, cloudChanged } from "@/components/cloud-diff";
 import { Filmstrip } from "@/components/filmstrip";
@@ -659,6 +661,23 @@ export default function AppPage() {
                 </div>
               ) : null}
 
+              {run.status === "review" && run.surgical?.offer && !attempt?.surgical_of ? (
+                <SurgicalCard offer={run.surgical.offer} check={run.surgical.check} busy={busy || running} onCut={async () => {
+                  setBusy(true);
+                  try { await api.surgical(run.id); setRun({ ...run, status: "rehearsing" }); toast.success("Re-rehearsing just the part that's right, in a fresh sandbox."); }
+                  catch (e) { toast.error((e as Error).message); } finally { setBusy(false); }
+                }} />
+              ) : null}
+              {attempt?.surgical_of && run.surgical?.offer ? (
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-xl border border-safe/30 bg-safe-soft/60 px-4 py-3 text-sm">
+                  <Scissors className="size-4 shrink-0 text-safe" />
+                  <span className="min-w-0 flex-1"><span className="font-medium">Surgical subset of attempt {attempt.surgical_of}.</span> Kept {num(run.surgical.offer.units_kept)} of {num(run.surgical.offer.units_total)} units of work, cut {num(run.surgical.offer.units_dropped)} ({usd(run.surgical.offer.dropped.money_cents)}). Re-measured in a fresh sandbox; no plan code ran again.</span>
+                </div>
+              ) : null}
+              {attempt?.consequences.provenance ? (
+                <ProofPanel runId={run.id} attempt={attempt.n} summary={attempt.consequences.provenance}
+                  highlight={!attempt.surgical_of ? (run.surgical?.offer?.caused_by ?? []).map((c) => c.i) : []} />
+              ) : null}
               {attempt?.consequences.logs?.length && view ? (() => {
                 const said = attempt.consequences.logs.at(-1) ?? "";
                 const changed = Object.values(attempt.consequences.tables).reduce((n, t) => n + t.updated + t.deleted + t.inserted, 0);

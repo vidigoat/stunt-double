@@ -8,7 +8,14 @@ export type TableChange = {
   samples: { deleted: { rowid: number; before: Record<string, unknown> }[]; inserted: { rowid: number; after: Record<string, unknown> }[];
     updated: { rowid: number; before: Record<string, unknown>; after: Record<string, unknown>; changed: string[] }[] };
 };
+export type Provenance = { status: "proven" | "unexplained" | "unavailable" | "derived"; statements?: number; writing_statements?: number;
+  rows_measured?: number; rows_explained?: number; unexplained?: number; patterns?: number; deciders?: number; claimed_but_not_measured?: number; failed_on_replay?: number; reason?: string | null };
+export type ProvenanceDetail = { summary: Provenance; statements: { i: number; rows: number; tables: Record<string, number>; sql: string }[];
+  patterns?: { shape: string; rows: number; statements: number; first: number; example: string }[]; deciders?: { i: number; rows: number; sql: string }[];
+  unexplained: { table: string; rowid: number; op: string }[]; claimed_only?: { table: string; rowid: number; op: string }[]; failed?: { i: number; error: string }[] };
+export type GraphSummary = { nodes: number; by_kind: Record<string, number>; units: number; largest_unit: number; edges: number; hubs: number; truncated: boolean };
 export type Consequences = {
+  provenance?: Provenance; graph?: GraphSummary;
   ok: boolean; error: { message: string; traceback?: string } | null; stdout?: string; logs?: string[]; duration_ms?: number;
   tables: Record<string, TableChange>; row_counts: Record<string, { before: number; after: number }>;
   payments: { count: number; total_cents: number; samples: { charge_id: number; amount_cents: number; reason: string }[] };
@@ -27,7 +34,7 @@ export type CloudServer = { id: string; label: string; plan: string; region: str
 export type CloudConsequences = { servers_before: number; servers_after: number; deleted: CloudServer[]; stopped: CloudServer[];
   resized: (CloudServer & { from_plan: string; from_cost_cents: number })[]; monthly_cost_before_cents: number; monthly_cost_after_cents: number;
   monthly_savings_cents: number; production_touched: string[]; fleet: CloudServer[]; calls: { method: string; path: string }[] };
-export type Attempt = { n: number; sandbox_id: string; code: string; summary: string; consequences: Consequences; flags: Flag[]; plan_sha256?: string; effects_sha256?: string | null; created_at?: number;
+export type Attempt = { n: number; sandbox_id: string; code: string; summary: string; consequences: Consequences; flags: Flag[]; plan_sha256?: string; effects_sha256?: string | null; created_at?: number; surgical_of?: number;
   approvals_required?: number; approval_reasons?: string[] };
 export type Approval = { approved_at: number; approver: string; approvers?: string[]; notes?: string[]; plan_sha256: string; effects_sha256: string; sandbox_id: string; warnings: string[] };
 export type RunEvent = { t: number; kind: string; title: string; detail: string };
@@ -37,8 +44,13 @@ export type Run = {
   verdict: Verdict | null; flags: Flag[]; final_message: string | null; error: string | null; agent_model: string; verifier_model: string; approval?: Approval | null; version?: number;
   rejection?: { by: string; at: number; reason: string } | null;
   promoted_rule?: string;
+  surgical?: Surgical;
   apply_result: null | { rows_written?: number; refunds?: number; refund_total_cents?: number; emails_sent?: number; emails_failed?: number; http_delivered?: number; http_failed?: number; drift_count?: number; drifted?: unknown[]; error?: string };
 };
+export type SurgicalCounts = { rows: number; refunds: number; money_cents: number; emails: number; api_calls: number };
+export type SurgicalOffer = { check_title: string; units_total: number; units_kept: number; units_dropped: number; flagged_rows: number;
+  kept: SurgicalCounts; dropped: SurgicalCounts; dropped_units: number[]; caused_by?: { i: number; rows: number; how?: "chose" | "wrote" }[] };
+export type Surgical = { offer?: SurgicalOffer; check?: { title: string; source: string }; none?: string; applied_to?: number };
 export type Workspace = { id: string; name: string; kind: "demo" | "upload" | "vultr" | "postgres"; description: string };
 export type Business = {
   name: string; workspace?: string; tables?: Record<string, number>; counts: Record<string, number>;
@@ -87,6 +99,8 @@ export const api = {
   runs: () => req<RunSummary[]>("/runs"),
   fix: (id: string, note?: string) => req<{ id: string }>(`/runs/${id}/fix`, { note }),
   recheck: (id: string) => req<{ id: string }>(`/runs/${id}/recheck`, {}),
+  provenance: (id: string, attempt = 0) => req<ProvenanceDetail>(`/runs/${id}/provenance?attempt=${attempt}`),
+  surgical: (id: string) => req<{ id: string; offer: SurgicalOffer }>(`/runs/${id}/surgical`, {}),
   promote: (id: string, by?: string) => req<{ id: string; title: string; sql: string }>(`/runs/${id}/promote`, { by }),
   approve: (id: string, approver?: string, note?: string) => req<Run>(`/runs/${id}/approve`, { approver, note: note || undefined }),
   reject: (id: string, approver?: string, reason?: string) => req<Run>(`/runs/${id}/reject`, { approver, reason: reason || undefined }),
