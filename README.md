@@ -317,17 +317,17 @@ api/app/workspaces.py      bring-your-own SQLite: validation, registry, per-run 
 api/app/main.py            FastAPI: runs, approvals, rollback, SSE stream, history, stats, policy, outbox
 mcp/server.py              MCP server (stdio + streamable HTTP)
 sdk/python/                Python SDK (StuntDouble, @sd.plan, wait_for_decision)
-web/                       landing page + console, history, policy, outbox, connect (Next.js, shadcn/ui)
+web/                       landing page, console, Mission control, history, policy, outbox, connect (Next.js)
 infra/                     compose, Caddy, Vultr provisioning, pull-deploy
 docs/                      plan, design, pitch, rubric, go-live runbook, benchmark
 ```
 
 ## Roadmap
-Building now (see [docs/VISION_10X.md](docs/VISION_10X.md)): **browser doubles** (a real Chromium in the sandbox, plus a
-vision verifier on Vultr) · **cloud doubles** (rehearse changes to your Vultr account against a double of its live
-inventory) · **dedicated throwaway Vultr VMs** per high-risk rehearsal · an **AI jury** of three Vultr models · **catch → rule**
-(AI catches become deterministic invariants) · **graduated autonomy** budgets · Mission Control · GitHub sign-in and Slack
-approvals · signed, hash-chained evidence.
+Shipped this hackathon: **browser doubles** (a real Chromium in gVisor plus a vision verifier on Vultr) · **cloud doubles**
+of a Vultr fleet · **catch → rule** (AI catches become deterministic invariants) · **graduated autonomy** budgets ·
+**Mission control**.
+Next (see [docs/VISION_10X.md](docs/VISION_10X.md)): dedicated throwaway Vultr VMs per high-risk rehearsal · an **AI jury**
+of three Vultr models · GitHub sign-in and Slack approvals · signed, hash-chained evidence.
 Later: Postgres/MySQL branches · Stripe, HubSpot, Zendesk connectors · policy packs per department.
 
 ## License
