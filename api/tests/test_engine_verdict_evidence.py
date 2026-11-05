@@ -139,3 +139,10 @@ def test_the_downloaded_evidence_of_a_real_run_verifies(fresh_business, monkeypa
     bad = copy.deepcopy(ev)
     bad["chain"]["entries"][3]["body"]["approval"]["approver"] = "Someone else"
     assert api.post("/api/evidence/verify", json=bad).json()["ok"] is False
+
+
+def test_sealed_bodies_hash_the_same_in_any_language(tmp_path):
+    b = evidence.seal([("x", {"at": 1793883894.4790456, "whole": 5.0, "tiny": 1e-05, "n": 3})], tmp_path)
+    body = b["entries"][0]["body"]
+    assert body == {"at": "1793883894.4790456", "whole": 5, "tiny": "1e-05", "n": 3}   # no floats: JavaScript would print them differently
+    assert evidence.verify(json.loads(json.dumps(b)))["ok"]

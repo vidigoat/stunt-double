@@ -35,10 +35,17 @@ def entry_hash(seq: int, kind: str, body, prev: str) -> str:
     return hashlib.sha256(canonical({"seq": seq, "kind": kind, "body": body, "prev": prev})).hexdigest()
 
 
+def _portable(text: str):
+    """Numbers every language prints the same way: an integral float becomes an int, any other float keeps its exact
+    text as a string (JavaScript prints 5.0 as 5, and 1e-05 as 0.00001, so hashing floats would not be portable)."""
+    x = float(text)
+    return int(x) if x.is_integer() and abs(x) < 2**53 else text
+
+
 def chain(steps: list[tuple[str, object]]) -> list[dict]:
     out, prev = [], GENESIS
     for seq, (kind, body) in enumerate(steps):
-        body = json.loads(canonical(body))      # exactly what a reader will parse back (int keys become strings, ...)
+        body = json.loads(canonical(body), parse_float=_portable)   # exactly what any reader parses back
         h = entry_hash(seq, kind, body, prev)
         out.append({"seq": seq, "kind": kind, "body": body, "prev": prev, "hash": h})
         prev = h

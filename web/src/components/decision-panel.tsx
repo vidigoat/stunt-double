@@ -17,7 +17,7 @@ const HEAD = {
 } as const;
 
 /** The engine's decision: six independent layers, one plain reason each, combined by fixed rules. */
-export function DecisionPanel({ decision, className }: { decision: Decision; className?: string }) {
+export function DecisionPanel({ decision, className, children }: { decision: Decision; className?: string; children?: React.ReactNode }) {
   const h = HEAD[decision.decision] ?? HEAD.review;
   return (
     <div className={cn("overflow-hidden rounded-2xl border bg-card", className)}>
@@ -41,6 +41,7 @@ export function DecisionPanel({ decision, className }: { decision: Decision; cla
           );
         })}
       </ol>
+      {children}
     </div>
   );
 }

@@ -113,6 +113,7 @@ export const api = {
   recheck: (id: string) => req<{ id: string }>(`/runs/${id}/recheck`, {}),
   provenance: (id: string, attempt = 0) => req<ProvenanceDetail>(`/runs/${id}/provenance?attempt=${attempt}`),
   surgical: (id: string) => req<{ id: string; offer: SurgicalOffer }>(`/runs/${id}/surgical`, {}),
+  previewContract: (task: string, workspace: string) => req<Contract & { ms: number }>(`/contract/preview`, { task, workspace }),
   graphUnit: (id: string, attempt: number, unit: number) => req<GraphUnit>(`/runs/${id}/graph?attempt=${attempt}&unit=${unit}`),
   strike: (id: string, index: number, reason: string, by?: string) => req<Run>(`/runs/${id}/contract/strike`, { index, reason, by }),
   promote: (id: string, by?: string) => req<{ id: string; title: string; sql: string }>(`/runs/${id}/promote`, { by }),

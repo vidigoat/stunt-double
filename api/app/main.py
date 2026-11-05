@@ -223,17 +223,17 @@ def _contract_job(run: dict) -> None:
         _contract_cross_check(run, contract, base, ws)
 
 
-def _contract_cross_check(run: dict, contract: dict, base, ws: str) -> None:
-    """A second model, from another lab, reads the same request on its own. Never delays the run."""
+def _cross_read(task: str, contract: dict, base, ws: str) -> dict | None:
+    """A second model, from another lab, reads the same request on its own. A disagreement counts only if it reproduces."""
     second = next((m for m in config.CONTRACT_MODELS if m != contract.get("model")), None)
     if not second:
-        return
-    args = (run["task"], policy.load().get("glossary") or [], base, [second], agent.client(), config.DATA_DIR)
+        return None
+    args = (task, policy.load().get("glossary") or [], base, [second], agent.client(), config.DATA_DIR)
     today = config.DEMO_TODAY if ws == workspaces.DEMO else None
     try:
         theirs = engine_contracts.compile_contract(*args, today=today)
         cc = {"model": second, **engine_contracts.cross_check(contract["promises"], theirs["promises"])}
-        if cc["status"] == "disagree":   # a disagreement counts only if it reproduces: the same model reads it once more
+        if cc["status"] == "disagree":   # the same model reads it once more
             again = engine_contracts.compile_contract(*args, today=today, fresh=True)
             cc2 = engine_contracts.cross_check(contract["promises"], again["promises"])
             if cc2["status"] == "agree":
@@ -242,6 +242,15 @@ def _contract_cross_check(run: dict, contract: dict, base, ws: str) -> None:
                 cc["second_reading"] = cc2["theirs"]
     except Exception as e:  # noqa: BLE001
         cc = {"model": second, "status": "failed", "reason": str(e)[:200]}
+    return cc
+
+
+def _contract_cross_check(run: dict, contract: dict, base, ws: str) -> None:
+    """Cross-read a run's contract. Never delays the run."""
+    cc = _cross_read(run["task"], contract, base, ws)
+    if cc is None:
+        return
+    second = cc["model"]
     with LOCK:
         if run.get("contract") is contract:
             contract["cross_check"] = cc
@@ -930,6 +939,31 @@ def create_manual_run(body: ManualIn, req: Request):
     _contract_start(run)
     threading.Thread(target=_manual_job, args=(run, body.code), daemon=True).start()
     return {"id": run["id"]}
+
+
+class PreviewIn(BaseModel):
+    task: str = Field(min_length=3, max_length=2000)
+    workspace: str = Field(default=workspaces.DEMO, max_length=40)
+
+
+@app.post("/api/contract/preview")
+def preview_contract(body: PreviewIn, req: Request):
+    """What does this request mean? The intent contract, before any plan exists, cross-read by a second model.
+    The same contract is reused when a run with this request starts."""
+    if not config.INFERENCE_KEY or not config.CONTRACT_MODELS:
+        raise HTTPException(503, "Intent contracts need Vultr Serverless Inference, which isn't configured on this server")
+    if not workspaces.exists(body.workspace):
+        raise HTTPException(404, "unknown workspace")
+    _rate_limit(req, per_hour=20, kind="contract preview")
+    base = workspaces.db_path(body.workspace)
+    t0 = time.time()
+    try:
+        c = engine_contracts.compile_contract(body.task, policy.load().get("glossary") or [], base, config.CONTRACT_MODELS, agent.client(),
+                                              config.DATA_DIR, today=config.DEMO_TODAY if body.workspace == workspaces.DEMO else None)
+    except Exception as e:  # noqa: BLE001
+        raise HTTPException(502, f"No model could write a contract for this request ({str(e)[:160]})") from None
+    c = {**c, "status": "ready", "cross_check": _cross_read(body.task, c, base, body.workspace)}
+    return {**c, "ms": int((time.time() - t0) * 1000)}
 
 
 @app.get("/api/vm/{token}/bundle")

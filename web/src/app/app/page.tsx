@@ -12,12 +12,13 @@ import { ProofPanel } from "@/components/proof-panel";
 import { ContractCard } from "@/components/contract-card";
 import { DecisionPanel } from "@/components/decision-panel";
 import { EffectGraph } from "@/components/effect-graph";
+import { EvidenceCheck } from "@/components/evidence-check";
 import { ApprovalCard, viewFromAttempt } from "@/components/approval-card";
 import { CloudDiff, cloudChanged } from "@/components/cloud-diff";
 import { Filmstrip } from "@/components/filmstrip";
 import { BlastRadius } from "@/components/blast-radius";
 import { AppHeader } from "@/components/app-header";
-import { api, num, usd, type Business, type Flag, type Health, type Run, type Workspace } from "@/lib/api";
+import { api, num, usd, type Business, type Contract, type Flag, type Health, type Run, type Workspace } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
 const SAAS_PLANS = [
@@ -168,6 +169,7 @@ export default function AppPage() {
   const [breakTask, setBreakTask] = useState(BREAK_IT[0].task);
   const touchedMode = useRef(false);
   const [run, setRun] = useState<Run | null>(null);
+  const [preview, setPreview] = useState<Contract | null>(null);
   const [busy, setBusy] = useState(false);
   const [approver, setApprover] = useState("");
   const [note, setNote] = useState("");
@@ -427,12 +429,22 @@ export default function AppPage() {
                 {health && !health.inference_configured ? (
                   <div className="rounded-lg border border-damage/30 bg-damage/[0.04] px-3 py-2 text-sm">The agent is offline: Vultr Serverless Inference isn&apos;t configured on this server yet. <button className="underline underline-offset-4" onClick={() => setMode("break")}>Break it yourself</button> still works.</div>
                 ) : null}
-                <Textarea value={task} onChange={(e) => setTask(e.target.value)} rows={3} className="resize-none text-[15px]" placeholder="What should the ops agent do?" />
+                <Textarea value={task} onChange={(e) => { setTask(e.target.value); setPreview(null); }} rows={3} className="resize-none text-[15px]" placeholder="What should the ops agent do?" />
                 <div className="flex flex-wrap gap-1.5">
                   {EXAMPLES.map((ex) => (
-                    <button key={ex} onClick={() => setTask(ex)} className={cn("max-w-full truncate rounded-full border px-2.5 py-1 text-xs text-muted-foreground hover:text-foreground", task === ex && "border-foreground text-foreground")}>{ex}</button>
+                    <button key={ex} onClick={() => { setTask(ex); setPreview(null); }} className={cn("max-w-full truncate rounded-full border px-2.5 py-1 text-xs text-muted-foreground hover:text-foreground", task === ex && "border-foreground text-foreground")}>{ex}</button>
                   ))}
                 </div>
+                {health?.inference_configured ? (
+                  <button disabled={task.trim().length < 3 || preview?.status === "writing"} onClick={async () => {
+                    if (run && !running) setRun(null);
+                    setPreview({ status: "writing" });
+                    try { setPreview(await api.previewContract(task.trim(), ws)); }
+                    catch (e) { setPreview(null); toast.error((e as Error).message); }
+                  }} className="inline-flex items-center gap-1.5 text-sm font-medium text-signal hover:underline disabled:opacity-50">
+                    <FileSignature className="size-3.5" /> What does this mean? See the contract before any plan
+                  </button>
+                ) : null}
               </TabsContent>
               <TabsContent value="break" className="space-y-3 pt-3">
                 <p className="text-sm text-muted-foreground">Paste any plan, even a malicious one. It only ever runs on the double. Or try a correct one and approve it.</p>
@@ -494,6 +506,7 @@ export default function AppPage() {
 
         {/* RIGHT: consequences */}
         <div className="min-w-0 space-y-5">
+          {!run && preview ? <ContractCard contract={preview} /> : null}
           {!run ? (
             <div className="grain backdrop-blue rounded-[22px] p-6 sm:p-8 [&>*]:relative [&>*]:z-[2]">
               <FlaskConical className="size-7 text-signal" />
@@ -604,7 +617,7 @@ export default function AppPage() {
                   }}><RotateCcw className="size-3.5" /> Re-check live</Button>
                 </div>
               ) : null}
-              {run.decision && !ACTIVE.has(run.status) ? <DecisionPanel decision={run.decision} /> : null}
+              {run.decision && !ACTIVE.has(run.status) ? <DecisionPanel decision={run.decision}><EvidenceCheck runId={run.id} /></DecisionPanel> : null}
               <ApprovalCard view={view} label={run.status === "applied" ? "Applied" : run.status === "rejected" ? "Rejected" : run.status === "drifted" ? "Drift detected" : run.status === "failed" ? "Failed" : critical ? "Blocked by policy" : "Approval required"}
                 applied={run.status === "applied" && run.apply_result ? appliedSentence(run) : undefined}>
                 {run.status === "review" ? (

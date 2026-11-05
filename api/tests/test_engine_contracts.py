@@ -307,3 +307,18 @@ def test_a_disagreement_that_does_not_reproduce_is_noise(fresh_business, monkeyp
         run = api.get(f"/api/runs/{rid}").json()
     assert run["contract"]["cross_check"] == {"model": "b", "status": "agree", "ours": 104, "theirs": 104, "first_reading": 58}
     assert run["decision"]["decision"] == "approve"
+
+
+def test_what_does_this_mean_shows_the_contract_before_any_plan_and_the_run_reuses_it(fresh_business, monkeypatch):
+    a, b = FakeModel([WORK, GUARD]), FakeModel([WORK, GUARD])
+    client = SimpleNamespace(chat=SimpleNamespace(completions=SimpleNamespace(create=lambda **kw: (a if kw["model"] == "a" else b).create(**kw))))
+    monkeypatch.setattr(config, "INFERENCE_KEY", "set")
+    monkeypatch.setattr(config, "CONTRACT_MODELS", ["a", "b"])
+    monkeypatch.setattr(main.agent, "client", lambda: client)
+    api = TestClient(main.app)
+    r = api.post("/api/contract/preview", json={"task": PLANS["bad"]["task"]}).json()
+    assert [(p["kind"], p["today"]) for p in r["promises"]] == [("obligation", 104), ("guard", 0)]
+    assert r["cross_check"] == {"model": "b", "status": "agree", "ours": 104, "theirs": 104}
+    calls = (a.calls, b.calls)
+    again = api.post("/api/contract/preview", json={"task": PLANS["bad"]["task"]}).json()
+    assert again["cached"] and (a.calls, b.calls) == calls                       # asked once, remembered
