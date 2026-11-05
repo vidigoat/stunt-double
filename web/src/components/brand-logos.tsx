@@ -1,5 +1,5 @@
 import {
-  siAnthropic, siClaude, siCursor, siDocker, siFastapi, siGithub, siModelcontextprotocol, siNextdotjs, siPython, siSlack, siSqlite, siVultr,
+  siAnthropic, siClaude, siCursor, siDocker, siFastapi, siGithub, siModelcontextprotocol, siNextdotjs, siPostgresql, siPython, siSlack, siSqlite, siVultr,
   type SimpleIcon,
 } from "simple-icons";
 import { cn } from "@/lib/utils";
@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils";
 /** Official brand marks from Simple Icons (CC0 paths; trademarks belong to their owners). */
 export const LOGOS = {
   vultr: siVultr, slack: siSlack, python: siPython, claude: siClaude, anthropic: siAnthropic, cursor: siCursor,
-  sqlite: siSqlite, docker: siDocker, nextjs: siNextdotjs, mcp: siModelcontextprotocol, github: siGithub, fastapi: siFastapi,
+  sqlite: siSqlite, postgres: siPostgresql, docker: siDocker, nextjs: siNextdotjs, mcp: siModelcontextprotocol, github: siGithub, fastapi: siFastapi,
 } satisfies Record<string, SimpleIcon>;
 export type LogoName = keyof typeof LOGOS;
 
@@ -26,7 +26,7 @@ export function BrandLogo({ name, className, tone = "mono", title }: { name: Log
 const STRIP: { name: LogoName; label: string }[] = [
   { name: "vultr", label: "Vultr" }, { name: "claude", label: "Claude Code" }, { name: "cursor", label: "Cursor" },
   { name: "mcp", label: "MCP" }, { name: "python", label: "Python" }, { name: "slack", label: "Slack" },
-  { name: "sqlite", label: "SQLite" }, { name: "docker", label: "Docker" },
+  { name: "postgres", label: "PostgreSQL" }, { name: "sqlite", label: "SQLite" }, { name: "docker", label: "Docker" },
 ];
 
 /** "Works with" row: monochrome by default, each logo lights up in its brand color on hover. */
