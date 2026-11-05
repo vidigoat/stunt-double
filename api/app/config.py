@@ -40,3 +40,10 @@ DAILY_VERIFICATIONS = int(os.environ.get("SD_DAILY_VERIFICATIONS", "400"))  # AI
 MAILPIT_API = os.environ.get("SD_MAILPIT_API", "")
 # Public site URL, used in links sent to humans (notifications). Empty = run ids only.
 PUBLIC_URL = os.environ.get("SD_PUBLIC_URL", "")
+
+# Dedicated Vultr VM isolation (opt-in per rehearsal). The key never enters a sandbox or a rehearsal VM.
+VULTR_API_KEY = os.environ.get("SD_VULTR_API_KEY", "")
+VM_PLAN = os.environ.get("SD_VM_PLAN", "vc2-1c-1gb")
+VM_REGION = os.environ.get("SD_VM_REGION", "sjc")
+VM_DAILY_LIMIT = int(os.environ.get("SD_VM_DAILY_LIMIT", "20"))
+VM_SPEND_CEILING_USD = float(os.environ.get("SD_VM_SPEND_CEILING_USD", "30"))

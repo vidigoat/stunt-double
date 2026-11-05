@@ -5,6 +5,14 @@
 set -euo pipefail
 STATE=/opt/stunt-double/deployed
 cd /opt/stunt-double/src
+# A secret added after provisioning (the Vultr API key for dedicated rehearsal VMs) arrives through this instance's own
+# metadata user-data, which only this machine can read. It goes into the server's .env, never into git or a sandbox.
+ENVF=/opt/stunt-double/src/infra/.env
+if [ -f "$ENVF" ] && ! grep -q '^SD_VULTR_API_KEY=' "$ENVF"; then
+  KEYLINE=$( (curl -fs -m 3 http://169.254.169.254/latest/user-data || curl -fs -m 3 http://169.254.169.254/user-data) 2>/dev/null \
+    | grep -E '^SD_VULTR_API_KEY=[A-Za-z0-9]{20,64}$' | head -1 || true)
+  if [ -n "$KEYLINE" ]; then echo "$KEYLINE" >> "$ENVF"; chmod 600 "$ENVF"; rm -f "$STATE"; echo "added SD_VULTR_API_KEY from metadata"; fi
+fi
 git fetch -q origin main
 TARGET=$(git rev-parse origin/main)
 DEPLOYED=$(cat "$STATE" 2>/dev/null || git rev-parse HEAD)

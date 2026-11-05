@@ -1,7 +1,7 @@
 export type Severity = "critical" | "high" | "medium" | "low";
 export type Flag = { severity: Severity; title: string; detail: string; rule?: string };
 export type Concern = { severity: "high" | "medium" | "low"; title: string; detail: string; affected_count?: number };
-export type Verdict = { verdict: "looks_right" | "concerns" | "dangerous"; headline: string; summary: string; concerns: Concern[]; fix_instructions?: string; rule?: { title: string; sql: string } };
+export type Verdict = { verdict: "looks_right" | "concerns" | "dangerous"; headline: string; summary: string; concerns: Concern[]; fix_instructions?: string; rule?: { title: string; sql: string }; cached?: { at: number; ms: number } };
 export type TableChange = {
   dropped: boolean; schema_changed?: boolean; deleted: number; inserted: number; updated: number; rows_before: number; rows_after: number; changed_columns: string[];
   samples: { deleted: { rowid: number; before: Record<string, unknown> }[]; inserted: { rowid: number; after: Record<string, unknown> }[];
@@ -48,7 +48,7 @@ export type RunSummary = {
   id: string; task: string; mode: "agent" | "manual" | "rollback"; status: RunStatus; approvals?: { name: string; at: number }[]; rollback_of?: string; rolled_back_by?: string; rollback_run?: string; created_at: number; attempts: number; verdict: Verdict["verdict"] | null;
   money_cents: number; emails: number; rows: number; blocked: boolean; plan_sha256: string | null; approval: Approval | null; apply_result: Run["apply_result"];
 };
-export type Health = { ok: boolean; inference_configured: boolean; sandbox_ready?: boolean; sandbox_status?: string; agent_model: string; verifier_model: string; sandbox_runtime: string; docker: string | null };
+export type Health = { ok: boolean; inference_configured: boolean; sandbox_ready?: boolean; sandbox_status?: string; agent_model: string; verifier_model: string; sandbox_runtime: string; docker: string | null; vm_isolation?: boolean; vm_plan?: string | null };
 
 async function req<T>(path: string, body?: unknown): Promise<T> {
   const res = await fetch(`/api${path}`, {
@@ -66,7 +66,8 @@ export const api = {
   health: () => req<Health>("/health"),
   business: (ws = "demo") => req<Business>(`/business?ws=${encodeURIComponent(ws)}`),
   createRun: (task: string, workspace = "demo") => req<{ id: string }>("/runs", { task, workspace }),
-  createManualRun: (task: string, code: string, workspace = "demo") => req<{ id: string }>("/runs/manual", { task, code, workspace }),
+  createManualRun: (task: string, code: string, workspace = "demo", isolation: "container" | "vultr_vm" = "container") =>
+    req<{ id: string }>("/runs/manual", { task, code, workspace, isolation }),
   workspaces: () => req<{ workspaces: Workspace[] }>("/workspaces"),
   uploadWorkspace: async (name: string, file: File) => {
     const res = await fetch(`/api/workspaces?name=${encodeURIComponent(name)}`, { method: "POST", body: file, headers: { "Content-Type": "application/octet-stream" } });

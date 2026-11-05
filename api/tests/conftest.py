@@ -50,4 +50,5 @@ def reset_rate_limits():
     """Each test is a fresh 'visitor' for the per-IP rate limiter."""
     from app import main
     main.RATE.clear()
+    main.VERDICT_CACHE.unlink(missing_ok=True)  # a verdict from one test must never be reused by another
     yield

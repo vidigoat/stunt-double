@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
-import { ArrowRight, Ban, Bot, Check, CircleDashed, FlaskConical, Loader2, Lock, RotateCcw, ShieldAlert, ShieldCheck, Sparkles, Undo2, User, Users, Wrench, X } from "lucide-react";
+import { ArrowRight, Ban, Bot, Check, CircleDashed, FlaskConical, Loader2, Lock, RotateCcw, ShieldAlert, ShieldCheck, Sparkles, Undo2, User, Users, Wrench, X, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -131,6 +131,7 @@ export default function AppPage() {
   const [task, setTask] = useState(EXAMPLES[0]);
   const [mode, setMode] = useState<"agent" | "break">("agent");
   const [code, setCode] = useState(BREAK_IT[0].code);
+  const [ownVm, setOwnVm] = useState(false);
   const [breakTask, setBreakTask] = useState(BREAK_IT[0].task);
   const touchedMode = useRef(false);
   const [run, setRun] = useState<Run | null>(null);
@@ -219,7 +220,7 @@ export default function AppPage() {
     const m = o?.mode ?? mode, t = o ? o.task : m === "agent" ? task : breakTask, c = o?.code ?? code;
     setBusy(true);
     try {
-      const { id } = m === "agent" ? await api.createRun(t, ws) : await api.createManualRun(t, c, ws);
+      const { id } = m === "agent" ? await api.createRun(t, ws) : await api.createManualRun(t, c, ws, ownVm && !o && !/\.browser\./.test(c) ? "vultr_vm" : "container");
       setRun({ id, task: t, mode: m === "agent" ? "agent" : "manual", status: "queued", created_at: Date.now() / 1000,
         events: [], attempts: [], verdict: null, flags: [], final_message: null, error: null, agent_model: "", verifier_model: "", apply_result: null });
     } catch (e) {
@@ -362,6 +363,12 @@ export default function AppPage() {
                   <input value={breakTask} onChange={(e) => setBreakTask(e.target.value)} maxLength={300} className="mt-1 h-9 w-full rounded-lg border bg-background px-3 text-sm text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring/50" />
                 </label>
                 <Textarea value={code} onChange={(e) => setCode(e.target.value)} rows={9} spellCheck={false} wrap="off" className="max-h-60 resize-none overflow-auto font-mono text-[12.5px] [field-sizing:fixed]" />
+                {health?.vm_isolation ? (
+                  <label className="flex cursor-pointer items-start gap-2.5 rounded-xl border p-3 text-sm has-[:checked]:border-signal has-[:checked]:bg-signal-soft">
+                    <input type="checkbox" checked={ownVm} onChange={(e) => setOwnVm(e.target.checked)} className="mt-0.5 size-4 accent-[var(--signal)]" />
+                    <span><span className="font-medium">Run on its own Vultr VM</span> <span className="text-muted-foreground">· a brand-new {health.vm_plan ?? "Cloud Compute"} instance is created for this one rehearsal and destroyed after. About 2 minutes. Not for browser plans.</span></span>
+                  </label>
+                ) : null}
               </TabsContent>
             </Tabs>
             <Button className="mt-4 h-11 w-full rounded-full text-[15px]" onClick={() => start()} disabled={busy || running || (mode === "agent" ? task.trim().length < 3 || health?.inference_configured === false : code.trim().length < 10)}>
@@ -478,6 +485,16 @@ export default function AppPage() {
 
               {attempt && attempt.consequences.browser?.steps?.length ? (
                 <Filmstrip runId={run.id} attempt={attempt.n} steps={attempt.consequences.browser.steps} verdict={run.verdict?.headline} />
+              ) : null}
+              {run.verdict?.cached && run.status === "review" ? (
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-xl border border-signal/30 bg-signal-soft px-4 py-3 text-sm">
+                  <Zap className="size-4 shrink-0 text-signal" />
+                  <span className="min-w-0 flex-1">Instant verdict: the same request, measured effects and data were checked live by the AI at {new Date(run.verdict.cached.at * 1000).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}, which took {Math.round(run.verdict.cached.ms / 1000)} s.</span>
+                  <Button variant="outline" className="h-8 rounded-full bg-background px-3" disabled={busy} onClick={async () => {
+                    setBusy(true);
+                    try { await api.recheck(run.id); setRun({ ...run, status: "verifying", verdict: null }); } catch (e) { toast.error((e as Error).message); } finally { setBusy(false); }
+                  }}><RotateCcw className="size-3.5" /> Re-check live</Button>
+                </div>
               ) : null}
               <ApprovalCard view={view} label={run.status === "applied" ? "Applied" : run.status === "rejected" ? "Rejected" : run.status === "drifted" ? "Drift detected" : run.status === "failed" ? "Failed" : critical ? "Blocked by policy" : "Approval required"}
                 applied={run.status === "applied" && run.apply_result ? appliedSentence(run) : undefined}>

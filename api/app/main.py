@@ -9,13 +9,14 @@ import threading
 import time
 import uuid
 from collections import defaultdict
+from typing import Literal
 
 from fastapi import FastAPI, HTTPException, Request
-from fastapi.responses import StreamingResponse
+from fastapi.responses import Response, StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
-from . import agent, archive, beanpay, config, connectors, policy, rollback, rules, sandbox, seed, workspaces
+from . import agent, archive, beanpay, config, connectors, policy, rollback, rules, sandbox, seed, vultr_vm, workspaces
 from . import apply as applier
 
 app = FastAPI(
@@ -81,6 +82,17 @@ except OSError:
     pass
 
 
+def _vm_reaper() -> None:
+    """Every two minutes, destroy any rehearsal VM older than ten minutes (a lost result must never leave one billing)."""
+    while True:
+        if vultr_vm.configured():
+            vultr_vm.reap()
+        time.sleep(120)
+
+
+threading.Thread(target=_vm_reaper, daemon=True).start()
+
+
 # ---- helpers ---------------------------------------------------------------------------------------
 def _new_run(task: str, mode: str, workspace: str = workspaces.DEMO) -> dict:
     rid = "run_" + uuid.uuid4().hex[:10]
@@ -108,8 +120,11 @@ def _status(run: dict, status: str) -> None:
 def _rehearse(run: dict, code: str, summary: str) -> dict:
     _status(run, "rehearsing")
     _emit(run, "sandbox", "Dispatching plan to an isolated sandbox", summary)
+    iso = run.get("isolation", "container")
+    if iso == "vultr_vm":
+        _emit(run, "sandbox", "Creating a dedicated Vultr VM for this rehearsal", "Phase 1 runs on its own Cloud Compute instance; phase 2 measures it here in gVisor")
     with SANDBOX_SLOTS:
-        res = sandbox.rehearse(code)
+        res = sandbox.rehearse(code, iso, emit=lambda t: _emit(run, "sandbox", t))
     c = res["consequences"]
     effects = open(res["effects_path"], "rb").read() if c.get("ok") else b""
     attempt = {"n": len(run["attempts"]) + 1, "sandbox_id": res["id"], "code": code, "summary": summary,
@@ -165,14 +180,67 @@ def _notify_review(run: dict) -> None:
     _emit(run, "system", f"Notified {result.get('label', name)} that a decision is needed" if result.get("ok") else "Notification failed", text if result.get("ok") else str(result.get("error")))
 
 
+VERDICT_CACHE = config.DATA_DIR / "verdict-cache.json"
+UNFINISHED = {"Verifier could not finish", "Automatic review unavailable"}
+
+
+def _verdict_key(run: dict, att: dict) -> str | None:
+    """Same request, same measured effects, same data, same policy and model: the AI would be judging identical facts.
+    Only then may an earlier live verdict be shown again (labelled, with a one-click live re-check)."""
+    if not att.get("effects_sha256"):
+        return None
+    try:
+        con = sqlite3.connect(f"file:{workspaces.db_path(run.get('workspace'))}?mode=ro", uri=True)
+        h = hashlib.sha256()
+        for line in con.iterdump():
+            h.update(line.encode())
+        con.close()
+    except sqlite3.Error:
+        return None
+    facts = [run["task"].strip(), att["effects_sha256"], h.hexdigest(), json.dumps(policy.load(), sort_keys=True), config.VERIFIER_MODEL]
+    return hashlib.sha256(json.dumps(facts).encode()).hexdigest()
+
+
+def _cache_get(key: str | None) -> dict | None:
+    if not key:
+        return None
+    try:
+        return json.loads(VERDICT_CACHE.read_text()).get(key)
+    except (OSError, ValueError):
+        return None
+
+
+def _cache_put(key: str | None, verdict: dict, ms: int) -> None:
+    if not key or verdict.get("headline") in UNFINISHED:
+        return
+    with LOCK:
+        try:
+            cache = json.loads(VERDICT_CACHE.read_text())
+        except (OSError, ValueError):
+            cache = {}
+        cache[key] = {"verdict": verdict, "at": time.time(), "ms": ms}
+        cache = dict(sorted(cache.items(), key=lambda kv: kv[1]["at"])[-200:])
+        VERDICT_CACHE.write_text(json.dumps(cache))
+
+
 def _verify(run: dict) -> None:
     att = run["attempts"][-1]
     _status(run, "verifying")
     _emit(run, "verify", "Stunt Double is checking the consequences against your request")
-    try:
-        verdict = agent.verify(run["task"], att["code"], att["consequences"], lambda k, t, d=None: _emit(run, k, t, d))
-    except Exception as e:  # noqa: BLE001
-        verdict = {"verdict": "concerns", "headline": "Automatic review unavailable", "summary": str(e)[:300], "concerns": []}
+    key = _verdict_key(run, att)
+    hit = None if run.pop("force_live", False) else _cache_get(key)
+    if hit:
+        verdict = json.loads(json.dumps(hit["verdict"]))
+        verdict["cached"] = {"at": hit["at"], "ms": hit["ms"]}
+        _emit(run, "verify", "Same request, same measured effects, same data as an earlier live check: showing its verdict",
+              f"Live check at {time.strftime('%H:%M UTC', time.gmtime(hit['at']))} took {hit['ms'] / 1000:.0f} s. Use 'Re-check live' to run the AI again.")
+    else:
+        t0 = time.time()
+        try:
+            verdict = agent.verify(run["task"], att["code"], att["consequences"], lambda k, t, d=None: _emit(run, k, t, d))
+        except Exception as e:  # noqa: BLE001
+            verdict = {"verdict": "concerns", "headline": "Automatic review unavailable", "summary": str(e)[:300], "concerns": []}
+        _cache_put(key, verdict, int((time.time() - t0) * 1000))
     rule = verdict.get("rule") if isinstance(verdict.get("rule"), dict) else None
     if rule:  # only offer a rule a human can actually learn: one read-only SELECT that passes today's data
         try:
@@ -319,6 +387,7 @@ class TaskIn(BaseModel):
 
 class ManualIn(TaskIn):
     code: str = Field(min_length=10, max_length=20000)
+    isolation: Literal["container", "vultr_vm"] = "container"
 
 
 class ApproveIn(BaseModel):
@@ -360,6 +429,7 @@ def health():
             "agent_runs_daily_limit": config.DAILY_AGENT_RUNS,
             "ai_checks_today": VERIFY_DAY["count"] if VERIFY_DAY["day"] == time.strftime("%Y-%m-%d", time.gmtime()) else 0,
             "ai_checks_daily_limit": config.DAILY_VERIFICATIONS, "sandbox_runtime": config.SANDBOX_RUNTIME or "runc",
+            "vm_isolation": vultr_vm.configured(), "vm_plan": config.VM_PLAN if vultr_vm.configured() else None,
             "docker": docker.stdout.strip() or None, "sandbox_ready": ready, "sandbox_status": why,
             "evidence_archive": f"vultr-object-storage:{archive.BUCKET}" if archive.enabled() else None}
 
@@ -458,9 +528,36 @@ def create_manual_run(body: ManualIn, req: Request):
     _rate_limit(req)
     if not workspaces.exists(body.workspace):
         raise HTTPException(404, "unknown workspace")
+    if body.isolation == "vultr_vm":
+        if not vultr_vm.configured():
+            raise HTTPException(400, "Dedicated Vultr VMs are not configured on this server")
+        if sandbox.uses_browser(body.code):
+            raise HTTPException(400, "Browser rehearsals run in the gVisor browser sandbox, not on a dedicated VM")
+        _rate_limit(req, per_hour=6, kind="dedicated VM")
     run = _new_run(body.task, "manual", body.workspace)
+    if body.isolation == "vultr_vm":
+        run["isolation"] = "vultr_vm"
     threading.Thread(target=_manual_job, args=(run, body.code), daemon=True).start()
     return {"id": run["id"]}
+
+
+@app.get("/api/vm/{token}/bundle")
+def vm_bundle(token: str):
+    """Called once by a rehearsal VM to fetch its plan, database copy and harness (one-time token)."""
+    data = vultr_vm.take_bundle(token)
+    if data is None:
+        raise HTTPException(404, "unknown or used token")
+    return Response(data, media_type="application/gzip")
+
+
+@app.post("/api/vm/{token}/result")
+async def vm_result(token: str, req: Request):
+    """Called once by a rehearsal VM to return the modified database copy and the plan's recorded intents."""
+    if int(req.headers.get("content-length") or 0) > vultr_vm.MAX_RESULT_BYTES:
+        raise HTTPException(413, "result too large")
+    if not vultr_vm.put_result(token, await req.body()):
+        raise HTTPException(404, "unknown or used token")
+    return {"ok": True}
 
 
 def _summary(r: dict) -> dict:
@@ -474,7 +571,7 @@ def _summary(r: dict) -> dict:
             "plan_sha256": (a or {}).get("plan_sha256"), "approval": r.get("approval"), "apply_result": r.get("apply_result"),
             "headline": (r.get("verdict") or {}).get("headline"),
             "top_flag": next((f["title"] for f in (a or {}).get("flags", []) if f["severity"] == "critical"), None),
-            "sandbox": {k: (c.get("sandbox") or {}).get(k) for k in ("id", "runtime", "wall_ms", "profile")} if a else None,
+            "sandbox": {k: (c.get("sandbox") or {}).get(k) for k in ("id", "runtime", "wall_ms", "profile", "isolation")} if a else None,
             "kind": _kind(c) if a else None}
 
 
@@ -646,12 +743,13 @@ def delete_rule(rule_id: str):
 
 @app.post("/api/runs/{rid}/recheck")
 def recheck_run(rid: str, req: Request):
-    """Run the AI verifier again when it couldn't finish (it never changes the plan or its effects)."""
+    """Run the AI verifier again, live: when it couldn't finish, or to replace a reused verdict. Never changes the plan or its effects."""
     _rate_limit(req, per_hour=30, kind="re-check")
     run = _get(rid)
     with LOCK:
-        if run["status"] != "review" or (run.get("verdict") or {}).get("headline") != "Verifier could not finish":
-            raise HTTPException(409, "Only a run whose verifier couldn't finish can be checked again")
+        v = run.get("verdict") or {}
+        if run["status"] != "review" or not (v.get("headline") == "Verifier could not finish" or v.get("cached")):
+            raise HTTPException(409, "Only a run whose verifier couldn't finish, or that shows an earlier verdict, can be checked again")
     if not _verify_budget():
         raise HTTPException(429, "Today's AI-check budget for this public demo is used up")
     with LOCK:
@@ -659,6 +757,7 @@ def recheck_run(rid: str, req: Request):
             raise HTTPException(409, f"Run is {run['status']}")
         run["status"] = "verifying"
         run["verdict"] = None
+        run["force_live"] = True
         _save(run)
     threading.Thread(target=_verify, args=(run,), daemon=True).start()
     return {"id": rid}

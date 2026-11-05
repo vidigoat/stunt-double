@@ -106,8 +106,9 @@ def _copy_shots(src: Path, dst: Path) -> int:
     return n
 
 
-def rehearse(plan_code: str) -> dict:
-    """Phase 1 runs the plan on a clone; phase 2 (a fresh container, trusted code only) measures what it did."""
+def rehearse(plan_code: str, isolation: str = "container", emit=None) -> dict:
+    """Phase 1 runs the plan on a clone; phase 2 (a fresh container, trusted code only) measures what it did.
+    isolation="vultr_vm": phase 1 runs on a brand-new Vultr VM created for this rehearsal only (see vultr_vm.py)."""
     rid = "sd-" + uuid.uuid4().hex[:8]
     root = config.RUNS_DIR / rid
     work, inp, out = root / "work", root / "in", root / "out"
@@ -124,7 +125,15 @@ def rehearse(plan_code: str) -> dict:
 
     t0 = time.time()
     browser = uses_browser(plan_code)
-    code1, err1, killed = _docker(rid, f"-v {host / 'work'}:/work", "run", browser=browser)
+    vm = None
+    if isolation == "vultr_vm" and not browser:
+        from . import vultr_vm
+        try:
+            code1, err1, killed, vm = vultr_vm.run_phase1(rid, work, emit or (lambda s: None))
+        except Exception as e:  # noqa: BLE001 - any VM failure fails the rehearsal closed
+            code1, err1, killed = -1, "", f"dedicated Vultr VM unavailable: {e}"
+    else:
+        code1, err1, killed = _docker(rid, f"-v {host / 'work'}:/work", "run", browser=browser)
     run_ms = int((time.time() - t0) * 1000)
     # Hand phase 1's outputs to phase 2 as plain files (never symlinks), then throw phase 1's directory away.
     have_after = _copy_regular_file(work / "work.db", inp / "after.db")
@@ -160,6 +169,7 @@ def rehearse(plan_code: str) -> dict:
         "timeout_s": config.SANDBOX_TIMEOUT_S, "read_only_root": True, "exit_code": code1, "killed": killed,
         "run_ms": run_ms, "wall_ms": wall_ms, "destroyed": True, "measured_separately": True,
         **({"profile": "browser", "memory": config.BROWSER_MEMORY, "timeout_s": config.BROWSER_TIMEOUT_S, "screenshots": shots} if browser else {}),
+        **({"isolation": "vultr_vm", "vm": vm} if isolation == "vultr_vm" and not browser else {}),
     }
     # The clones are destroyed; only the measured outputs are kept for the approval and the audit trail.
     for f in ("before.db", "after.db"):
