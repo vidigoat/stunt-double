@@ -35,6 +35,7 @@ DEFAULTS: dict = {
         {"term": "double-charged", "definition": "A customer was double-charged when two successful charges exist for the SAME order_id. "
                                                  "Two separate orders for the same item on the same day are NOT a double charge."},
         {"term": "refund for a double charge", "definition": "Refund only the extra charge(s) of that order, never the first one, and only charges with status 'succeeded'."},
+        {"term": "last week", "definition": "The previous calendar week, Monday 00:00 to Sunday 23:59, by the date the charge or order was created."},
         {"term": "VIP", "definition": "customers.vip = 1."},
         {"term": "marketing email", "definition": "Any email with a promotion, discount or code. Customers with marketing_opt_in = 0 must never receive one. "
                                                   "Refund and order notices are transactional and always allowed."},

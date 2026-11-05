@@ -3,12 +3,13 @@
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
-import { ArrowRight, Ban, Bot, Check, CircleDashed, FlaskConical, Loader2, Lock, RotateCcw, ShieldAlert, ShieldCheck, Sparkles, Undo2, User, Users, Scissors, Wrench, X, Zap } from "lucide-react";
+import { ArrowRight, Ban, Bot, Check, CircleDashed, FileSignature, FlaskConical, Loader2, Lock, RotateCcw, ShieldAlert, ShieldCheck, Sparkles, Undo2, User, Users, Scissors, Wrench, X, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { SurgicalCard } from "@/components/surgical-card";
 import { ProofPanel } from "@/components/proof-panel";
+import { ContractCard } from "@/components/contract-card";
 import { ApprovalCard, viewFromAttempt } from "@/components/approval-card";
 import { CloudDiff, cloudChanged } from "@/components/cloud-diff";
 import { Filmstrip } from "@/components/filmstrip";
@@ -144,6 +145,7 @@ function EventIcon({ kind }: { kind: string }) {
   if (kind === "agent") return <Bot className={c} />;
   if (kind === "sandbox") return <FlaskConical className={c} />;
   if (kind === "verify") return <ShieldCheck className={c} />;
+  if (kind === "contract") return <FileSignature className={c} />;
   if (kind === "human") return <User className={c} />;
   if (kind === "applied") return <Check className={c} />;
   if (kind === "drift" || kind === "error") return <ShieldAlert className={cn(c, "text-damage")} />;
@@ -661,6 +663,9 @@ export default function AppPage() {
                 </div>
               ) : null}
 
+              {run.contract && (run.contract.status === "ready" || ACTIVE.has(run.status)) ? (
+                <ContractCard contract={run.contract} result={attempt?.consequences.contract} />
+              ) : null}
               {run.status === "review" && run.surgical?.offer && !attempt?.surgical_of ? (
                 <SurgicalCard offer={run.surgical.offer} check={run.surgical.check} busy={busy || running} onCut={async () => {
                   setBusy(true);

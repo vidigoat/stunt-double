@@ -42,8 +42,10 @@ your plan on a throwaway copy of the business and shows the human the consequenc
 {CTX_DOC}
 
 Work like this: inspect the schema, look at the relevant data with run_query, then call submit_plan.
-You will get the rehearsal results back. If the plan crashed, fix it and submit again. When the rehearsal ran
-cleanly, reply with a short final message describing what the plan does. Today's date is 2026-11-03;
+You will get the rehearsal results back. If the plan crashed, fix it and submit again. The results may include
+an intent_contract: promises written from the request alone, before your plan existed. If one is "broken" or
+"unmet", your plan misread the request: fix it and submit again. When the rehearsal ran cleanly, reply with a
+short final message describing what the plan does. Today's date is 2026-11-03;
 "last week" means 2026-10-26 through 2026-11-01."""
 
 VERIFIER_SYSTEM = """You are Stunt Double's verifier. An AI operations agent wrote a plan for a human's request.
@@ -55,6 +57,8 @@ whether the affected rows really satisfy the human's intent. For example, if ref
 charges", check whether each refunded charge really shares an order with another charge. Look for over-reach
 (too many rows), under-reach, wrong people, wrong amounts, destructive changes nobody asked for, and anything a
 customer would find embarrassing in the emails. Be concrete: give counts and examples.
+If the consequences include an intent_contract, it was written from the request alone before the plan existed and
+checked by code with no AI: treat a "broken" promise as strong evidence, but still investigate before you judge.
 
 Finish by calling the verdict tool exactly once."""
 
@@ -145,6 +149,8 @@ def compact_consequences(c: dict) -> dict:
         "blocked_side_effects": c.get("blocked", []),
         "plan_log": c.get("logs", [])[-20:], "stdout_tail": (c.get("stdout") or "")[-800:],
         **({"browser_steps": c["browser"]["steps"]} if (c.get("browser") or {}).get("steps") else {}),
+        **({"intent_contract": [{"promise": p["text"], "kind": p["kind"], "status": p["status"], "rows_today": p["today"], "rows_after": p.get("after")}
+                                for p in c["contract"]["promises"]]} if (c.get("contract") or {}).get("promises") else {}),
         **({"vultr_fleet_changes": {k: (c["cloud"].get(k) if k not in ("deleted", "stopped", "resized") else
                                         [{f: x.get(f) for f in ("label", "tags", "purpose", "cpu_avg_7d", "requests_7d", "monthly_cost_cents")} for x in c["cloud"].get(k, [])])
                                     for k in ("deleted", "stopped", "resized", "monthly_savings_cents", "production_touched", "servers_before", "servers_after")}}

@@ -18,7 +18,7 @@ from pydantic import BaseModel, Field
 
 from . import agent, archive, beanpay, config, connectors, policy, rollback, pg_import, rules, sandbox, seed, sql_export, vultr_import, vultr_vm, workspaces
 from . import apply as applier
-from .engine import graph as engine_graph, subsets as engine_subsets
+from .engine import contracts as engine_contracts, graph as engine_graph, subsets as engine_subsets
 
 app = FastAPI(
     title="Stunt Double API",
@@ -132,6 +132,7 @@ def _rehearse(run: dict, code: str, summary: str) -> dict:
 def _add_attempt(run: dict, res: dict, code: str, summary: str, **extra) -> dict:
     """Turn a measured result (a rehearsed plan, or a surgical subset) into the run's next attempt."""
     c = res["consequences"]
+    _contract_check(run, c, res.get("effects_path"))
     effects = open(res["effects_path"], "rb").read() if c.get("ok") else b""
     attempt = {"n": len(run["attempts"]) + 1, "sandbox_id": res["id"], "code": code, "summary": summary,
                "consequences": c, "flags": _gate_flags(c, run), "effects_path": res["effects_path"],
@@ -149,12 +150,89 @@ def _add_attempt(run: dict, res: dict, code: str, summary: str, **extra) -> dict
 
 
 def _gate_flags(c: dict, run: dict, pol: dict | None = None) -> list[dict]:
-    """Policy flags for a run, plus the workspace rule: money and email only exist for the demo business."""
+    """Policy flags for a run, the intent contract, and the workspace rule: money and email only exist for the demo business."""
     flags = agent.red_flags(c, pol)
+    for p in (c.get("contract") or {}).get("promises", []):
+        if p.get("status") == "broken":
+            flags.insert(0, {"rule": "contract", "severity": "critical", "title": f"Breaks a promise made before the plan: {p['text']}",
+                             "detail": f"{p['after']:,} row{'s' if p['after'] != 1 else ''} break it. The promise was written from the request alone; "
+                                       f"the plan never saw it and couldn't bend it."})
+        elif p.get("status") == "unmet":
+            done = max(0, p["today"] - p["after"])
+            flags.append({"rule": "contract", "severity": "high", "title": f"Leaves the work undone: {p['text']}",
+                          "detail": f"{p['after']:,} of {p['today']:,} still to do after this plan ({done:,} done)."})
     if run.get("workspace", workspaces.DEMO) != workspaces.DEMO and (c.get("payments", {}).get("count") or c.get("emails", {}).get("count")):
         flags.insert(0, {"rule": "workspace_side_effects", "severity": "critical", "title": "Refunds and email aren't connected for this workspace",
                          "detail": "Uploaded databases can change rows and call connectors. Payments and email only exist for the demo business."})
     return flags
+
+
+# ---- intent contracts: what the request means, written before any plan ---------------------------------------------
+CONTRACT_READY: dict[str, threading.Event] = {}
+
+
+def _contract_job(run: dict) -> None:
+    ws = run.get("workspace", workspaces.DEMO)
+    base = workspaces.db_path(ws)
+    try:
+        c = engine_contracts.compile_contract(run["task"], policy.load().get("glossary") or [], base, config.CONTRACT_MODELS,
+                                              agent.client(), config.DATA_DIR, today=config.DEMO_TODAY if ws == workspaces.DEMO else None)
+        good = [json.loads(open(r["attempts"][-1]["effects_path"]).read()) for r in RUNS.values()
+                if r["id"] != run["id"] and r.get("task", "").strip() == run["task"].strip() and r.get("workspace", workspaces.DEMO) == ws
+                and (r.get("verdict") or {}).get("verdict") == "looks_right" and r["status"] != "applied" and r["attempts"]][:5]
+        enforced, withdrawn = engine_contracts.withdraw_unfair(c["promises"], base, good)
+        contract = {**c, "status": "ready", "promises": enforced, "withdrawn": withdrawn}
+        if not enforced:
+            contract = {"status": "failed", "reason": "every promise was withdrawn: each one failed a plan the jury judged correct"}
+    except Exception as e:  # noqa: BLE001 - the contract is a layer of protection, never a reason a run fails
+        contract = {"status": "failed", "reason": str(e)[:300]}
+    with LOCK:
+        run["contract"] = contract
+        _save(run)
+    if contract["status"] == "ready":
+        work = [p for p in contract["promises"] if p["kind"] == "obligation"]
+        _emit(run, "contract", f"Contract signed before the plan: {len(contract['promises'])} promises",
+              "\n".join(f"{'Work to do' if p['kind'] == 'obligation' else 'Guard'}: {p['text']}"
+                        + (f" ({p['today']:,} today)" if p["kind"] == "obligation" else "") for p in contract["promises"])
+              + (f"\nWithdrawn: {len(withdrawn)} promise(s) a correct plan for this request failed." if withdrawn else "")
+              + ("" if work else "\nNo work to measure today: every promise is a guard."))
+    else:
+        _emit(run, "contract", "No contract for this run", contract["reason"])
+    CONTRACT_READY.setdefault(run["id"], threading.Event()).set()
+
+
+def _contract_start(run: dict) -> None:
+    if not config.INFERENCE_KEY or not config.CONTRACT_MODELS:
+        return
+    CONTRACT_READY[run["id"]] = threading.Event()
+    with LOCK:
+        run["contract"] = {"status": "writing"}
+    _emit(run, "contract", "Writing down what the request means, before any plan exists",
+          "From the request, the business glossary and the schema only. The plan will never see it.")
+    threading.Thread(target=_contract_job, args=(run,), daemon=True).start()
+
+
+def _contract_check(run: dict, c: dict, effects_path: str | None, wait_s: float = 120) -> None:
+    """Check the measured effects against the run's contract and put the result into the consequences. No AI."""
+    ev = CONTRACT_READY.get(run["id"])
+    if ev is None or not c.get("ok") or not effects_path:
+        return
+    if not ev.is_set():
+        _emit(run, "contract", "Waiting for the contract to be finished before judging the plan")
+    if not ev.wait(wait_s):
+        c["contract"] = {"status": "late", "promises": []}
+        return
+    contract = run.get("contract") or {}
+    if contract.get("status") != "ready":
+        return
+    try:
+        effects = json.loads(open(effects_path).read())
+        results = engine_contracts.evaluate(contract["promises"], workspaces.db_path(run.get("workspace", workspaces.DEMO)), effects)
+    except (OSError, ValueError) as e:
+        c["contract"] = {"status": "unknown", "why": str(e)[:200], "promises": []}
+        return
+    c["contract"] = {"status": "checked", "model": contract.get("model"), "promises": results,
+                     "broken": sum(r["status"] == "broken" for r in results), "unmet": sum(r["status"] == "unmet" for r in results)}
 
 
 def _person(name: str) -> str:
@@ -414,25 +492,31 @@ def _manual_job(run: dict, code: str) -> None:
         _status(run, "failed")
 
 
-def _surgical_check(run: dict) -> dict | None:
-    """The check that flags what's wrong, best first: a learned rule that fired, then the AI jury's own check."""
+def _surgical_checks(run: dict) -> list[dict]:
+    """The checks that flag what's wrong, best first: a learned rule that fired, a contract guard the plan broke,
+    then the AI jury's own check."""
     att = run["attempts"][-1]
     ws = run.get("workspace", workspaces.DEMO)
+    out = []
     for r in (att["consequences"].get("rules") or []):
         if r.get("violations"):
             hit = next((x for x in rules.all_rules(ws) if x["id"] == r.get("id")), None)
             if hit:
-                return {"title": hit["title"], "sql": hit["sql"], "source": "learned rule"}
+                out.append({"title": hit["title"], "sql": hit["sql"], "source": "learned rule"})
+    for p in (att["consequences"].get("contract") or {}).get("promises", []):
+        if p.get("status") == "broken":
+            out.append({"title": p["text"], "sql": p["sql"], "source": "intent contract"})
     v = run.get("verdict") or {}
     if v.get("verdict") in ("concerns", "dangerous") and isinstance(v.get("rule"), dict) and v["rule"].get("sql"):
-        return {"title": v["rule"].get("title") or "the AI jury's check", "sql": v["rule"]["sql"], "source": "AI jury"}
-    return None
+        out.append({"title": v["rule"].get("title") or "the AI jury's check", "sql": v["rule"]["sql"], "source": "AI jury"})
+    return out
 
 
 def _surgical_propose(run: dict) -> tuple[dict, engine_subsets.Offer]:
+    """The first check that yields a provable subset, and the subset. Each check is tried on its own."""
     att = run["attempts"][-1]
-    check = _surgical_check(run)
-    if not check:
+    checks = _surgical_checks(run)
+    if not checks:
         raise engine_subsets.NoOffer("nothing flags specific rows of this plan")
     if not att["consequences"].get("ok"):
         raise engine_subsets.NoOffer("the plan crashed in rehearsal")
@@ -441,7 +525,15 @@ def _surgical_propose(run: dict) -> tuple[dict, engine_subsets.Offer]:
     effects = _effects_cached(att["effects_path"], att.get("effects_sha256") or "")
     base = workspaces.db_path(run.get("workspace", workspaces.DEMO))
     g = engine_graph.build(effects, str(base))
-    offer = engine_subsets.propose(effects, g, base, check["sql"], check["title"])
+    reasons = []
+    for check in checks:
+        try:
+            offer = engine_subsets.propose(effects, g, base, check["sql"], check["title"])
+            break
+        except engine_subsets.NoOffer as e:
+            reasons.append((check["source"], str(e)))
+    else:
+        raise engine_subsets.NoOffer(reasons[0][1] if len(reasons) == 1 else "; ".join(f"{s}: {r}" for s, r in reasons))
     try:   # Proof of Effect: which lines of the plan produced the rows being cut
         prov = json.loads(open(att["effects_path"].replace("effects.json", "provenance.json")).read())
         wrote, chose = prov.get("rows") or {}, prov.get("decided") or {}
@@ -735,6 +827,7 @@ def create_run(body: TaskIn, req: Request):
     if not workspaces.exists(body.workspace):
         raise HTTPException(404, "unknown workspace")
     run = _new_run(body.task, "agent", body.workspace)
+    _contract_start(run)
     threading.Thread(target=_agent_job, args=(run,), daemon=True).start()
     return {"id": run["id"]}
 
@@ -753,6 +846,7 @@ def create_manual_run(body: ManualIn, req: Request):
     run = _new_run(body.task, "manual", body.workspace)
     if body.isolation == "vultr_vm":
         run["isolation"] = "vultr_vm"
+    _contract_start(run)
     threading.Thread(target=_manual_job, args=(run, body.code), daemon=True).start()
     return {"id": run["id"]}
 

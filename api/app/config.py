@@ -55,3 +55,6 @@ SAMPLE_PG_URL = os.environ.get("SD_SAMPLE_PG_URL", "")  # the console's one-clic
 # The jury can make a verdict stricter, never more lenient. Empty disables it.
 JURY_MODELS = [m for m in os.environ.get("SD_JURY_MODELS", "deepseek-v4.1-flash-1017,minimax-m3.1-flash").split(",") if m]
 JURY_FALLBACK = os.environ.get("SD_JURY_FALLBACK", "qwen3.8-flash-next")
+# Intent contracts: the model that writes down what a request means before any plan exists (comma = fallbacks).
+DEMO_TODAY = "Tuesday 2026-11-03"   # the demo business's 'today' (the ops agent is told the same)
+CONTRACT_MODELS = [m for m in os.environ.get("SD_CONTRACT_MODELS", "qwen3.8-flash-next,deepseek-v4.1-flash-1017").split(",") if m]

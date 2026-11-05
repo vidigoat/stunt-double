@@ -16,15 +16,15 @@ from __future__ import annotations
 import re
 import sqlite3
 import tempfile
-import time
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from . import state
 from .graph import Graph
 from .materialize import Drift, materialize
 
 MAX_FLAGGED = 20_000
-_TABLE_REF = re.compile(r'\b(?:from|join)\s+("?)([A-Za-z_][A-Za-z0-9_]*)\1', re.I)
+_TABLE_REF = re.compile(r'\b(?:from|join)\s+(?:main\.|before\.)?("?)([A-Za-z_][A-Za-z0-9_]*)\1(?![\w.])', re.I)
 
 
 @dataclass
@@ -48,22 +48,17 @@ class NoOffer(Exception):
     """Why no subset is offered (always a reason a person can read)."""
 
 
-def _run_check(db_path: Path, sql: str) -> tuple[list[str], list[tuple]]:
-    db = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
+def _run_check(db_path: Path, sql: str, before: str | Path, effects: dict) -> tuple[list[str], list[tuple]]:
+    view = state.open_view(db_path, before, effects)
     try:
-        db.execute("PRAGMA query_only = ON")
-        deadline = time.time() + 5
-        db.set_progress_handler(lambda: 1 if time.time() > deadline else 0, 10_000)
-        cur = db.execute(sql.rstrip().rstrip(";"))
-        cols = [c[0] for c in cur.description or []]
-        rows = cur.fetchmany(MAX_FLAGGED + 1)
-        if len(rows) > MAX_FLAGGED:
+        cols, rows, more = state.run_check(view, sql, MAX_FLAGGED)
+        if more:
             raise NoOffer(f"the check flags more than {MAX_FLAGGED:,} rows")
         return cols, rows
     except sqlite3.Error as e:
         raise NoOffer(f"the check doesn't run on the rehearsed data: {e}") from e
     finally:
-        db.close()
+        view.close()
 
 
 def _candidate_tables(col: str, referenced: list[str]) -> list[str]:
@@ -76,12 +71,19 @@ def _candidate_tables(col: str, referenced: list[str]) -> list[str]:
     return []
 
 
-def flagged_nodes(g: Graph, cols: list[str], rows: list[tuple], sql: str) -> tuple[set[str], int]:
-    """Map each flagged result row to the graph. Returns (node ids, rows that could not be mapped)."""
+def flagged_nodes(g: Graph, cols: list[str], rows: list[tuple], sql: str,
+                  recipients: dict[str, list[str]] | None = None) -> tuple[set[str], int]:
+    """Map each flagged result row to the graph. Returns (node ids, rows that could not be mapped).
+    A row maps by id to a changed row, else to the context row that ties a unit together, else (a check over
+    sent.emails) by recipient address to the emails sent to it."""
     referenced = [m.group(2) for m in _TABLE_REF.finditer(sql)]
     nodes, unmapped = set(), 0
     for row in rows:
         hit = None
+        mails = [n for v in row if isinstance(v, str) and "@" in v for n in (recipients or {}).get(v.strip().lower(), [])]
+        if mails:
+            nodes.update(mails)
+            continue
         for col, val in zip(cols, row, strict=False):
             if isinstance(val, bool) or not isinstance(val, int):
                 continue
@@ -139,10 +141,13 @@ def propose(effects: dict, g: Graph, base_db: str | Path, check_sql: str, check_
             after = materialize(base_db, effects, Path(d) / "after.db")
         except Drift as e:
             raise NoOffer(f"the data changed since the rehearsal ({e})") from e
-        cols, rows = _run_check(after, check_sql)
+        cols, rows = _run_check(after, check_sql, base_db, effects)
         if not rows:
             raise NoOffer("the check finds nothing wrong")
-        nodes, unmapped = flagged_nodes(g, cols, rows, check_sql)
+        recipients: dict[str, list[str]] = {}
+        for i, m in enumerate(effects.get("emails") or []):
+            recipients.setdefault(str(m.get("to", "")).strip().lower(), []).append(f"email:{i}")
+        nodes, unmapped = flagged_nodes(g, cols, rows, check_sql, recipients)
         if unmapped:
             raise NoOffer(f"{unmapped:,} flagged rows can't be traced to a consequence of this plan")
         drop = g.units_touching(nodes)
@@ -154,7 +159,7 @@ def propose(effects: dict, g: Graph, base_db: str | Path, check_sql: str, check_
             sub_after = materialize(base_db, sub, Path(d) / "subset.db")
         except Drift as e:
             raise NoOffer(f"the subset can't be rebuilt ({e})") from e
-        _, still = _run_check(sub_after, check_sql)
+        _, still = _run_check(sub_after, check_sql, base_db, sub)
         if still:
             raise NoOffer(f"even without the flagged parts, the check still finds {len(still):,} problems")
     full, kept = _counts(effects), _counts(sub)

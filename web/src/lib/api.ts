@@ -14,8 +14,13 @@ export type ProvenanceDetail = { summary: Provenance; statements: { i: number; r
   patterns?: { shape: string; rows: number; statements: number; first: number; example: string }[]; deciders?: { i: number; rows: number; sql: string }[];
   unexplained: { table: string; rowid: number; op: string }[]; claimed_only?: { table: string; rowid: number; op: string }[]; failed?: { i: number; error: string }[] };
 export type GraphSummary = { nodes: number; by_kind: Record<string, number>; units: number; largest_unit: number; edges: number; hubs: number; truncated: boolean };
+export type Pledge = { text: string; sql: string; kind: "guard" | "obligation"; today: number };
+export type Contract = { status: "writing" | "ready" | "failed"; promises?: Pledge[]; withdrawn?: Pledge[]; model?: string; today?: string; ms?: number;
+  cached?: { at: number; ms?: number | null }; reason?: string };
+export type ContractResult = { status: "checked" | "late" | "unknown"; model?: string; broken?: number; unmet?: number;
+  promises: (Pledge & { status: "kept" | "broken" | "met" | "unmet" | "unknown"; after: number | null; why?: string })[] };
 export type Consequences = {
-  provenance?: Provenance; graph?: GraphSummary;
+  provenance?: Provenance; graph?: GraphSummary; contract?: ContractResult;
   ok: boolean; error: { message: string; traceback?: string } | null; stdout?: string; logs?: string[]; duration_ms?: number;
   tables: Record<string, TableChange>; row_counts: Record<string, { before: number; after: number }>;
   payments: { count: number; total_cents: number; samples: { charge_id: number; amount_cents: number; reason: string }[] };
@@ -45,6 +50,7 @@ export type Run = {
   rejection?: { by: string; at: number; reason: string } | null;
   promoted_rule?: string;
   surgical?: Surgical;
+  contract?: Contract;
   apply_result: null | { rows_written?: number; refunds?: number; refund_total_cents?: number; emails_sent?: number; emails_failed?: number; http_delivered?: number; http_failed?: number; drift_count?: number; drifted?: unknown[]; error?: string };
 };
 export type SurgicalCounts = { rows: number; refunds: number; money_cents: number; emails: number; api_calls: number };
