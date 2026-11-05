@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { FileCheck2, KeyRound, Scale, Sparkles, Undo2, Users } from "lucide-react";
-import { num, usd } from "@/lib/api";
+import { CountUp } from "@/components/count-up";
 import { BrandLogo, type LogoName } from "@/components/brand-logos";
 import { Code } from "@/components/code";
 import { DoublesShowcase } from "@/components/doubles-showcase";
@@ -138,10 +138,10 @@ export function LiveStats() {
   return (
     <section className="mx-auto max-w-6xl px-4 pb-24 sm:px-6">
       <div className="rounded-2xl border bg-card p-6">
-        <div className="font-mono text-[11px] uppercase tracking-wider text-muted-foreground">Live on this server · since the last demo reset</div>
+        <div className="flex flex-wrap items-center justify-between gap-2"><div className="font-mono text-[11px] uppercase tracking-wider text-muted-foreground">Live on this server · since the last demo reset</div><a href="/control" className="text-sm text-signal hover:underline">Watch it live in Mission control →</a></div>
         <div className="mt-4 grid grid-cols-2 gap-6 lg:grid-cols-4">
-          {[["rehearsals", num(s.rehearsals)], ["stopped before damage", num(s.stopped)], ["money kept", usd(s.money_prevented_cents)], ["rows protected", num(s.rows_protected)]].map(([k, v]) => (
-            <div key={k}><div className="font-mono text-3xl tabular">{v}</div><div className="mt-1 text-sm text-muted-foreground">{k}</div></div>
+          {([["rehearsals", s.rehearsals, "num"], ["stopped before damage", s.stopped, "num"], ["money kept", s.money_prevented_cents, "usd"], ["rows protected", s.rows_protected, "num"]] as const).map(([k, v, f]) => (
+            <div key={k}><div className="font-mono text-3xl tabular"><CountUp value={v} format={f} /></div><div className="mt-1 text-sm text-muted-foreground">{k}</div></div>
           ))}
         </div>
       </div>
