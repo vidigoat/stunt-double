@@ -521,7 +521,7 @@ export default function AppPage() {
                   { n: "4", t: "Watch it work in a browser", d: "The agent cancels a subscription on the double of the admin site, in a real Chromium. Every screen is captured, and the AI vision check sees it cancelled the wrong one.", preset: "Cancel the duplicate subscription (in a browser)" },
                   { n: "5", t: "Clean up the cloud", d: "\"Delete idle Vultr servers\": the obvious plan would delete the failover database and the backup runner. The double of the fleet shows it; approval locks.", preset: "Clean up idle Vultr servers" },
                   { n: "6", t: "Approve a good one, then undo it", d: "104 real refunds and apology emails after a drift check. Then rehearse the undo.", preset: "✓ A correct refund plan" },
-                  { n: "7", t: "Hand it to the agent", d: "The AI agent on Vultr Serverless Inference investigates, writes a plan and rehearses it.", agent: true },
+                  { n: "7", t: "Hand it to the agent", d: "The AI agent on Vultr Serverless Inference gets the contract first, investigates, writes a plan and rehearses it. About 2 minutes, live.", agent: true },
                   ...(health?.sample_postgres ? [{ n: "8", t: "Try it on real infrastructure", d: "Imports a read-only double of a PostgreSQL database and rehearses \"deactivate accounts inactive for 90 days\". The verifier spells out the cost; approved changes leave as drift-guarded SQL.", pg: true }] : []),
                 ].map((s: { n: string; t: string; d: string; preset?: string; task?: string; agent?: boolean; pg?: boolean; featured?: boolean }) => (
                   <li key={s.n}>

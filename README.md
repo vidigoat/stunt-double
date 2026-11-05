@@ -159,7 +159,7 @@ only for an identical request, effects and data. They are labelled, and **Re-che
 | 4 | **Watch it work in a browser** | The agent cancels the wrong subscription in a real Chromium; the vision check sees it. |
 | 5 | **Clean up the cloud** | "Delete idle servers" would remove the failover database. Two jurors raised the verdict to *dangerous*. |
 | 6 | **Approve a good one, then undo it** | 104 real refunds ($5,136) and emails after a drift check, then a two-person undo. |
-| 7 | **Hand it to the agent** | The ops agent on Vultr Serverless Inference investigates, writes a plan and rehearses it. |
+| 7 | **Hand it to the agent** | The ops agent on Vultr Serverless Inference gets the contract first, then investigates, writes a plan and rehearses it. Live, it wrote the right 104 refunds on its first try. |
 | 8 | **Try it on real infrastructure** | A read-only double of a PostgreSQL database; approved changes leave as drift-guarded SQL. |
 
 Behind the demo is **Bean There Coffee Co.**, a small online business with five real traps:
