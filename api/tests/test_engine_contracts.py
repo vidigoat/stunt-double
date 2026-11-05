@@ -166,3 +166,23 @@ def test_a_read_only_request_never_gets_a_subset_offer(fresh_business, monkeypat
     run = _wait(api, rid)
     assert [p["status"] for p in run["attempts"][-1]["consequences"]["contract"]["promises"]] == ["broken", "broken"]
     assert "offer" not in run["surgical"] and run["decision"]["decision"] == "blocked"
+
+
+def test_the_indexed_copy_follows_the_data(tmp_path):
+    from app.engine import state
+    src = tmp_path / "b.db"
+    db = sqlite3.connect(src)
+    db.execute("CREATE TABLE charges (id INTEGER PRIMARY KEY, order_id INTEGER, created_at TEXT, status TEXT)")
+    db.execute("INSERT INTO charges VALUES (1, 7, '2026-10-27', 'succeeded')")
+    db.commit()
+    first = state.indexed(src)
+    assert state.indexed(src) == first                                       # reused while the data is the same
+    idx = {r[0] for r in sqlite3.connect(first).execute("SELECT name FROM sqlite_master WHERE type='index'")}
+    assert {"sd_charges_order_id", "sd_charges_created_at"} <= idx and "sd_charges_status" not in idx
+    time.sleep(0.01)
+    db.execute("INSERT INTO charges VALUES (2, 8, '2026-10-28', 'succeeded')")
+    db.commit()
+    db.close()
+    second = state.indexed(src)
+    assert second != first and sqlite3.connect(second).execute("SELECT COUNT(*) FROM charges").fetchone()[0] == 2
+    assert not sqlite3.connect(src).execute("SELECT COUNT(*) FROM sqlite_master WHERE type='index'").fetchone()[0]  # the real data: untouched

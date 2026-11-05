@@ -144,6 +144,7 @@ def propose(effects: dict, g: Graph, base_db: str | Path, checks: list[dict]) ->
         raise NoOffer("the plan has no consequences to keep")
     if not checks:
         raise NoOffer("nothing flags specific rows of this plan")
+    base_db = state.indexed(base_db)       # same data, indexed: model-written checks run ~100x faster
     recipients: dict[str, list[str]] = {}
     for i, m in enumerate(effects.get("emails") or []):
         recipients.setdefault(str(m.get("to", "")).strip().lower(), []).append(f"email:{i}")

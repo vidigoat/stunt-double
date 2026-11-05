@@ -113,7 +113,7 @@ def schema_text(db_path: str | Path) -> tuple[str, str]:
 def classify(raw: list[dict], db_path: str | Path) -> list[Promise]:
     """Keep only promises that are one valid SELECT running on today's data, sorted into guards and obligations."""
     out = []
-    view = state.open_view(db_path)
+    view = state.open_view(state.indexed(db_path))
     try:
         for p in raw[:MAX_PROMISES * 2]:
             if not isinstance(p, dict) or not str(p.get("text", "")).strip():
@@ -195,6 +195,7 @@ def compile_contract(task: str, glossary: list[dict], db_path: str | Path, model
 
 def evaluate(promises: list[dict], base_db: str | Path, effects: dict) -> list[dict]:
     """Check each promise against the plan's after-state, rebuilt from its measured effects. No AI."""
+    base_db = state.indexed(base_db)
     with tempfile.TemporaryDirectory() as d:
         try:
             after = materialize(base_db, effects, Path(d) / "after.db")
