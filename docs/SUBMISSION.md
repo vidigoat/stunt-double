@@ -92,6 +92,8 @@ Three places, nothing else needed:
 
 ## Optional longer cut (~4:00). The planned video is the 1-minute one in docs/DEMO_1MIN.md
 
+> Written before the Consequence Engine existed; for what to show, the shot list in docs/DEMO_1MIN.md is current.
+
 **0:00–0:20 · Hook** (screen: approval card with the red $37,404)
 > "This AI agent was about to refund thirty-seven thousand dollars to the wrong people. Nothing happened, because it was only a rehearsal. This is Stunt Double."
 
