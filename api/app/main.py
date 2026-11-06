@@ -1846,14 +1846,13 @@ def _seed_digest() -> str:
 
 
 def _demo_changed() -> list[str]:
-    """What differs from the seeded demo business (empty when it is pristine)."""
+    """What differs from the seeded demo business (empty when it is pristine). The outbox doesn't count: every
+    rehearsal that needs approval posts an "approval needed" notification there, which changes nothing a visitor sees."""
     why = []
     if not config.PROD_DB.exists() or _db_digest(config.PROD_DB) != _seed_digest():
         why.append("data")
     if beanpay.ledger(0)["count"]:
         why.append("payments")
-    if connectors.deliveries(0)["count"]:
-        why.append("outbox")
     if rules.all_rules():
         why.append("learned rules")
     if policy.PATH.exists():

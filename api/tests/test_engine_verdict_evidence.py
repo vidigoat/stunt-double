@@ -163,6 +163,11 @@ def test_demo_heals_itself_when_changed_and_idle(fresh_business, monkeypatch):
     rules.reset()
     connectors.reset()
     assert main._demo_changed() == []
+    db = connectors._outbox()                                                # an "approval needed" notification
+    db.execute("INSERT INTO deliveries (connector, method, path, body, run_id, created_at, status) VALUES "
+               "('slack', 'POST', '/stunt-double/notify', '{}', 'run_x', '2026-11-06', 200)")
+    db.commit()
+    assert main._demo_changed() == []                                        # is not a change to the business
     db = sqlite3.connect(config.PROD_DB)
     db.execute("UPDATE charges SET status = 'refunded' WHERE id = (SELECT MIN(id) FROM charges)")
     db.commit()

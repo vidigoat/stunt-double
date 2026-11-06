@@ -128,6 +128,8 @@ the destructive one. What it found, and what we fixed: [docs/BEYOND_THE_DEMO.md]
 Open **[the live demo](https://149-28-206-186.sslip.io/app)**. Judge mode is eight clicks. Each one starts a real
 rehearsal in gVisor on the Vultr server and answers in seconds. (The AI verdicts were checked live once and are reused
 only for an identical request, effects and data. They are labelled, and **Re-check live** runs the jury again.)
+If an earlier visitor changed the demo business, **Reset demo** (top right) restores it in a second; left alone, it
+restores itself after 30 idle minutes.
 
 | # | Click | What you'll see |
 |---|---|---|
