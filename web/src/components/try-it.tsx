@@ -38,7 +38,7 @@ export function TryIt() {
   }
 
   return (
-    <section className="mx-auto max-w-6xl px-4 pb-24 sm:px-6">
+    <section className="mx-auto max-w-6xl px-4 pb-24 pt-16 sm:px-6 sm:pt-24">
       <div className="card-hard grid items-center gap-8 rounded-[22px] border bg-card p-5 sm:p-10 md:grid-cols-2">
         <div className="min-w-0">
           <div className="font-mono text-xs uppercase tracking-wider text-muted-foreground">Try it right here</div>
