@@ -538,8 +538,9 @@ def s09_studies(prs):
     kicker(s, "Why it matters now")
     headline(s, [[("Agents are getting the keys, ", False), ("fast.", True)]], h=0.9)
     underline(s, 1.95)
-    y, hh = 2.4, 4.4
+    y, hh = 2.4, 4.1
     cw = (W - 2 * MX - 0.5) / 3
+    text(s, MX, 6.72, W - 2 * MX, 0.45, [[R("Every one of those agents needs a ", SANS, 18, INK), R("stunt double.", SERIF, 20, BLUE, italic=True)]])
     for i, (t, growth, items, maxv, src) in enumerate([
             ("Enterprise apps with AI agents", "33×", [("2024", 0.6, "<1%", BLUE_SOFT), ("2028", 33, "33%", BLUE)], 33, "Gartner"),
             ("Work decisions made by agents", "0 → 15%", [("2024", 0.0, "0%", BLUE_SOFT), ("2028", 15, "15%+", BLUE)], 15, "Gartner"),
@@ -559,7 +560,7 @@ def s09_studies(prs):
 def s10_business(prs):
     s = new_slide(prs)
     kicker(s, "Business")
-    headline(s, [[("One caught mistake pays for a seat for ", False), ("55 years.", True)]], size=36, h=0.9)
+    headline(s, [[("One catch pays for a seat for ", False), ("55 years.", True)]], h=0.9)
     underline(s, 1.95)
     y, hh = 2.4, 4.15
     lw = 4.6
