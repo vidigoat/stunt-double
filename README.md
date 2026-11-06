@@ -161,7 +161,7 @@ Behind the demo is **Bean There Coffee Co.**, a small online business with five 
 | **63 → 41** | on a school's database the engine was never built for, the contract found the 22 students who took their withdrawal back and the cut kept exactly the right 41; on a SaaS company's Postgres it approved 2 correct plans and blocked the third ([beyond the demo](docs/BEYOND_THE_DEMO.md)) |
 | **48 / 48** | bad plans caught by the AI jury alone, in earlier live runs, with **0 of 26** false alarms on correct ones ([eval](docs/VERIFIER_EVAL.md)) |
 | **3 of 3** | jurors from different labs independently caught every trap on production |
-| **201** | API tests in CI (tampered evidence, hidden connections and forged logs among them), plus a real MCP client and an end-to-end browser test against production |
+| **205** | API tests in CI (tampered evidence, hidden connections and forged logs among them), plus a real MCP client and an end-to-end browser test against production |
 | **1.8 s** | median two-phase rehearsal in gVisor ([benchmark](docs/BENCH.md)) |
 | **0** | lines of agent code ever run against production |
 
@@ -239,7 +239,7 @@ The full case, with every number sourced, is in [docs/BUSINESS.md](docs/BUSINESS
 | **Payments** | `ctx.payments.refund()` is recorded | refunded once per charge, checked against the ledger |
 | **Email** | `ctx.email.send()` is recorded and audited | delivered, after recipients, consent and templates are checked |
 | **Any HTTP API** | `ctx.http.post()` is recorded; auth headers dropped | delivered through a configured connector (Slack, a CRM), credentials injected only now |
-| **A real browser** | `ctx.browser` drives Chromium against a double of your admin site; every step screenshotted | the measured row changes are replayed |
+| **A real browser** | `ctx.browser` drives a real Chromium against a double of the admin site (a subscriptions admin served from the cloned database inside the sandbox; not a copy of an arbitrary web app); every step screenshotted | the measured row changes are replayed |
 
 ## Connect an agent
 
@@ -370,9 +370,12 @@ docs/                       business case, evals, benchmark, security, demo scri
 Stunt Double was built from scratch for the Vultr Agent Rush (Nov 3–9, 2026): every line in this repository was
 written during the hackathon.
 
-**Built, off on the public demo:** a brand-new Vultr VM per high-risk rehearsal (it needs a Vultr account key on the server, which the public demo deliberately doesn't hold).
+**Built, off on the public demo:** a brand-new Vultr VM per high-risk rehearsal (it needs a Vultr account key on the server, which the public demo deliberately doesn't hold). Tested live: a `vc2-1c-1gb` instance created, `active` in 36.5 s, the rehearsal run, then destroyed (the API answered `404` 0.4 s later), for about $0.007; a reaper deletes any rehearsal VM older than 10 minutes.
 **Next:** GitHub sign-in and Slack approvals · contracts a person edits before the plan runs · Stripe, HubSpot and
-Zendesk connectors · the Consequence Engine for cloud and browser plans.
+Zendesk connectors · the Consequence Engine for cloud and browser plans · **large databases:** today a double is a
+read-only copy of up to 50,000 rows a table; for a 500 GB Postgres the double becomes a copy-on-write branch or snapshot
+(for example a fork of a Vultr Managed Database), while the measurement, contract, proof and surgical cut stay exactly
+the same.
 
 ## License
 

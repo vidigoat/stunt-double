@@ -365,3 +365,15 @@ def test_the_contract_writer_sees_status_values_but_nothing_personal(tmp_path):
     assert "status TEXT [values: 'pending', 'rescinded']" in text and "plan TEXT [values: 'pro']" in text
     assert "u0@x.com" not in text and "please cancel" not in text and "2026-11-01" not in text
     assert "City 1" not in text                                    # more than 8 distinct values: free-form, left out
+
+
+def test_a_withdrawn_promise_stays_withdrawn_after_the_runs_that_proved_it_are_gone(tmp_path, monkeypatch):
+    from app import main
+    monkeypatch.setattr(main, "WITHDRAWN_FILE", tmp_path / "w.json")
+    fair = {"text": "a", "sql": "SELECT 1 WHERE 0", "kind": "guard", "today": 0}
+    unfair = {"text": "b", "sql": "SELECT 2 WHERE 0", "kind": "guard", "today": 0}
+    enforced, withdrawn = main._remembered_withdrawals("demo", "task", [fair], [unfair])      # proven unfair once
+    assert enforced == [fair] and withdrawn == [unfair]
+    enforced, withdrawn = main._remembered_withdrawals("demo", "task ", [fair, unfair], [])     # after a reset: no good runs
+    assert enforced == [fair] and withdrawn == [unfair]
+    assert main._remembered_withdrawals("demo", "another task", [unfair], []) == ([unfair], [])

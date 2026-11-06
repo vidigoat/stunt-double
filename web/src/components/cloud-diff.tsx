@@ -55,7 +55,7 @@ function ServerCard({ s, state, to }: { s: CloudServer; state: "deleted" | "stop
       <div className="mt-1 truncate text-muted-foreground" title={s.purpose}>{s.purpose}</div>
       <div className="mt-2 flex flex-wrap items-center justify-between gap-x-2 font-mono text-[11px] tabular text-muted-foreground">
         <span className="whitespace-nowrap">{s.region} · {state === "resized" && to ? `${to.from_plan} → ${s.plan}` : s.plan}</span>
-        <span className="whitespace-nowrap">CPU {s.cpu_avg_7d}%</span>
+        <span className="whitespace-nowrap">{s.cpu_avg_7d != null ? `CPU ${s.cpu_avg_7d}%` : "CPU not reported"}</span>
       </div>
       <div className="mt-2 flex items-center justify-between">
         <span className={cn("rounded px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wider",

@@ -80,6 +80,21 @@ def _load_history() -> None:
 
 
 _load_history()
+
+
+def _prune_duplicate_workspaces() -> int:
+    """Older copies of the same workspace (repeated sample imports, test uploads) are removed unless a run uses them."""
+    keep = {r.get("workspace") for r in RUNS.values()}
+    gone = 0
+    for ws in workspaces.duplicates(keep):
+        gone += bool(workspaces.delete(ws))
+    return gone
+
+
+try:
+    _prune_duplicate_workspaces()
+except OSError:
+    pass
 try:
     sandbox.cleanup_orphans(keep={a["sandbox_id"] for r in RUNS.values() if r["status"] in ("review", "applied") for a in r["attempts"]})
 except OSError:
@@ -204,6 +219,7 @@ def _contract_job(run: dict) -> None:
                 if r["id"] != run["id"] and r.get("task", "").strip() == run["task"].strip() and r.get("workspace", workspaces.DEMO) == ws
                 and (r.get("verdict") or {}).get("verdict") == "looks_right" and r["status"] != "applied" and r["attempts"]][:5]
         enforced, withdrawn = engine_contracts.withdraw_unfair(c["promises"], base, good)
+        enforced, withdrawn = _remembered_withdrawals(ws, run["task"], enforced, withdrawn)
         contract = {**c, "status": "ready", "promises": enforced, "withdrawn": withdrawn}
         if not enforced:
             contract = {"status": "failed", "reason": "every promise was withdrawn: each one failed a plan the jury judged correct"}
@@ -224,6 +240,28 @@ def _contract_job(run: dict) -> None:
     CONTRACT_READY.setdefault(run["id"], threading.Event()).set()
     if contract["status"] == "ready":
         _contract_cross_check(run, contract, base, ws, warm)
+
+
+WITHDRAWN_FILE = config.DATA_DIR / "withdrawn-promises.json"
+
+
+def _remembered_withdrawals(ws: str, task: str, enforced: list[dict], withdrawn: list[dict]) -> tuple[list[dict], list[dict]]:
+    """A promise once proven unfair (a plan the jury judged correct broke it) stays withdrawn for that request, even
+    after a demo reset clears the runs that proved it."""
+    key = hashlib.sha256(f"{ws}\n{task.strip()}".encode()).hexdigest()[:24]
+    sig = lambda p: hashlib.sha256(p["sql"].encode()).hexdigest()[:16]  # noqa: E731
+    with LOCK:
+        try:
+            memo = json.loads(WITHDRAWN_FILE.read_text())
+        except (OSError, ValueError):
+            memo = {}
+        known = set(memo.get(key, [])) | {sig(p) for p in withdrawn}
+        if known != set(memo.get(key, [])):
+            memo[key] = sorted(known)
+            tmp = WITHDRAWN_FILE.with_suffix(".tmp")
+            tmp.write_text(json.dumps(memo))
+            tmp.replace(WITHDRAWN_FILE)
+    return [p for p in enforced if sig(p) not in known], withdrawn + [p for p in enforced if sig(p) in known]
 
 
 class _Warm(threading.Thread):
@@ -770,7 +808,10 @@ class FixIn(BaseModel):
 
 def _sandbox_ready() -> tuple[bool, str]:
     """Is the configured sandbox runtime actually available? Rehearsals fail closed if not."""
-    p = subprocess.run(["docker", "info", "--format", "{{json .Runtimes}}"], capture_output=True, text=True)
+    try:
+        p = subprocess.run(["docker", "info", "--format", "{{json .Runtimes}}"], capture_output=True, text=True)
+    except OSError:
+        return False, "docker is not installed on this host"
     if p.returncode != 0:
         return False, "Docker daemon unreachable"
     want = config.SANDBOX_RUNTIME or "runc"
@@ -786,7 +827,10 @@ def _sandbox_ready() -> tuple[bool, str]:
 @app.get("/api/health")
 def health():
     ready, why = _sandbox_ready()
-    docker = subprocess.run(["docker", "version", "--format", "{{.Server.Version}}"], capture_output=True, text=True)
+    try:
+        docker = subprocess.run(["docker", "version", "--format", "{{.Server.Version}}"], capture_output=True, text=True)
+    except OSError:                       # no docker binary at all: report it, don't crash the health check
+        docker = subprocess.CompletedProcess([], 1, "", "")
     return {"ok": True, "inference_configured": bool(config.INFERENCE_KEY), "agent_model": config.AGENT_MODEL.split(",")[0],
             "verifier_model": config.VERIFIER_MODEL.split(",")[0], "fallback_models": config.AGENT_MODEL.split(",")[1:],
             "agent_runs_today": AGENT_DAY["count"] if AGENT_DAY["day"] == time.strftime("%Y-%m-%d", time.gmtime()) else 0,
@@ -885,6 +929,9 @@ def import_sample_postgres(req: Request):
     _rate_limit(req, per_hour=10, kind="Postgres import")
     if not config.SAMPLE_PG_URL:
         raise HTTPException(404, "No sample database on this server")
+    existing = workspaces.find("Sample SaaS (Postgres)", "postgres")
+    if existing:                          # the sample never changes (rehearsals only export SQL): reuse the import
+        return {k: v for k, v in existing.items() if k not in ("pks", "types")}
     try:
         data, meta = pg_import.import_db(config.SAMPLE_PG_URL, "public", allow_private=True)  # our own configured, internal host
     except pg_import.PgImportError as e:
@@ -1796,7 +1843,22 @@ def reset(req: Request):
         HISTORY.clear()
         for f in HISTORY_DIR.glob("run_*.json"):
             f.unlink(missing_ok=True)
+    _prune_duplicate_workspaces()
     return {"ok": True, **business()}
+
+
+@app.post("/api/demo/restore")
+def restore_demo(req: Request):
+    """Judge mode starts every step from the seeded business: if a visitor changed it (approved refunds, learned a
+    rule), put the business back. Unlike a reset, runs and the audit trail are kept."""
+    _rate_limit(req, per_hour=60, kind="demo restore")
+    if any(r["status"] in ACTIVE for r in RUNS.values()):
+        raise HTTPException(409, "A rehearsal is still running; try again in a moment")
+    changed = _demo_changed()
+    if changed:
+        _restore_business()
+        DEMO_GUARD.update(state="pristine", restored_at=time.time(), restores=DEMO_GUARD["restores"] + 1)
+    return {"ok": True, "restored": changed}
 
 
 def _restore_business() -> None:

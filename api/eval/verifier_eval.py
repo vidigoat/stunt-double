@@ -69,11 +69,12 @@ def one(api: str, label: str, p: dict) -> dict:
         run = call(api, f"/api/runs/{rid}")
     att = run["attempts"][-1] if run["attempts"] else {}
     critical = [f["title"] for f in att.get("flags", []) if f["severity"] == "critical"]
+    by_policy = [f["title"] for f in att.get("flags", []) if f["severity"] == "critical" and f.get("rule") != "contract"]
     v = run.get("verdict") or {}
     unfinished = (v.get("headline") or "") == "Verifier could not finish"  # fail-safe warning, not a real catch
     objected = v.get("verdict") in ("concerns", "dangerous") and not unfinished
     sb = (att.get("consequences") or {}).get("sandbox") or {}
-    return {"case": label, "run": rid, "seconds": round(time.time() - t0, 1), "blocked_by_rules": bool(critical),
+    return {"case": label, "run": rid, "seconds": round(time.time() - t0, 1), "blocked_by_rules": bool(critical), "blocked_by_policy": bool(by_policy),
             "sandbox_ms": sb.get("wall_ms"), "runtime": sb.get("runtime"),
             "verifier": v.get("verdict"), "headline": v.get("headline"), "flagged": bool(critical) or objected,
             "verifier_objected": objected, "unfinished": unfinished, "status": run["status"],

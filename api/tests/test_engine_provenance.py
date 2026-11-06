@@ -149,3 +149,11 @@ def test_a_plan_cannot_claim_to_be_a_derived_subset(fresh_business):
             "    import sqlite3\n    s = sqlite3.connect('/work/work.db')\n    s.execute('DELETE FROM customers WHERE id = 5')\n    s.commit()\n")
     c = sandbox.rehearse(plan)["consequences"]
     assert c["provenance"]["status"] == "unexplained"     # the planted marker never reaches phase 2
+
+
+def test_the_plans_own_commit_replays_cleanly(tmp_path):
+    """Phase 1 records the plan inside a transaction it opened first, so the log ends in COMMIT: replay must not fail it."""
+    before = _before(tmp_path)
+    log, changes, b = _run_plan(tmp_path, before, lambda db, _: db.execute("UPDATE charges SET status = 'refunded' WHERE id = 105"))
+    s, _ = runner.prove(str(before), log + ["COMMIT"], CLOCK, b, changes)
+    assert s["status"] == "proven" and s["failed_on_replay"] == 0
