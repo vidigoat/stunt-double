@@ -404,6 +404,7 @@ def grid744(s, lit=True):
         r, c = divmod(i, cols)
         sh = s.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, Inches(gx) + c * pitch, Inches(gy) + r * pitch, pitch - gap, pitch - gap)
         sh.adjustments[0] = 0.18
+        sh.name = f"!!unit{i}"
         sh.fill.solid(); sh.fill.fore_color.rgb = rgb(GREEN_ON_DARK if (lit and i in KEPT) else "B8434A")
         sh.line.fill.background(); sh.shadow.inherit = False; flat(sh)
     return gy + rows * pitch / 914400
@@ -469,22 +470,15 @@ def browser(slide, x, y, w, img, url="149-28-206-186.sslip.io/app"):
 def s06_product(prs):
     s = new_slide(prs)
     kicker(s, "The real product, live on Vultr")
-    headline(s, [[("Six checks.", False)], [("One click.", True)]], h=1.7, w=5.6)
-    underline(s, 2.62)
-    for j, (ic, t, d) in enumerate([("check", "Every layer explains itself", "Six layers, one plain reason each."),
-                                    ("scissors", "The wrong part, cut out", "Line 1 chose 640 refunds. All removed."),
-                                    ("approve", "You approve the rest", "The 104 re-run fresh. Then you approve.")]):
-        yy = 3.1 + j * 1.1
-        badge(s, ic, MX, yy, d=0.62, fill=BLUE_SOFT, tone="blue")
-        text(s, MX + 0.85, yy - 0.03, 4.6, 0.4, [[R(t, SANS, 18, INK, bold=True)]])
-        para(s, MX + 0.85, yy + 0.38, 4.6, 0.6, d, size=15)
-    para(s, MX, 6.55, 5.4, 0.35, "Try it: 149-28-206-186.sslip.io", size=15, color=BLUE, bold=True)
-    browser(s, 6.75, 0.62, 5.55, HERE / "img" / "product.png")
-    notes(s, "This is the real screen, on the live server. Six independent layers each give one plain reason: what was "
-             "measured, the proof by replay, the intent contract, the rules, the AI jury and the sign-off. The engine shows "
-             "exactly which part of the plan is wrong, line 1 chose 640 refunds, and offers to keep just the 104 that are "
-             "right. One click, and those 104 are re-rehearsed in a fresh sandbox and checked again before you approve.")
-
+    headline(s, [[("Six checks. ", False), ("One plain answer.", True)]], h=0.9)
+    underline(s, 1.95)
+    text(s, W - MX - 5.0, 1.12, 5.0, 0.5, [[R("Try it: 149-28-206-186.sslip.io", SANS, 16, BLUE, bold=True)]], align=PP_ALIGN.RIGHT)
+    browser(s, MX, 2.35, W - 2 * MX - 0.16, HERE / "img" / "product.png")
+    notes(s, "This is the real screen, on the live server, for the refund plan. Six independent layers each give one "
+             "plain reason: it was measured, every change was proven by replay, the intent contract is broken, the rules "
+             "pass, the AI jury objects, and big changes need two people. Combined by fixed rules into one decision: "
+             "approve just the 104 of 744 changes that pass. And every step is sealed in a signed record your browser "
+             "can verify.")
 
 def s06b_features(prs):
     s = new_slide(prs)
@@ -686,6 +680,17 @@ ALT = {"product.png": "The live Stunt Double console: six decision layers, and 1
        "brand-python": "Python logo"}
 
 
+def morph(slide) -> None:
+    """PowerPoint's Morph: the same 744 named squares change colour in place. Players without Morph fall back to a fade."""
+    from lxml import etree
+    P = "http://schemas.openxmlformats.org/presentationml/2006/main"
+    xml = ('<mc:AlternateContent xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006">'
+           '<mc:Choice xmlns:p159="http://schemas.microsoft.com/office/powerpoint/2015/09/main" Requires="p159">'
+           f'<p:transition xmlns:p="{P}" spd="slow"><p159:morph option="byObject"/></p:transition></mc:Choice>'
+           f'<mc:Fallback><p:transition xmlns:p="{P}" spd="slow"><p:fade/></p:transition></mc:Fallback></mc:AlternateContent>')
+    slide._element.append(etree.fromstring(xml))
+
+
 def build() -> Path:
     prs = Presentation()
     prs.slide_width, prs.slide_height = Inches(W), Inches(H)
@@ -702,8 +707,11 @@ def build() -> Path:
             f(prs)
     finally:
         SlideShapes.add_picture = real_add
-    for sl in list(prs.slides)[1:]:
-        fade(sl)
+    for i, sl in enumerate(prs.slides):
+        if SLIDES[i] is s05_engine:
+            morph(sl)
+        elif i:
+            fade(sl)
     prs.core_properties.title = "Stunt Double"
     prs.core_properties.subject = "Let the double take the hit. Vultr: Agent Rush, Challenge 01."
     prs.save(OUT)
