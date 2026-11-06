@@ -246,19 +246,20 @@ The full case, with every number sourced, is in [docs/BUSINESS.md](docs/BUSINESS
 There is no approve tool and no approve method anywhere: an agent can rehearse, but only a person can decide.
 
 ```bash
-claude mcp add --transport http stunt-double https://<host>/mcp     # Claude Code; Cursor and any MCP client work too
+claude mcp add --transport http stunt-double https://149-28-206-186.sslip.io/mcp   # Claude Code; Cursor and any MCP client work too
 ```
 
 ```python
-from stunt_double import StuntDouble            # pip install ./sdk/python
-sd = StuntDouble("https://<host>")
+from stunt_double import StuntDouble   # pip install "git+https://github.com/vidigoat/stunt-double#subdirectory=sdk/python"
+sd = StuntDouble("https://149-28-206-186.sslip.io")
 
-@sd.plan("Refund everyone who was double-charged last week")
+@sd.plan("Email our VIP customers a thank-you note with the code BEANS10 for 10% off.")
 def run(ctx):
-    ...
+    for _id, name, email in ctx.db.execute("SELECT id, name, email FROM customers WHERE vip = 1").fetchall():
+        ctx.email.send(to=email, subject="Thank you", body=f"Hi {name}, BEANS10 is 10% off.", kind="marketing")
 
 r = run.rehearse()                # on the double, in a sandbox
-print(r.summary, r.approval_url)  # a person approves at the link
+print(r.summary, r.approval_url)  # 14 emails; the engine offers to keep the 11 who said yes to marketing
 ```
 
 <details>
