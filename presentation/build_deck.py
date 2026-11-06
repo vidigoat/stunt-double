@@ -448,7 +448,7 @@ def s05_engine(prs):
         ix, iy = x + 0.28 + c * colw, y + 0.24 + r * 0.6
         badge(s, ic, ix, iy, d=0.46, fill="1E2A4A", tone="lightblue", pad=0.24)
         text(s, ix + 0.56, iy, colw - 0.6, 0.46, [[R(t, SANS, 14, "E4E4E0")]], anchor=MSO_ANCHOR.MIDDLE)
-    notes(s, "Only 104. Before the plan existed, the engine writes down what the "
+    notes(s, "Now the hard case: a plan that's only partly wrong. Before the plan exists, the engine writes down what the "
              "request means: 104 refunds. The plan does 744. Replaying it proves line 1 chose the 640 wrong ones. The "
              "engine cuts them out, re-runs just the 104 in a fresh sandbox, and every check passes. Guardrails block or "
              "allow; this approves exactly the right part.")
@@ -668,7 +668,7 @@ def s12_close(prs):
              "Wikimedia Commons, CC BY-SA 4.0.")
 
 
-SLIDES = (s01_cover, s02_problem, s03_how, s04_containment, s05a_question, s05_engine, s06_product, s06b_features, s07_vultr, s08_proof, s09_studies, s10_business, s12_close)
+SLIDES = (s01_cover, s02_problem, s03_how, s04_containment, s05_engine, s06_product, s06b_features, s07_vultr, s08_proof, s09_studies, s10_business, s12_close)
 
 
 ALT = {"product.png": "The live Stunt Double console: six decision layers, and 104 of 744 refunds kept",
@@ -707,9 +707,7 @@ def build() -> Path:
     finally:
         SlideShapes.add_picture = real_add
     for i, sl in enumerate(prs.slides):
-        if SLIDES[i] is s05_engine:
-            morph(sl)
-        elif i:
+        if i:
             fade(sl)
     prs.core_properties.title = "Stunt Double"
     prs.core_properties.subject = "Let the double take the hit. Vultr: Agent Rush, Challenge 01."
