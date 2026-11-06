@@ -20,4 +20,4 @@ jobs:
             echo "$path -> $code"; [ "$code" = "200" ]
           done
           curl -sf --retry 3 --retry-delay 10 "$BASE/api/health" | tee health.json
-          python3 -c "import json; h=json.load(open('health.json')); assert h['ok'] and h['sandbox_ready'] and h['inference_configured'], h"
+          python3 -c "import json; h=json.load(open('health.json')); assert h['ok'] and h['sandbox_ready'] and h['inference_configured'], h; assert (h.get('disk_free_gb') or 99) > 3, 'disk nearly full'"
