@@ -9,6 +9,7 @@ import threading
 import time
 import uuid
 from collections import defaultdict
+from pathlib import Path
 from typing import Literal
 
 from fastapi import FastAPI, HTTPException, Request
@@ -30,6 +31,7 @@ app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], all
 RUNS: dict[str, dict] = {}
 HISTORY: dict[str, list] = {}           # ops-agent conversation per run (kept server-side)
 LOCK = threading.Lock()
+LAST_WRITE = {"t": time.time()}  # the last visitor action (any rate-limited write)
 SANDBOX_SLOTS = threading.BoundedSemaphore(3)
 APPLY_LOCK = threading.Lock()            # one apply at a time: ledger check + replay are serialised across runs
 RATE: dict[str, list[float]] = defaultdict(list)
@@ -722,7 +724,7 @@ def _public(run: dict) -> dict:
     return out
 
 
-def _rate_limit(req: Request, per_hour: int = 30, kind: str = "rehearsal") -> None:
+def _rate_limit(req: Request, per_hour: int = 60, kind: str = "rehearsal") -> None:
     """Per visitor AND per kind of action: ten rehearsals must not use up a visitor's uploads or demo resets."""
     # The right-most X-Forwarded-For entry is the one our own proxy (Caddy) added; left-most entries are client-controlled.
     ip = (req.headers.get("x-forwarded-for") or (req.client.host if req.client else "?")).split(",")[-1].strip()
@@ -731,6 +733,7 @@ def _rate_limit(req: Request, per_hour: int = 30, kind: str = "rehearsal") -> No
     if len(RATE[key]) >= per_hour:
         raise HTTPException(429, f"Too many {kind}s from this address in the last hour, try again later")
     RATE[key].append(now)
+    LAST_WRITE["t"] = now
 
 
 # ---- API ----------------------------------------------------------------------------------------------
@@ -793,7 +796,7 @@ def health():
             "vm_isolation": vultr_vm.configured(), "sample_postgres": bool(config.SAMPLE_PG_URL), "vm_plan": config.VM_PLAN if vultr_vm.configured() else None,
             "docker": docker.stdout.strip() or None, "sandbox_ready": ready, "sandbox_status": why,
             "evidence_archive": f"vultr-object-storage:{archive.BUCKET}" if archive.enabled() else None,
-            "disk_free_gb": _disk_free_gb()}
+            "disk_free_gb": _disk_free_gb(), "demo": {k: DEMO_GUARD[k] for k in ("state", "restored_at", "restores")}}
 
 
 def _disk_free_gb() -> float | None:
@@ -1787,6 +1790,17 @@ def reset(req: Request):
     _rate_limit(req, per_hour=20, kind="demo reset")
     if any(r["status"] in ACTIVE for r in RUNS.values()):
         raise HTTPException(409, "A rehearsal is still running; try again in a moment")
+    _restore_business()
+    with LOCK:  # a demo reset starts a fresh audit trail too
+        RUNS.clear()
+        HISTORY.clear()
+        for f in HISTORY_DIR.glob("run_*.json"):
+            f.unlink(missing_ok=True)
+    return {"ok": True, **business()}
+
+
+def _restore_business() -> None:
+    """Put the demo business back exactly as seeded: data, payments, outbox, policy, learned rules and inbox."""
     seed.seed(config.PROD_DB)
     beanpay.reset()
     connectors.reset()
@@ -1798,9 +1812,82 @@ def reset(req: Request):
             httpx.delete(f"{config.MAILPIT_API}/api/v1/messages", timeout=5)
         except Exception:  # noqa: BLE001, S110 - an inbox that can't be emptied must not block the reset
             pass
-    with LOCK:  # a demo reset starts a fresh audit trail too
-        RUNS.clear()
-        HISTORY.clear()
-        for f in HISTORY_DIR.glob("run_*.json"):
-            f.unlink(missing_ok=True)
-    return {"ok": True, **business()}
+
+
+# ---- self-healing demo ---------------------------------------------------------------------------
+# A public demo is shared: one visitor approves the 104 refunds or learns a rule and leaves, and the next visitor's
+# judge step 1 no longer shows the story (the work is already done, or a rule blocks it first). So when the demo
+# business differs from its seed and nobody has done anything for a while, it is restored. Runs and history are kept.
+DEMO_GUARD: dict = {"state": "unknown", "checked_at": None, "restored_at": None, "restores": 0}
+_SEED_DIGEST: dict = {}
+
+
+def _db_digest(path) -> str:
+    db = sqlite3.connect(f"file:{path}?mode=ro", uri=True)
+    try:
+        h = hashlib.sha256()
+        for (name,) in db.execute("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name").fetchall():
+            h.update(name.encode())
+            for row in db.execute(f'SELECT * FROM "{name}" ORDER BY rowid'):  # noqa: S608 - names come from sqlite_master
+                h.update(repr(row).encode())
+        return h.hexdigest()
+    finally:
+        db.close()
+
+
+def _seed_digest() -> str:
+    if "d" not in _SEED_DIGEST:
+        import tempfile
+        with tempfile.TemporaryDirectory() as d:
+            fresh = Path(d) / "seed.db"
+            seed.seed(fresh)
+            _SEED_DIGEST["d"] = _db_digest(fresh)
+    return _SEED_DIGEST["d"]
+
+
+def _demo_changed() -> list[str]:
+    """What differs from the seeded demo business (empty when it is pristine)."""
+    why = []
+    if not config.PROD_DB.exists() or _db_digest(config.PROD_DB) != _seed_digest():
+        why.append("data")
+    if beanpay.ledger(0)["count"]:
+        why.append("payments")
+    if connectors.deliveries(0)["count"]:
+        why.append("outbox")
+    if rules.all_rules():
+        why.append("learned rules")
+    if policy.PATH.exists():
+        why.append("policy")
+    return why
+
+
+def _last_activity() -> float:
+    with LOCK:
+        runs = [max([r.get("created_at") or 0] + [e["t"] for e in r["events"][-1:]]) for r in RUNS.values()]
+        active = any(r["status"] in ACTIVE for r in RUNS.values())
+    return float("inf") if active else max(runs + [LAST_WRITE["t"]])
+
+
+def _demo_guard_tick(now: float | None = None) -> bool:
+    """One check. Returns True if it restored the demo business."""
+    now = now or time.time()
+    try:
+        why = _demo_changed()
+    except (OSError, sqlite3.Error):
+        return False
+    DEMO_GUARD.update(state="changed: " + ", ".join(why) if why else "pristine", checked_at=now)
+    if not why or now - _last_activity() < config.DEMO_IDLE_RESTORE_SECONDS:
+        return False
+    _restore_business()
+    DEMO_GUARD.update(state="pristine", restored_at=now, restores=DEMO_GUARD["restores"] + 1)
+    return True
+
+
+def _demo_guard_loop() -> None:
+    while True:
+        time.sleep(120)
+        _demo_guard_tick()
+
+
+if config.DEMO_IDLE_RESTORE_SECONDS > 0:
+    threading.Thread(target=_demo_guard_loop, daemon=True).start()

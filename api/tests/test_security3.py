@@ -260,7 +260,7 @@ def test_snapshot_keeps_values_in_their_columns_with_generated_columns(tmp_path)
 def test_rehearsals_do_not_use_up_uploads_or_resets(monkeypatch):
     from types import SimpleNamespace
     req = SimpleNamespace(headers={}, client=SimpleNamespace(host="9.9.9.9"))
-    for _ in range(30):
+    for _ in range(60):
         main._rate_limit(req)                      # a busy visitor uses up their rehearsals...
     with pytest.raises(main.HTTPException):
         main._rate_limit(req)

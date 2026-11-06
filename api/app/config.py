@@ -36,6 +36,8 @@ SMTP_PORT = int(os.environ.get("SD_SMTP_PORT", "1025"))
 # Spend protection for the public demo: max AI-agent runs per UTC day (rehearsing pasted plans is free and unlimited).
 DAILY_AGENT_RUNS = int(os.environ.get("SD_DAILY_AGENT_RUNS", "300"))
 DAILY_CONTRACTS = int(os.environ.get("SD_DAILY_CONTRACTS", "150"))  # new intent contracts (2 model calls each), all visitors; cached ones are free
+# A shared public demo heals itself: changed and idle this long, the demo business is restored to its seed (0 = off).
+DEMO_IDLE_RESTORE_SECONDS = int(os.environ.get("SD_DEMO_IDLE_RESTORE_SECONDS", "1800"))
 DAILY_VERIFICATIONS = int(os.environ.get("SD_DAILY_VERIFICATIONS", "400"))  # AI checks of hand-written plans, all visitors
 # Mailpit's HTTP API (demo inbox), so a demo reset can empty it. Empty = don't touch any inbox.
 MAILPIT_API = os.environ.get("SD_MAILPIT_API", "")

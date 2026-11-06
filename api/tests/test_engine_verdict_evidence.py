@@ -153,3 +153,29 @@ def test_health_reports_disk_headroom():
     from app import main
     free = TestClient(main.app).get("/api/health").json()["disk_free_gb"]
     assert free is None or free >= 0
+
+
+def test_demo_heals_itself_when_changed_and_idle(fresh_business, monkeypatch):
+    """A visitor approves refunds and learns a rule, then leaves: once idle, the demo business is back to its seed."""
+    import sqlite3
+    import time
+    from app import beanpay, config, connectors, main, rules
+    rules.reset()
+    connectors.reset()
+    assert main._demo_changed() == []
+    db = sqlite3.connect(config.PROD_DB)
+    db.execute("UPDATE charges SET status = 'refunded' WHERE id = (SELECT MIN(id) FROM charges)")
+    db.commit()
+    db.close()
+    rules.PATH.write_text('[{"id": "r1", "workspace": "demo", "title": "t", "sql": "SELECT 1"}]')
+    assert set(main._demo_changed()) == {"data", "learned rules"}
+    monkeypatch.setattr(config, "DEMO_IDLE_RESTORE_SECONDS", 1800)
+    main.LAST_WRITE["t"] = time.time()
+    assert main._demo_guard_tick() is False                                  # someone is still here: leave it alone
+    assert main.DEMO_GUARD["state"].startswith("changed")
+    main.LAST_WRITE["t"] = time.time() - 3600
+    with main.LOCK:
+        main.RUNS.clear()
+    assert main._demo_guard_tick() is True                                   # idle for an hour: restored
+    assert main._demo_changed() == [] and beanpay.ledger(0)["count"] == 0 and rules.all_rules() == []
+    assert main.DEMO_GUARD["state"] == "pristine"

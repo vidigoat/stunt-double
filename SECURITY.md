@@ -115,7 +115,9 @@ regression tests in `api/tests/test_security3.py`:
   Production deployments should use a dedicated sandbox host or a rootless/remote runtime.
 - Phase 2 parses a SQLite file the plan wrote. It does so inside a sandbox with the same caps, but SQLite itself is
   part of the trusted computing base of the measurement.
-- The demo has no authentication: anyone with the URL can rehearse, edit policy and approve. Rate limits apply.
+- The demo has no authentication: anyone with the URL can rehearse, edit policy and approve. Rate limits apply, and the
+  demo heals itself: once the demo business differs from its seed and nobody has acted for 30 minutes, it is restored
+  (data, payments, outbox, policy, learned rules; runs and history are kept). `/api/health` shows its state.
   The two-person rule therefore stops *accidents* (one click moving $37,404), not a determined insider typing two
   names. In production, approver identity comes from your SSO and policy edits need an admin.
 - The plan shares a process with phase 1, so it can erase its own *blocked network attempt* log. The container still

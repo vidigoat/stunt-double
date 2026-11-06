@@ -8,6 +8,7 @@ import pytest
 
 # Isolated data dir for the whole test session (must be set before app.config is imported).
 os.environ.setdefault("SD_DATA_DIR", tempfile.mkdtemp(prefix="sd-test-"))
+os.environ.setdefault("SD_DEMO_IDLE_RESTORE_SECONDS", "0")  # no background self-healing mid-test; tested directly
 os.environ.setdefault("SD_SMTP_PORT", "1")  # nothing listens here: email delivery is counted as failed, not sent
 
 ROOT = Path(__file__).resolve().parents[2]
