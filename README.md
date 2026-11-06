@@ -340,11 +340,12 @@ docs/                       business case, evals, benchmark, security, demo scri
 
 ## Roadmap
 
-**Shipped during the hackathon:** browser doubles with a vision check · doubles of your Vultr fleet and your PostgreSQL ·
-the three-lab AI jury · catch → rule with safety checks · instant, labelled re-use of live verdicts · graduated autonomy ·
-Mission control · **the Consequence Engine** (intent contracts, effect graph, proof of effect, surgical approval, signed
-hash-chained evidence). **Built, off on the public demo:** a brand-new Vultr VM per high-risk rehearsal.
-**Next:** GitHub sign-in and Slack approvals · contracts a person edits before the plan runs · Stripe, HubSpot and Zendesk connectors.
+Stunt Double was built from scratch for the Vultr Agent Rush (Nov 3–9, 2026): every line in this repository was
+written during the hackathon.
+
+**Built, off on the public demo:** a brand-new Vultr VM per high-risk rehearsal (it needs a Vultr account key on the server, which the public demo deliberately doesn't hold).
+**Next:** GitHub sign-in and Slack approvals · contracts a person edits before the plan runs · Stripe, HubSpot and
+Zendesk connectors · the Consequence Engine for cloud and browser plans.
 
 ## License
 
