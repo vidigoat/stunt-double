@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { ArrowRight, Ban, Bot, Check, ChevronDown, CircleDashed, FileSignature, FlaskConical, Loader2, Lock, RotateCcw, ShieldAlert, ShieldCheck, Sparkles, Undo2, User, Users, Scissors, Wrench, X, Zap } from "lucide-react";
@@ -534,7 +533,15 @@ export default function AppPage() {
                 ].map((s: { n: string; t: string; d: string; preset?: string; task?: string; agent?: boolean; pg?: boolean; featured?: boolean }) => (
                   <li key={s.n}>
                     <button disabled={busy || running} onClick={() => {
-                      if (s.agent) { setWs("demo"); setMode("agent"); setTask(EXAMPLES[0]); void start({ mode: "agent", task: EXAMPLES[0], ws: "demo" }); return; }
+                      if (s.agent) {
+                        setWs("demo"); setMode("agent"); setTask(EXAMPLES[0]);
+                        void (async () => {
+                          const r = await api.restoreDemo().catch(() => null);
+                          if (r?.restored?.length) { api.business("demo").then(setBiz).catch(() => {}); api.health().then(setHealth).catch(() => {}); }
+                          await start({ mode: "agent", task: EXAMPLES[0], ws: "demo" });
+                        })();
+                        return;
+                      }
                       if (s.pg) {
                         void (async () => {
                           try {

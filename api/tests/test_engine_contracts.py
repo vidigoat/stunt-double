@@ -367,7 +367,7 @@ def test_the_contract_writer_sees_status_values_but_nothing_personal(tmp_path):
     assert "City 1" not in text                                    # more than 8 distinct values: free-form, left out
 
 
-def test_a_withdrawn_promise_stays_withdrawn_after_the_runs_that_proved_it_are_gone(tmp_path, monkeypatch):
+def test_a_withdrawn_promise_stays_withdrawn_after_the_runs_that_proved_it_are_gone(fresh_business, tmp_path, monkeypatch):
     from app import main
     monkeypatch.setattr(main, "WITHDRAWN_FILE", tmp_path / "w.json")
     fair = {"text": "a", "sql": "SELECT 1 WHERE 0", "kind": "guard", "today": 0}
@@ -377,3 +377,12 @@ def test_a_withdrawn_promise_stays_withdrawn_after_the_runs_that_proved_it_are_g
     enforced, withdrawn = main._remembered_withdrawals("demo", "task ", [fair, unfair], [])     # after a reset: no good runs
     assert enforced == [fair] and withdrawn == [unfair]
     assert main._remembered_withdrawals("demo", "another task", [unfair], []) == ([unfair], [])
+    # "What does it mean?" shows the promises a run will enforce, not one already proven unfair
+    a, b = FakeModel([WORK, GUARD]), FakeModel([WORK, GUARD])
+    client = SimpleNamespace(chat=SimpleNamespace(completions=SimpleNamespace(create=lambda **kw: (a if kw["model"] == "a" else b).create(**kw))))
+    monkeypatch.setattr(config, "INFERENCE_KEY", "set")
+    monkeypatch.setattr(config, "CONTRACT_MODELS", ["a", "b"])
+    monkeypatch.setattr(main.agent, "client", lambda: client)
+    main._remembered_withdrawals("demo", PLANS["bad"]["task"], [], [{"text": GUARD["text"], "sql": GUARD["sql"]}])
+    r = TestClient(main.app).post("/api/contract/preview", json={"task": PLANS["bad"]["task"]}).json()
+    assert [p["kind"] for p in r["promises"]] == ["obligation"] and [p["text"] for p in r["withdrawn"]] == [GUARD["text"]]

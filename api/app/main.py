@@ -184,7 +184,7 @@ def _gate_flags(c: dict, run: dict, pol: dict | None = None, jury: str | None = 
     jury = jury or _jury_own(run)
     for p in (c.get("contract") or {}).get("promises", []):
         if p.get("status") == "broken":
-            rows = f"{p['after']:,} row{'s' if p['after'] != 1 else ''} break it."
+            rows = f"{p['after']:,} row{'s break' if p['after'] != 1 else ' breaks'} it."
             if jury == "looks_right":
                 flags.insert(0, {"rule": "contract", "severity": "high", "title": f"Breaks a promise made before the plan: {p['text'].rstrip('.')}",
                                  "detail": f"{rows} The AI jury judged the outcome right, so the two readings of your request disagree: "
@@ -1077,6 +1077,9 @@ def preview_contract(body: PreviewIn, req: Request):
         if "budget" in str(e):
             raise HTTPException(429, str(e)[:200]) from None
         raise HTTPException(502, f"No model could write a contract for this request ({str(e)[:160]})") from None
+    enforced, withdrawn = _remembered_withdrawals(body.workspace, body.task, c["promises"], [])
+    if enforced:   # show the promises a run with this request will enforce, not ones already proven unfair
+        c = {**c, "promises": enforced, "withdrawn": withdrawn}
     c = {**c, "status": "ready", "cross_check": _cross_read(body.task, c, base, body.workspace, warm)}
     return {**c, "ms": int((time.time() - t0) * 1000)}
 
