@@ -395,10 +395,7 @@ def s04_containment(prs):
              "that lies about what it did is caught too: one said 'no changes' and had changed 300 rows.")
 
 
-def s05_engine(prs):
-    s = new_slide(prs, INK)
-    kicker(s, "The Consequence Engine", dark=True)
-    headline(s, [[("744 refunds planned. ", False), ("104 were right.", True)], [("It kept exactly those.", False)]], dark=True, h=1.7)
+def grid744(s, lit=True):
     cols, rows = 62, 12
     gx, gy = MX, 2.75
     pitch = int(Inches(W - 2 * MX)) // cols
@@ -407,9 +404,28 @@ def s05_engine(prs):
         r, c = divmod(i, cols)
         sh = s.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, Inches(gx) + c * pitch, Inches(gy) + r * pitch, pitch - gap, pitch - gap)
         sh.adjustments[0] = 0.18
-        sh.fill.solid(); sh.fill.fore_color.rgb = rgb(GREEN_ON_DARK if i in KEPT else "B8434A")
+        sh.fill.solid(); sh.fill.fore_color.rgb = rgb(GREEN_ON_DARK if (lit and i in KEPT) else "B8434A")
         sh.line.fill.background(); sh.shadow.inherit = False; flat(sh)
-    bottom = gy + rows * pitch / 914400
+    return gy + rows * pitch / 914400
+
+
+def s05a_question(prs):
+    """The setup for the reveal: every planned refund, all red, one question."""
+    s = new_slide(prs, INK)
+    kicker(s, "The Consequence Engine", dark=True)
+    headline(s, [[("The agent planned 744 refunds.", False)], [("How many were right?", True)]], dark=True, h=1.7)
+    bottom = grid744(s, lit=False)
+    para(s, MX, bottom + 0.05, 8, 0.3, "Each square: one charge, its refund and its email", size=14, color="9A9A94")
+    text(s, MX, 5.75, W - 2 * MX, 1.0, [[R("$37,404", MONO, 54, RED_ON_DARK), R("   about to leave the business.", SANS, 22, "C9C9C4")]], anchor=MSO_ANCHOR.MIDDLE)
+    notes(s, "Now the hard case: a plan that's only partly wrong. Asked to refund everyone who was double-charged, the "
+             "agent planned 744 refunds: $37,404. Every rule passes. So how many of these were actually right?")
+
+
+def s05_engine(prs):
+    s = new_slide(prs, INK)
+    kicker(s, "The Consequence Engine", dark=True)
+    headline(s, [[("744 refunds planned. ", False), ("104 were right.", True)], [("It kept exactly those.", False)]], dark=True, h=1.7)
+    bottom = grid744(s, lit=True)
     para(s, MX, bottom + 0.05, 8, 0.3, "Each square: one charge, its refund and its email", size=14, color="9A9A94")
     text(s, W - MX - 4, bottom + 0.05, 4, 0.3, [[R("■ ", SANS, 14, GREEN_ON_DARK), R("keep 104     ", SANS, 14, "9A9A94"),
                                                  R("■ ", SANS, 14, "B8434A"), R("cut 640", SANS, 14, "9A9A94")]], align=PP_ALIGN.RIGHT)
@@ -431,7 +447,7 @@ def s05_engine(prs):
         ix, iy = x + 0.28 + c * colw, y + 0.24 + r * 0.6
         badge(s, ic, ix, iy, d=0.46, fill="1E2A4A", tone="lightblue", pad=0.24)
         text(s, ix + 0.56, iy, colw - 0.6, 0.46, [[R(t, SANS, 14, "E4E4E0")]], anchor=MSO_ANCHOR.MIDDLE)
-    notes(s, "Now the hard case: a plan that's only partly wrong. Before the plan exists, the engine writes down what the "
+    notes(s, "Only 104. Before the plan existed, the engine writes down what the "
              "request means: 104 refunds. The plan does 744. Replaying it proves line 1 chose the 640 wrong ones. The "
              "engine cuts them out, re-runs just the 104 in a fresh sandbox, and every check passes. Guardrails block or "
              "allow; this approves exactly the right part.")
@@ -658,7 +674,7 @@ def s12_close(prs):
              "Wikimedia Commons, CC BY-SA 4.0.")
 
 
-SLIDES = (s01_cover, s02_problem, s03_how, s04_containment, s05_engine, s06_product, s06b_features, s07_vultr, s08_proof, s09_studies,
+SLIDES = (s01_cover, s02_problem, s03_how, s04_containment, s05a_question, s05_engine, s06_product, s06b_features, s07_vultr, s08_proof, s09_studies,
           s10_business, s11_why, s12_close)
 
 

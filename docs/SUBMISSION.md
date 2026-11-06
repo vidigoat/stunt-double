@@ -83,7 +83,7 @@ Three places, nothing else needed:
 - Repo: https://github.com/vidigoat/stunt-double (agents connect over MCP at https://149-28-206-186.sslip.io/mcp)
 
 ## Files
-- Slides PDF: `presentation/StuntDouble.pdf` (13 slides; the editable deck is `presentation/StuntDouble.pptx`, built by
+- Slides PDF: `presentation/StuntDouble.pdf` (14 slides; the editable deck is `presentation/StuntDouble.pptx`, built by
   `python3 presentation/build_deck.py`; speaker notes on every slide; fonts are Georgia and Helvetica Neue, already on every Mac and PC)
 - Cover (16:9): `presentation/cover.png`
 - Video: required. The official page sets no length limit; Challenge 01 requires it to show at least one containment
