@@ -146,3 +146,10 @@ def test_sealed_bodies_hash_the_same_in_any_language(tmp_path):
     body = b["entries"][0]["body"]
     assert body == {"at": "1793883894.4790456", "whole": 5, "tiny": "1e-05", "n": 3}   # no floats: JavaScript would print them differently
     assert evidence.verify(json.loads(json.dumps(b)))["ok"]
+
+
+def test_health_reports_disk_headroom():
+    from fastapi.testclient import TestClient
+    from app import main
+    free = TestClient(main.app).get("/api/health").json()["disk_free_gb"]
+    assert free is None or free >= 0

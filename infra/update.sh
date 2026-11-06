@@ -26,6 +26,7 @@ if [ "$DEPLOYED" != "$TARGET" ] || [ ! -f "$STATE" ]; then
      || git -C /opt/stunt-double/src diff --name-only "$DEPLOYED" "$TARGET" | grep -q '^infra/Caddyfile$'; then
     SITE_HOST=$(cat /opt/stunt-double/site_host) docker compose restart caddy
   fi
+  docker image prune -f >/dev/null || true   # drop the layers each rebuild leaves behind, so deploys never fill the disk
   echo "$TARGET" > "$STATE"
   echo "deployed $(git rev-parse --short "$TARGET")"
 fi

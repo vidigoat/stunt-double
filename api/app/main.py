@@ -792,7 +792,17 @@ def health():
             "ai_checks_daily_limit": config.DAILY_VERIFICATIONS, "sandbox_runtime": config.SANDBOX_RUNTIME or "runc",
             "vm_isolation": vultr_vm.configured(), "sample_postgres": bool(config.SAMPLE_PG_URL), "vm_plan": config.VM_PLAN if vultr_vm.configured() else None,
             "docker": docker.stdout.strip() or None, "sandbox_ready": ready, "sandbox_status": why,
-            "evidence_archive": f"vultr-object-storage:{archive.BUCKET}" if archive.enabled() else None}
+            "evidence_archive": f"vultr-object-storage:{archive.BUCKET}" if archive.enabled() else None,
+            "disk_free_gb": _disk_free_gb()}
+
+
+def _disk_free_gb() -> float | None:
+    """Free space where runs and sandboxes live, so an operator sees headroom before it runs out."""
+    import shutil
+    try:
+        return round(shutil.disk_usage(config.DATA_DIR).free / 1e9, 1)
+    except OSError:
+        return None
 
 
 @app.get("/api/workspaces")

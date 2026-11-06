@@ -16,7 +16,7 @@ Stunt Double: Let the Double Take the Hit
 Every AI agent now holds the keys to something real. Stunt Double lets it try every action on a perfect copy of your business first, on Vultr. Nothing real happens until a person says yes.
 ```
 
-## Step 1 · Long Description (600–2000 chars and 100+ words, this is 1594 chars, 287 words)
+## Step 1 · Long Description (600–2000 chars and 100+ words, this is 1732 chars, 315 words)
 ```
 In the movies, the star never jumps from the burning building. The stunt double does.
 
@@ -30,7 +30,7 @@ A person sees it all in plain words, not code. Only what they approve ever happe
 
 And it learns. Every mistake it catches becomes a rule, so the same mistake is stopped instantly next time, without asking the AI at all.
 
-Built on Vultr from end to end. In live tests it caught 48 of 48 bad plans, with no false alarms.
+Built on Vultr from end to end, and measured there: it stopped 12 of 12 bad plans and approved 8 of 8 correct ones, stopped 8 of 8 wrong plans on cases it was never tuned on, and found the trap in a school's database it had never seen.
 
 Agents should be bold. Businesses should be safe. Now they can be both.
 
@@ -59,7 +59,7 @@ Humans approve consequences, not code: "refunds $37,404 to 744 people, 640 of wh
 
 Every catch becomes a rule: the AI writes the SQL check it used, Stunt Double proves it would not block work the AI judged correct, and one click makes it a rule that blocks the same mistake instantly, without AI. Every approval is the human-oversight and change record the EU AI Act (Art. 14) and SOC 2 (CC8.1) ask for. Measured on Vultr: $0.02–0.044 per AI jury check, 73% gross margin at $49 per approver; one caught mistake pays for a seat for decades.
 
-On the live Vultr server it caught 48 of 48 bad plans with 0 false alarms on 26 correct ones. Agents connect over MCP, an SDK, a CLI or REST; there is no approve tool. Built on Vultr Cloud Compute, Serverless Inference and the Vultr API, with gVisor, FastAPI, Next.js and Playwright; 199 API tests and an end-to-end test that passes against production.
+On the live Vultr server it caught 48 of 48 bad plans with 0 false alarms on 26 correct ones. Agents connect over MCP, an SDK, a CLI or REST; there is no approve tool. Built on Vultr Cloud Compute, Serverless Inference and the Vultr API, with gVisor, FastAPI, Next.js and Playwright; 200 API tests and an end-to-end test that passes against production.
 ```
 
 

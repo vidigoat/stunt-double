@@ -1,8 +1,13 @@
 # Stunt Double on one Vultr Cloud Compute VM.
+# Every container keeps at most 3 x 10 MB of logs, so a long-running demo never fills the disk.
+x-logs: &logs
+  logging: { driver: json-file, options: { max-size: "10m", max-file: "3" } }
+
 services:
   caddy:
     image: caddy:2
     restart: unless-stopped
+    <<: *logs
     ports: ["80:80", "443:443"]
     environment: { SITE_HOST: "${SITE_HOST}" }
     volumes: ["./Caddyfile:/etc/caddy/Caddyfile:ro", "caddy_data:/data"]
@@ -11,11 +16,13 @@ services:
   web:
     build: { context: ../web, args: { NEXT_PUBLIC_SITE_URL: "https://${SITE_HOST}", API_URL: "http://api:8000" } }
     restart: unless-stopped
+    <<: *logs
     environment: { API_URL: "http://api:8000" }
 
   api:
     build: ../api
     restart: unless-stopped
+    <<: *logs
     env_file: [.env]           # VULTR_INFERENCE_KEY lives here, never inside a sandbox
     environment:
       SD_DATA_DIR: /opt/stunt-double/data
@@ -41,6 +48,7 @@ services:
   mcp:
     build: ../mcp
     restart: unless-stopped
+    <<: *logs
     environment:
       STUNT_DOUBLE_API: http://api:8000
       STUNT_DOUBLE_PUBLIC: "https://${SITE_HOST}"
@@ -49,6 +57,7 @@ services:
   sample-pg:
     image: postgres:16-alpine
     restart: unless-stopped
+    <<: *logs
     environment: { POSTGRES_DB: saas, POSTGRES_PASSWORD: sample-only-not-exposed }
     volumes: ["./sample-pg/init.sql:/docker-entrypoint-initdb.d/init.sql:ro"]
     # no ports: only the api container can reach it, on the compose network
@@ -56,6 +65,7 @@ services:
   mailpit:
     image: axllent/mailpit:v1.21
     restart: unless-stopped
+    <<: *logs
     environment: { MP_WEBROOT: "mail", MP_MAX_MESSAGES: "5000" }
 
 volumes:

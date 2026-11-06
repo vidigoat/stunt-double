@@ -505,8 +505,8 @@ export default function AppPage() {
           ) : null}
         </div>
 
-        {/* RIGHT: consequences */}
-        <div className="min-w-0 space-y-5">
+        {/* RIGHT: consequences. On a phone, judge mode comes first, so a judge never has to scroll past the composer to find it. */}
+        <div className={cn("min-w-0 space-y-5", !run && "order-first lg:order-none")}>
           {!run && preview ? <ContractCard contract={preview} /> : null}
           {!run ? (
             <div className="grain backdrop-blue rounded-[22px] p-6 sm:p-8 [&>*]:relative [&>*]:z-[2]">

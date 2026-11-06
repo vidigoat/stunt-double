@@ -13,6 +13,13 @@ const KEPT = [0, 11, 26, 32, 34, 40, 43, 58, 64, 66, 94, 104, 106, 108, 115, 118
 const KEEP = new Set(KEPT);
 const CUT = Array.from({ length: 744 }, (_, i) => i).filter((i) => !KEEP.has(i));
 
+// Live runs on the production server; each links to the full write-up.
+const BEYOND = [
+  { k: "06 · live eval", n: "12/12 · 8/8", doc: "VERIFIER_EVAL.md", body: "Bad plans stopped, correct plans approved, 0 false alarms. The refund trap cut to exactly the right 104." },
+  { k: "07 · a school it never saw", n: "63 → 41", doc: "BEYOND_THE_DEMO.md", body: "New schema, new trap: 22 students took their withdrawal back. The contract found them; the cut kept exactly 41." },
+  { k: "08 · held-out cases", n: "8/8", doc: "HELDOUT.md", body: "Wrong plans stopped on 16 cases written before the run and never tuned on. Every miss explained." },
+];
+
 const LAYERS: [string, boolean][] = [["Measured", true], ["Proof of effect", true], ["Intent contract", false], ["Policy and rules", true], ["AI jury", false], ["Sign-off", true]];
 
 function Stage({ n, icon: Icon, kicker, title, body, children, className }: {
@@ -154,10 +161,19 @@ JOIN (SELECT customer_id, amount_cents, date(created_at) d
           </div>
         </div>
 
+        <div className="mt-4 grid gap-px overflow-hidden rounded-[22px] border bg-border md:grid-cols-3">
+          {BEYOND.map((b) => (
+            <a key={b.k} href={`${GITHUB}/blob/main/docs/${b.doc}`} target="_blank" rel="noreferrer" className="group bg-card/80 p-6 hover:bg-card">
+              <div className="font-mono text-[11px] uppercase tracking-[0.14em] text-muted-foreground">{b.k}</div>
+              <div className="mt-2 font-mono text-3xl text-foreground">{b.n}</div>
+              <p className="mt-2 text-[14px] leading-relaxed text-muted-foreground">{b.body} <span className="opacity-0 transition group-hover:opacity-100">↗</span></p>
+            </a>
+          ))}
+        </div>
+
         <div className="mt-8 flex flex-wrap items-center gap-x-6 gap-y-3">
           <Link href="/app" className="inline-flex h-11 items-center gap-2 rounded-full bg-foreground px-5 text-[15px] font-medium text-background hover:opacity-90">See it on the live server <ArrowRight className="size-4" /></Link>
           <a href={`${GITHUB}/blob/main/docs/ENGINE.md`} target="_blank" rel="noreferrer" className="text-[15px] text-muted-foreground underline-offset-4 hover:text-foreground hover:underline">How the engine works ↗</a>
-          <a href={`${GITHUB}/blob/main/docs/BEYOND_THE_DEMO.md`} target="_blank" rel="noreferrer" className="text-[15px] text-muted-foreground underline-offset-4 hover:text-foreground hover:underline">Not just this demo: a school and a SaaS company it never saw ↗</a>
         </div>
       </div>
     </section>
