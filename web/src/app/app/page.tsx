@@ -261,6 +261,8 @@ export default function AppPage() {
       const { id } = m === "agent" ? await api.createRun(t, space) : await api.createManualRun(t, c, space, ownVm && !o && !/\.browser\./.test(c) ? "vultr_vm" : "container");
       setRun({ id, task: t, mode: m === "agent" ? "agent" : "manual", status: "queued", created_at: Date.now() / 1000,
         events: [], attempts: [], verdict: null, flags: [], final_message: null, error: null, agent_model: "", verifier_model: "", apply_result: null });
+      if (window.matchMedia("(max-width: 1023px)").matches)  // on a phone, bring the result into view wherever the click came from
+        requestAnimationFrame(() => document.getElementById("sd-results")?.scrollIntoView({ behavior: "smooth", block: "start" }));
     } catch (e) {
       toast.error((e as Error).message);
     } finally {
@@ -505,8 +507,9 @@ export default function AppPage() {
           ) : null}
         </div>
 
-        {/* RIGHT: consequences. On a phone, judge mode comes first, so a judge never has to scroll past the composer to find it. */}
-        <div className={cn("min-w-0 space-y-5", !run && "order-first lg:order-none")}>
+        {/* RIGHT: consequences. On a phone this column comes first (judge mode, then the result), so a judge never has to
+            scroll past the composer to find either. */}
+        <div id="sd-results" className="order-first min-w-0 scroll-mt-28 space-y-5 lg:order-none">
           {!run && preview ? <ContractCard contract={preview} /> : null}
           {!run ? (
             <div className="grain backdrop-blue rounded-[22px] p-6 sm:p-8 [&>*]:relative [&>*]:z-[2]">
@@ -552,7 +555,7 @@ export default function AppPage() {
                   </li>
                 ))}
               </ol>
-              <p className="mt-5 text-xs text-muted-foreground">Or write your own plan on the left (“Break it yourself”) and press <b className="font-medium text-foreground">Rehearse it</b>.</p>
+              <p className="mt-5 text-xs text-muted-foreground">Or write your own plan in the composer (“Break it yourself”) and press <b className="font-medium text-foreground">Rehearse it</b>.</p>
             </div>
           ) : !view ? (
             <div className="flex min-h-[420px] flex-col items-center justify-center gap-3 rounded-2xl border bg-card p-10 text-center">
