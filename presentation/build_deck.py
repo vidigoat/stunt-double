@@ -224,7 +224,7 @@ def s03_gap(prs):
     text(s, x + 0.35, y + 0.66, ww - 0.7, 0.9, [[R("$37,404", MONO, 44, RED)]])
     text(s, x + 0.35, y + 1.45, ww - 0.7, 0.6, [[R("refunded to 744 people. ", SANS, 17, INK),
                                                    R("640 of them were never double-charged.", SANS, 17, INK, bold=True)]], spacing=1.1)
-    for i, (k, v) in enumerate([("EMAILS", "744"), ("VIPS EMAILED", "8"), ("AI JURY, 3 OF 3", "Wrong")]):
+    for i, (k, v) in enumerate([("EMAILS", "744"), ("VIPS EMAILED", "8"), ("AI JURY · 3 OF 3", "Wrong")]):
         bx = x + 0.35 + i * ((ww - 0.7 - 0.3) / 3 + 0.15)
         bw = (ww - 0.7 - 0.3) / 3
         box(s, bx, y + 2.3, bw, 0.95, fill="FAFAF8", line=LINE, radius=0.12)
@@ -289,13 +289,13 @@ def s05_containment(prs):
     text(s, x, y + 2.2, half, 0.35, [[R("untouched. Approval locked.", SANS, 14, MUTED)]], align=PP_ALIGN.CENTER)
     y2 = 5.42
     box(s, MX, y2, W - 2 * MX, 1.05)
-    text(s, MX + 0.35, y2 + 0.2, 5.6, 0.7, [[R("THE PLAN SAID", MONO, 9.5, MUTED)], [R("“Audit complete. Read-only: no changes were made.”", SERIF, 16, INK)]], spacing=1.15)
+    text(s, MX + 0.35, y2 + 0.2, 5.6, 0.7, [[R("ANOTHER PLAN SAID", MONO, 9.5, MUTED)], [R("“Audit complete. Read-only: no changes were made.”", SERIF, 16, INK)]], spacing=1.15)
     text(s, MX + 6.3, y2 + 0.2, 5.3, 0.7, [[R("A SEPARATE SANDBOX MEASURED", MONO, 9.5, MUTED)],
                                            [R("300 rows changed.  ", SANS, 16, INK, bold=True), R("The plan lied.", SANS, 16, RED, bold=True)]], spacing=1.15)
     footer(s, 5)
     notes(s, "Here's a plan that deletes every customer. It ran for real, on the double: zero customers left. "
              "Production still has 1,300, and approval locks. And when a plan lies about what it did, the separate "
-             "measurement catches it: it said no changes, it changed 300 rows.")
+             "measurement catches that too: another plan said no changes, and changed 300 rows.")
 
 
 def s06_engine(prs):
@@ -399,7 +399,7 @@ def s08_vultr(prs):
     y2 = 5.72
     half = (W - 2 * MX - 0.22) / 2
     for i, (n, l, c) in enumerate([("MCP", "Any agent connects: MCP, Python SDK, CLI or REST. There is no approve tool.", "FAFAF8"),
-                                    ("$8.64", "The whole build on Vultr, every eval and live judge run included.", BLUE_ON_DARK)]):
+                                    ("$8.64", "The whole build on Vultr, every test run included.", BLUE_ON_DARK)]):
         x = MX + i * (half + 0.22)
         box(s, x, y2, half, 1.0, fill=D_CARD, line=D_LINE)
         text(s, x + 0.3, y2 + 0.16, 1.9, 0.7, [[R(n, MONO, 32, c)]], anchor=MSO_ANCHOR.MIDDLE)
