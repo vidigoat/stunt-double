@@ -305,8 +305,8 @@ def s02_problem(prs):
     headline(s, [[("Agents stopped answering.", False)], [("They started acting.", True)]], h=1.7)
     underline(s, 2.62)
     y = 3.05
-    for i, (when, what) in enumerate([("JULY 2025", "An AI agent deleted a company's production database, during a code freeze."),
-                                       ("SPRING 2026", "Another deleted a startup's database and its backups, in nine seconds.")]):
+    for i, (when, what) in enumerate([("JULY 2025  ·  eWEEK", "An AI agent deleted a company's production database, during a code freeze."),
+                                       ("SPRING 2026  ·  INFORMATION AGE", "Another deleted a startup's database and its backups, in nine seconds.")]):
         yy = y + i * 1.88
         box(s, MX, yy, 6.9, 1.7)
         badge(s, "alert", MX + 0.32, yy + 0.32, d=0.62, fill=RED_SOFT, tone="red")
@@ -585,11 +585,12 @@ def s08_proof(prs):
         for k, c in enumerate(dots):
             r, col = divmod(k, per)
             oval(s, x + 0.28 + col * step, top + r * step, d if per == 6 else min(d, step * 0.82), c)
-    text(s, MX, 6.3, W - 2 * MX, 0.45, [[R("No wrong plan was ever approved. ", SANS, 18, INK, bold=True), R("Every case, and every miss, is published.", SANS, 18, MUTED)]])
+    text(s, MX, 6.3, W - 2 * MX, 0.45, [[R("No wrong plan was ever approved. ", SANS, 17, INK, bold=True),
+                                        R("On unseen cases, 3 of 8 right plans were approved and 5 went to a person, each with a reason.", SANS, 17, MUTED)]])
     notes(s, "Measured live on Vultr: the engine stopped 12 of 12 bad plans and approved 8 of 8 good ones, with no false "
              "alarms. On 16 held-out cases written before the run, it stopped all 8 wrong plans (3 of 8 right plans were "
              "approved outright; the other 5 went to a person with a reason). On a school's database it had never seen, "
-             "it found the 22 students who took their withdrawal back and kept exactly the right 41 of 63. 201 tests run in CI.")
+             "it found the 22 students who took their withdrawal back and kept exactly the right 41 of 63. 205 tests run in CI.")
 
 
 def s09_studies(prs):

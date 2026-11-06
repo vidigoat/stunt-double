@@ -47,6 +47,12 @@ export default function ConnectPage() {
             <li><span className="text-foreground">describe_business()</span> <span className="text-muted-foreground">: tables, columns and the plan API</span></li>
             <li><span className="text-foreground">rehearse(task, plan_code)</span> <span className="text-muted-foreground">: consequences, policy flags, verdict, approval_url</span></li>
             <li><span className="text-foreground">get_run_status(run_id)</span> <span className="text-muted-foreground">: awaiting approval, applied, rejected or drifted</span></li>
+            <li><span className="text-foreground">what_does_this_mean(task)</span> <span className="text-muted-foreground">: the intent contract, before any plan exists</span></li>
+            <li><span className="text-foreground">keep_only_what_is_right(run_id)</span> <span className="text-muted-foreground">: re-rehearse just the part that passes (approves nothing)</span></li>
+            <li><span className="text-foreground">list_workspaces()</span> <span className="text-muted-foreground">: the businesses and doubles it can rehearse on</span></li>
+            <li><span className="text-foreground">list_connectors()</span> <span className="text-muted-foreground">: the APIs a plan may call, and how</span></li>
+            <li><span className="text-foreground">request_undo(run_id)</span> <span className="text-muted-foreground">: rehearse the undo of an applied change; a person approves it</span></li>
+            <li className="pt-1 font-sans text-[12px] text-muted-foreground">There is no approve tool: only a person can say yes.</li>
           </ul>
         </div>
       </main>

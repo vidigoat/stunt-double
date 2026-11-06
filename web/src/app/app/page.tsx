@@ -401,7 +401,7 @@ export default function AppPage() {
                     setUploading(true);
                     try {
                       const w = await api.importSamplePostgres();
-                      setPgOpen(false); setSpaces((cur) => [...cur, w]); setWs(w.id); setRun(null); setMode("break");
+                      setPgOpen(false); setSpaces((cur) => [...cur.filter((x) => x.id !== w.id), w]); setWs(w.id); setRun(null); setMode("break");
                       toast.success(`${w.name}: ${w.description}.`);
                     } catch (err) { toast.error((err as Error).message); } finally { setUploading(false); }
                   }}>No Postgres handy? Import our sample SaaS database (accounts, plans, invoices)</Button>
@@ -534,20 +534,26 @@ export default function AppPage() {
                 ].map((s: { n: string; t: string; d: string; preset?: string; task?: string; agent?: boolean; pg?: boolean; featured?: boolean }) => (
                   <li key={s.n}>
                     <button disabled={busy || running} onClick={() => {
-                      if (s.agent) { setMode("agent"); setTask(EXAMPLES[0]); void start({ mode: "agent", task: EXAMPLES[0] }); return; }
+                      if (s.agent) { setWs("demo"); setMode("agent"); setTask(EXAMPLES[0]); void start({ mode: "agent", task: EXAMPLES[0], ws: "demo" }); return; }
                       if (s.pg) {
                         void (async () => {
                           try {
                             const w = await api.importSamplePostgres();
                             const p = SAAS_PLANS[0];
-                            setSpaces((cur) => [...cur, w]); setWs(w.id); setMode("break"); setCode(p.code); setBreakTask(p.task);
+                            setSpaces((cur) => [...cur.filter((x) => x.id !== w.id), w]); setWs(w.id); setMode("break"); setCode(p.code); setBreakTask(p.task);
                             await start({ mode: "break", task: p.task, code: p.code, ws: w.id });
                           } catch (e) { toast.error((e as Error).message); }
                         })();
                         return;
                       }
                       const b = BREAK_IT.find((x) => x.label === s.preset)!; const t = s.task ?? b.task;
-                      setMode("break"); setCode(b.code); setBreakTask(t); void start({ mode: "break", task: t, code: b.code });
+                      setWs("demo"); setMode("break"); setCode(b.code); setBreakTask(t);
+                      void (async () => {
+                        // every judge step starts from the seeded business, whatever an earlier visitor approved
+                        const r = await api.restoreDemo().catch(() => null);
+                        if (r?.restored?.length) { api.business("demo").then(setBiz).catch(() => {}); api.health().then(setHealth).catch(() => {}); }
+                        await start({ mode: "break", task: t, code: b.code, ws: "demo" });
+                      })();
                     }} className={cn("group flex w-full items-center gap-3.5 rounded-xl border bg-card/95 px-4 py-3 text-left shadow-[0_12px_30px_-22px_rgba(20,30,80,.6)] transition hover:-translate-y-px hover:border-signal disabled:opacity-60",
                       s.featured ? "border-signal/60 ring-4 ring-signal/10" : "border-black/5")}>
                       <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-signal font-mono text-xs text-white">{s.n}</span>

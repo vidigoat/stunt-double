@@ -52,7 +52,7 @@ const ITEMS: Item[] = [
         <div className="rounded-xl border border-dashed p-3 text-muted-foreground">sandbox: recorded, not sent · token: none<br />after approval: delivered once · Idempotency-Key</div>
       </div>
     ) },
-  { key: "browser", icon: MousePointerClick, name: "A real browser", line: "Agents click through your admin site in a real Chromium, on the double. Every screen is captured; an AI vision check reads them.",
+  { key: "browser", icon: MousePointerClick, name: "A real browser", line: "Agents click through a double of the admin site in a real Chromium, inside the sandbox. Every screen is captured; an AI vision check reads them.",
     visual: () => (
       <div className="w-full max-w-lg">
         {/* eslint-disable-next-line @next/next/no-img-element */}

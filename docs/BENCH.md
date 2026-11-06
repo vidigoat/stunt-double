@@ -10,8 +10,8 @@ copy out safely → phase 2 container measures the diff and audits side effects 
 | empty plan | 0.77 s | 0.81 s | 0.34 s |
 
 Measured Nov 4 in the development container (Docker `runc`, 1,300 customers / 5,290 charges).
-To re-measure on the Vultr VM with gVisor: `SD_SANDBOX_RUNTIME=runsc python api/eval/bench.py --runs 30`
-(gVisor adds some start-up overhead; update this table with those numbers before submitting).
+To re-measure on the Vultr VM with gVisor: `SD_SANDBOX_RUNTIME=runsc python api/eval/bench.py --runs 30`. The gVisor
+numbers from the live VM are below; later eval runs, with Proof of Effect replay added, measured medians of 1.8–3.1 s.
 
 ## On the live Vultr VM with gVisor (Wed Nov 4, 18:55 UTC)
 

@@ -13,7 +13,7 @@ competitor will verify. Nobody else will **verify the verification**, **repair a
 
 ## Status: built, and measured on the live server
 
-All six milestones shipped, each with tests (`api/tests/test_engine_*.py`, 201 tests in the suite) and a production
+All six milestones shipped, each with tests (`api/tests/test_engine_*.py`, 205 tests in the suite) and a production
 run. The code is in [`api/app/engine/`](../api/app/engine): `graph`, `materialize`, `subsets`, `state`, `contracts`,
 `verdict`, `evidence`; Proof of Effect lives in the sandbox harness (`api/app/harness/runner.py`).
 

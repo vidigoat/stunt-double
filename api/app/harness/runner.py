@@ -576,6 +576,11 @@ def prove(before_path: str, statements: list[str], clock: str | None, before: di
     read_from: dict[int, int] = {}      # id value -> the latest read statement that returned it
     read_budget = [500_000]
     decided: dict[int, int] = {}        # write statement -> the read statement whose result chose its target
+    # phase 1 opened its transaction before recording began: replay inside the same one, so the plan's own COMMIT (or
+    # ROLLBACK) means what it meant there instead of failing on an autocommit connection
+    mem.set_authorizer(None)
+    mem.execute("BEGIN")
+    mem.set_authorizer(authorizer)
     for i, sql in enumerate(statements, start=1):
         if read_from and _WRITE_SQL.match(sql):
             where = sql[sql.upper().rfind("WHERE"):] if "WHERE" in sql.upper() else ""

@@ -17,7 +17,7 @@ Timings below were measured on production on Nov 6.
 
 Optional extra beats if there is time: **Your Postgres ↗ → "No Postgres handy?"** imports a sample SaaS database in one
 click; "Deactivate accounts inactive for 90 days" passes every rule, and the verifier spells out what you'd approve:
-49 paying accounts worth $3,451/month. Approved changes download as drift-guarded SQL; **Your Vultr fleet ↗** (top-left card) imports a read-only double of a real Vultr
+49 active accounts; the verifier spells out the revenue at stake ($3,647 a month in its own reading). Approved changes download as drift-guarded SQL; **Your Vultr fleet ↗** (top-left card) imports a read-only double of a real Vultr
 account from an API key that is never stored, then "Delete every server" shows the blast radius on your own fleet; step 6 (approve a good plan, then rehearse the undo with two approvers), step 7
 (the agent on Vultr Inference gets the contract first, then writes and rehearses its own plan), step 5 ("delete idle
 Vultr servers" would remove the failover database), the MCP tab on the landing ("works with any agent").

@@ -185,3 +185,33 @@ def test_demo_heals_itself_when_changed_and_idle(fresh_business, monkeypatch):
     assert main._demo_guard_tick() is True                                   # idle for an hour: restored
     assert main._demo_changed() == [] and beanpay.ledger(0)["count"] == 0 and rules.all_rules() == []
     assert main.DEMO_GUARD["state"] == "pristine"
+
+
+def test_a_broken_policy_rule_leads_the_headline_over_a_broken_promise():
+    """'Deletes a protected table' is plainer and more certain than a promise an AI wrote: it leads when both fire."""
+    broken = {"contract": {"promises": [{"text": "Nothing else", "kind": "guard", "today": 0, "after": 1300, "status": "broken"}]}}
+    flag = {"rule": "protected_tables", "severity": "critical", "title": "Deletes 1,300 rows from protected table 'customers'", "detail": ""}
+    d = verdict.decide(_run(c=broken, flags=[flag], verdict={"verdict": "dangerous", "headline": "wipes every customer"}))
+    assert d["decision"] == "blocked" and d["failed"][0] == "rules"
+    assert d["headline"].startswith("Blocked by policy") and "protected table" in d["headline"]
+
+
+def test_duplicate_workspaces_are_pruned_and_listings_hide_import_metadata(monkeypatch, tmp_path):
+    import sqlite3
+    from app import main, workspaces
+    db = tmp_path / "w.db"
+    con = sqlite3.connect(db); con.execute("CREATE TABLE t (id INTEGER PRIMARY KEY)"); con.commit(); con.close()
+    data = db.read_bytes()
+    ids = [workspaces.create("dup-test", data, kind="upload", extra={"pks": {"t": ["id"]}, "types": {}})["id"] for _ in range(3)]
+    assert all("pks" not in w and "types" not in w for w in workspaces.all_workspaces())
+    with main.LOCK:
+        main.RUNS["run_keep"] = {"id": "run_keep", "workspace": ids[0], "status": "review", "attempts": []}
+    try:
+        main._prune_duplicate_workspaces()
+        left = {w["id"] for w in workspaces.all_workspaces() if w["name"] == "dup-test"}
+        assert left == {ids[0], ids[2]}               # the newest, and the one a run still uses
+    finally:
+        with main.LOCK:
+            main.RUNS.pop("run_keep", None)
+        for i in ids:
+            workspaces.delete(i)

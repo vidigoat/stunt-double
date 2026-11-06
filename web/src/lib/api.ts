@@ -121,6 +121,7 @@ export const api = {
   reject: (id: string, approver?: string, reason?: string) => req<Run>(`/runs/${id}/reject`, { approver, reason: reason || undefined }),
   rollback: (id: string) => req<{ id: string }>(`/runs/${id}/rollback`, {}),
   reset: () => req<Business>("/demo/reset", {}),
+  restoreDemo: () => req<{ ok: boolean; restored: string[] }>("/demo/restore", {}),
 };
 
 export const usd = (cents: number) => (cents / 100).toLocaleString("en-US", { style: "currency", currency: "USD", maximumFractionDigits: cents % 100 ? 2 : 0 });

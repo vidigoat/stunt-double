@@ -38,7 +38,26 @@ def _save(reg: dict) -> None:
 
 def all_workspaces() -> list[dict]:
     demo = {"id": DEMO, "name": "Bean There Coffee Co.", "kind": "demo", "description": "Demo business with three traps"}
-    return [demo, *sorted(_load().values(), key=lambda w: w["created_at"])]
+    internal = ("pks", "types")          # import metadata the API needs, not the people listing workspaces
+    return [demo, *sorted(({k: v for k, v in w.items() if k not in internal} for w in _load().values()), key=lambda w: w["created_at"])]
+
+
+def find(display_name: str, kind: str) -> dict | None:
+    """The newest workspace with this name and kind (so a one-click sample import is reused, not duplicated)."""
+    same = [w for w in _load().values() if w.get("name") == display_name and w.get("kind") == kind]
+    return max(same, key=lambda w: w["created_at"]) if same else None
+
+
+def duplicates(keep: set[str]) -> list[str]:
+    """Ids of older copies of the same (name, kind), except those in `keep` (still referenced by a run)."""
+    groups: dict[tuple, list[dict]] = {}
+    for w in _load().values():
+        groups.setdefault((w.get("name"), w.get("kind")), []).append(w)
+    out = []
+    for ws in groups.values():
+        ws.sort(key=lambda w: w["created_at"])
+        out += [w["id"] for w in ws[:-1] if w["id"] not in keep]
+    return out
 
 
 def exists(ws: str) -> bool:

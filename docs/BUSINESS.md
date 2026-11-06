@@ -32,7 +32,7 @@ wrong apology emails. A Team seat is $49 a month: **that single catch pays for t
 | An AI jury check (3 models, each investigating the data) | **$0.020–$0.044** | real token usage of three checks on the demo traps (66k–134k input, 12k–40k output tokens across GLM, DeepSeek and MiniMax) × the per-token prices the Vultr API reports for this subscription |
 | A repeated identical check | **$0** | the earlier live verdict is reused for identical request, effects, data, policy and models (labelled) |
 | A repeated mistake | **$0 in AI** | a learned rule blocks it deterministically inside the sandbox |
-| All the AI this project has used so far | **$1.95** | every eval, jury check and judge run on Vultr Serverless Inference this month, from the Vultr usage API (total Vultr charges including the VM: $2.58) |
+| Everything this project has used on Vultr | **$8.64** | the whole build as of Nov 6, from the Vultr billing API: $7.43 of Serverless Inference (every eval, held-out run, contract and jury check, judge run) and $1.21 of Cloud Compute (the production VM and short-lived test VMs) |
 
 **Pricing**
 

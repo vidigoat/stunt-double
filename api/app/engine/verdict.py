@@ -134,6 +134,9 @@ def decide(run: dict) -> dict | None:
     by = {x["key"]: x for x in layers}
     conflict = by["contract"]["status"] == FAIL and by["jury"]["status"] == PASS
     failed = [x for x in layers if x["status"] == FAIL and x["key"] != "jury" and not (conflict and x["key"] == "contract")]
+    # the headline names the most concrete reason first: a broken policy rule ("deletes a protected table") is plainer
+    # and more certain than a promise an AI wrote, so it leads when both fire
+    failed.sort(key=lambda x: ["measured", "proof", "rules", "contract"].index(x["key"]))
     warned = [x for x in layers if x["status"] == WARN or (x["status"] == FAIL and (x["key"] == "jury" or (conflict and x["key"] == "contract")))]
     offer = (run.get("surgical") or {}).get("offer") if not att.get("surgical_of") else None
     jury_failed = by["jury"]["status"] == FAIL
