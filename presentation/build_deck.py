@@ -510,7 +510,7 @@ def s07_vultr(prs):
     text(s, MX + 0.8, y - 0.17, 0.8, 0.34, [[R("Vultr", SANS, 15, "FAFAF8", bold=True)]])
     cw = (W - 2 * MX - 0.5 - 0.5) / 3
     for i, (ic, t, d) in enumerate([("cpu", "Cloud Compute", "Every rehearsal runs in two fresh gVisor sandboxes."),
-                                    ("brain", "Serverless Inference", "Qwen, DeepSeek, GLM and MiniMax write, check and judge."),
+                                    ("brain", "Serverless Inference", "Four labs' models write, check and judge."),
                                     ("cloud", "Vultr API", "A read-only double of your real server fleet.")]):
         x = MX + 0.25 + i * (cw + 0.25)
         box(s, x, y + 0.3, cw, hh - 0.55, fill=D_CARD, line=D_LINE)
