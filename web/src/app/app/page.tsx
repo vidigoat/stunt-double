@@ -316,7 +316,7 @@ export default function AppPage() {
         </>
       } />
 
-      <div className="mx-auto grid max-w-7xl gap-6 px-4 py-6 sm:px-6 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)]">
+      <div className="mx-auto grid max-w-7xl gap-6 px-4 py-6 [overflow-anchor:none] sm:px-6 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)]">
         {/* LEFT: business + composer + timeline */}
         <div className="min-w-0 space-y-5">
           <div className="rounded-2xl border bg-card p-5">
@@ -754,7 +754,7 @@ export default function AppPage() {
               ) : null}
               {attempt && cloudChanged(attempt.consequences.cloud) ? <CloudDiff cl={attempt.consequences.cloud} /> : null}
               {attempt ? <BlastRadius c={attempt.consequences} /> : null}
-              {attempt ? <Details attempt={attempt} events={run.events} runId={run.id} /> : null}
+              {attempt ? <Details attempt={attempt} events={run.events} runId={run.id} cachedAt={run.verdict?.cached?.at} /> : null}
             </>
           )}
         </div>
@@ -783,7 +783,7 @@ const RULES: { rule: string; label: string }[] = [
   { rule: "invalid_recipients", label: "Every email has one valid address" },
 ];
 
-function Checks({ attempt, events }: { attempt: NonNullable<Run["attempts"][number]>; events: Run["events"] }) {
+function Checks({ attempt, events, cachedAt }: { attempt: NonNullable<Run["attempts"][number]>; events: Run["events"]; cachedAt?: number }) {
   const byRule = new Map<string, Flag>();
   for (const f of attempt.flags) if (f.rule && !byRule.has(f.rule)) byRule.set(f.rule, f);
   const queries = events.filter((e) => e.kind === "verify" && /select|with/i.test(e.detail));
@@ -805,11 +805,13 @@ function Checks({ attempt, events }: { attempt: NonNullable<Run["attempts"][numb
         </ul>
       </div>
       <div>
-        <div className="mb-2 font-mono text-[11px] uppercase tracking-wider text-muted-foreground">Verifier investigation · {queries.length ? `${queries.length} read-only ${queries.length === 1 ? "query" : "queries"}` : "AI verification not run"}</div>
+        <div className="mb-2 font-mono text-[11px] uppercase tracking-wider text-muted-foreground">Verifier investigation · {queries.length ? `${queries.length} read-only ${queries.length === 1 ? "query" : "queries"}` : cachedAt ? "checked live earlier" : "AI verification not run"}</div>
         {queries.length ? (
           <ol className="space-y-1.5">
             {queries.map((q, i) => <li key={i} className="overflow-x-auto rounded-lg border bg-background px-3 py-2 font-mono text-[12px]"><span className="mr-2 text-muted-foreground">{i + 1}.</span>{q.detail}</li>)}
           </ol>
+        ) : cachedAt ? (
+          <p className="text-sm text-muted-foreground">The AI jury investigated this exact request, effects and data live at {new Date(cachedAt * 1000).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}; its verdict is reused. Press <b className="font-medium text-foreground">Re-check live</b> to watch it investigate again.</p>
         ) : <p className="text-sm text-muted-foreground">The policy checks above still ran. Ask the agent (with Vultr Serverless Inference configured) to see the verifier investigate.</p>}
       </div>
     </div>
@@ -872,7 +874,7 @@ function ChangesExplorer({ runId }: { runId: string }) {
   );
 }
 
-function Details({ attempt, events, runId }: { attempt: NonNullable<Run["attempts"][number]>; events: Run["events"]; runId: string }) {
+function Details({ attempt, events, runId, cachedAt }: { attempt: NonNullable<Run["attempts"][number]>; events: Run["events"]; runId: string; cachedAt?: number }) {
   const c = attempt.consequences;
   const updated = Object.entries(c.tables).flatMap(([t, d]) => [
     ...d.samples.updated.map((r) => ({ t, op: "update", row: r.after, changed: r.changed, before: r.before })),
@@ -891,7 +893,7 @@ function Details({ attempt, events, runId }: { attempt: NonNullable<Run["attempt
           <TabsTrigger value="sandbox">Sandbox</TabsTrigger>
           <TabsTrigger value="code">Code</TabsTrigger>
         </TabsList>
-        <TabsContent value="checks" className="pt-3"><Checks attempt={attempt} events={events} /></TabsContent>
+        <TabsContent value="checks" className="pt-3"><Checks attempt={attempt} events={events} cachedAt={cachedAt} /></TabsContent>
         <TabsContent value="rows" className="pt-3">
           {updated.length ? <ChangesExplorer runId={runId} /> : <p className="text-sm text-muted-foreground">No rows changed.</p>}
         </TabsContent>
