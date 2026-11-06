@@ -631,11 +631,30 @@ SLIDES = (s01_cover, s02_problem, s03_how, s04_containment, s05_engine, s06_prod
           s10_business, s11_why, s12_close)
 
 
+ALT = {"product.png": "The live Stunt Double console: six decision layers, and 104 of 744 refunds kept",
+       "qr.png": "QR code to the live demo, 149-28-206-186.sslip.io/app",
+       "close-16x9.jpg": "Stormy sunset over the Waimakariri River basin, New Zealand",
+       "logo": "Stunt Double logo: two figures, you and your double",
+       "brand-claude": "Claude logo", "brand-cursor": "Cursor logo", "brand-mcp": "Model Context Protocol logo",
+       "brand-python": "Python logo"}
+
+
 def build() -> Path:
     prs = Presentation()
     prs.slide_width, prs.slide_height = Inches(W), Inches(H)
-    for f in SLIDES:
-        f(prs)
+    from pptx.shapes.shapetree import SlideShapes
+    real_add = SlideShapes.add_picture
+
+    def tagged(self, image_file, *a, **k):
+        pic = real_add(self, image_file, *a, **k)
+        pic._element.nvPicPr.cNvPr.set("descr", next((v for kk, v in ALT.items() if kk in str(image_file)), "Icon"))
+        return pic
+    SlideShapes.add_picture = tagged
+    try:
+        for f in SLIDES:
+            f(prs)
+    finally:
+        SlideShapes.add_picture = real_add
     for sl in list(prs.slides)[1:]:
         fade(sl)
     prs.core_properties.title = "Stunt Double"
