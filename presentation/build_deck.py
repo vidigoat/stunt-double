@@ -454,31 +454,49 @@ def s05_engine(prs):
              "allow; this approves exactly the right part.")
 
 
-def browser(slide, x, y, w, img, url="149-28-206-186.sslip.io/app"):
-    from PIL import Image
-    iw, ih = Image.open(img).size
-    h = w * ih / iw
-    bar = 0.4
-    box(slide, x, y, w + 0.16, h + bar + 0.08, fill=CARD, line=LINE, radius=0.16)
-    for k, c in enumerate(["F2B8BA", "F5DCA0", "BFE3CB"]):
-        oval(slide, x + 0.2 + k * 0.2, y + 0.14, 0.12, c)
-    box(slide, x + 0.95, y + 0.09, w - 1.6, 0.24, fill=PAPER, line=None, radius=0.12)
-    slide.shapes.add_picture(str(img), Inches(x + 0.08), Inches(y + bar), Inches(w))
-    return h + bar + 0.08
-
-
 def s06_product(prs):
+    """The console's decision panel, rebuilt natively: six layers, one plain reason each, one decision."""
     s = new_slide(prs)
     kicker(s, "The real product, live on Vultr")
     headline(s, [[("Six checks. ", False), ("One plain answer.", True)]], h=0.9)
     underline(s, 1.95)
     text(s, W - MX - 5.0, 1.12, 5.0, 0.5, [[R("Try it: 149-28-206-186.sslip.io", SANS, 16, BLUE, bold=True)]], align=PP_ALIGN.RIGHT)
-    browser(s, MX, 2.35, W - 2 * MX - 0.16, HERE / "img" / "product.png")
-    notes(s, "This is the real screen, on the live server, for the refund plan. Six independent layers each give one "
+    x, y, w = MX, 2.35, W - 2 * MX
+    head, row, foot = 1.0, 1.25, 0.72
+    h = head + 2 * row + foot
+    box(s, x, y, w, h, fill=CARD, line=LINE, radius=0.24)
+    # header: what the engine decided
+    badge(s, "scissors", x + 0.35, y + 0.22, d=0.56, fill=GREEN_SOFT, tone="green", pad=0.25)
+    text(s, x + 1.08, y + 0.2, 6, 0.3, [[R("CONSEQUENCE ENGINE  ·  SURGICAL APPROVAL", MONO, 14, MUTED, bold=True)]])
+    text(s, x + 1.08, y + 0.5, w - 1.4, 0.4, [[R("Approve just the 104 of 744 changes that pass every check", SANS, 19, GREEN, bold=True)]])
+    box(s, x, y + head, w, 0.012, fill=LINE, line=None, radius=0)
+    layers = [("Measured", True, "Ran sealed, then measured"),
+              ("Proof of effect", True, "744 of 744 changes replayed"),
+              ("Intent contract", False, "640 break a promise made first"),
+              ("Policy and rules", True, "Nothing blocks it"),
+              ("AI jury", False, "3 of 3: 640 wrongly refunded"),
+              ("Sign-off", True, "Two people must approve")]
+    cw = w / 3
+    for k, (t, ok, why) in enumerate(layers):
+        r, c = divmod(k, 3)
+        cx, cy = x + c * cw, y + head + r * row
+        oval(s, cx + 0.32, cy + 0.27, 0.38, GREEN if ok else RED)
+        icon(s, "check2" if ok else "x", "white", cx + 0.4, cy + 0.35, 0.22)
+        text(s, cx + 0.85, cy + 0.26, cw - 1.4, 0.42, [[R(t, SANS, 18, INK, bold=True)]])
+        text(s, cx + cw - 0.75, cy + 0.3, 0.5, 0.35, [[R(f"{k + 1}/6", MONO, 14, FAINT)]], align=PP_ALIGN.RIGHT)
+        para(s, cx + 0.32, cy + 0.78, cw - 0.55, 0.4, why, size=16, color=MUTED if ok else RED)
+        if c:
+            box(s, cx, cy, 0.012, row, fill=LINE, line=None, radius=0)
+    box(s, x, y + head + row, w, 0.012, fill=LINE, line=None, radius=0)
+    fy = y + head + 2 * row
+    box(s, x, fy, w, 0.012, fill=LINE, line=None, radius=0)
+    icon(s, "lock", "blue", x + 0.4, fy + 0.22, 0.3)
+    text(s, x + 0.9, fy + 0.13, w - 1.2, 0.5, [[R("Every step is sealed in a signed hash chain.   ", SANS, 16, MUTED),
+                                                R("Verify it in your browser", SANS, 16, BLUE, bold=True)]], anchor=MSO_ANCHOR.MIDDLE)
+    notes(s, "This is the decision the live product shows for the refund plan. Six independent layers each give one "
              "plain reason: it was measured, every change was proven by replay, the intent contract is broken, the rules "
-             "pass, the AI jury objects, and big changes need two people. Combined by fixed rules into one decision: "
-             "approve just the 104 of 744 changes that pass. And every step is sealed in a signed record your browser "
-             "can verify.")
+             "pass, the AI jury objects, and big changes need two people. Fixed rules combine them into one decision: "
+             "approve just the 104 of 744 changes that pass. Every step is sealed in a signed record your browser can verify.")
 
 def s06b_features(prs):
     s = new_slide(prs)
