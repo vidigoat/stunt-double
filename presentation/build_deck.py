@@ -378,8 +378,10 @@ def s04_containment(prs):
         text(s, x + 0.35, y + 0.95, cw - 0.7, 1.0, [[R(n, MONO, 60, ncol)]])
         para(s, x + 0.35, y + 2.02, cw - 0.7, 0.4, sub, size=16)
     wx = W / 2
-    box(s, wx - 0.015, y + 0.15, 0.03, hh - 0.3, fill=LINE, line=None, radius=0)
-    badge(s, "lock", wx - 0.38, y + hh / 2 - 0.5, d=0.76, fill=INK, tone="white", pad=0.27)
+    lock_top, label_bottom = y + hh / 2 - 0.5, y + hh / 2 + 0.7
+    box(s, wx - 0.015, y + 0.15, 0.03, lock_top - 0.1 - (y + 0.15), fill=LINE, line=None, radius=0)      # wall above the lock
+    box(s, wx - 0.015, label_bottom + 0.08, 0.03, y + hh - 0.15 - (label_bottom + 0.08), fill=LINE, line=None, radius=0)  # and below the label
+    badge(s, "lock", wx - 0.38, lock_top, d=0.76, fill=INK, tone="white", pad=0.27)
     para(s, wx - 1.0, y + hh / 2 + 0.34, 2.0, 0.3, "gVisor wall", size=14, align=PP_ALIGN.CENTER)
     y2 = 5.35
     box(s, MX, y2, W - 2 * MX, 1.2, fill=CARD, line=LINE, radius=0.2)
