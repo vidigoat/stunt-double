@@ -796,7 +796,7 @@ def health():
             "vm_isolation": vultr_vm.configured(), "sample_postgres": bool(config.SAMPLE_PG_URL), "vm_plan": config.VM_PLAN if vultr_vm.configured() else None,
             "docker": docker.stdout.strip() or None, "sandbox_ready": ready, "sandbox_status": why,
             "evidence_archive": f"vultr-object-storage:{archive.BUCKET}" if archive.enabled() else None,
-            "disk_free_gb": _disk_free_gb(), "demo": {k: DEMO_GUARD[k] for k in ("state", "restored_at", "restores")}}
+            "disk_free_gb": _disk_free_gb(), "demo": _demo_status()}
 
 
 def _disk_free_gb() -> float | None:
@@ -1858,6 +1858,16 @@ def _demo_changed() -> list[str]:
     if policy.PATH.exists():
         why.append("policy")
     return why
+
+
+def _demo_status() -> dict:
+    """Live: is the demo business as seeded? (about 20 ms)"""
+    try:
+        why = _demo_changed()
+        state = "changed: " + ", ".join(why) if why else "pristine"
+    except (OSError, sqlite3.Error):
+        state = "unknown"
+    return {"state": state, "restored_at": DEMO_GUARD["restored_at"], "restores": DEMO_GUARD["restores"]}
 
 
 def _last_activity() -> float:

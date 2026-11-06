@@ -151,8 +151,9 @@ def test_sealed_bodies_hash_the_same_in_any_language(tmp_path):
 def test_health_reports_disk_headroom():
     from fastapi.testclient import TestClient
     from app import main
-    free = TestClient(main.app).get("/api/health").json()["disk_free_gb"]
-    assert free is None or free >= 0
+    h = TestClient(main.app).get("/api/health").json()
+    assert h["disk_free_gb"] is None or h["disk_free_gb"] >= 0
+    assert h["demo"]["state"] == "pristine" or h["demo"]["state"].startswith("changed")
 
 
 def test_demo_heals_itself_when_changed_and_idle(fresh_business, monkeypatch):

@@ -296,7 +296,7 @@ export default function AppPage() {
 
   async function reset() {
     setBusy(true);
-    try { setBiz(await api.reset()); setRun(null); toast.success("Demo business restored to its original state"); }
+    try { setBiz(await api.reset()); setRun(null); toast.success("Demo business restored to its original state"); api.health().then(setHealth).catch(() => {}); }
     catch (e) { toast.error((e as Error).message); }
     finally { setBusy(false); }
   }
@@ -516,6 +516,12 @@ export default function AppPage() {
               <FlaskConical className="size-7 text-signal" />
               <div className="mt-4 font-display text-3xl">Judge mode: eight clicks</div>
               <p className="mt-1 max-w-md text-sm text-muted-foreground">Everything runs on a throwaway copy of Bean There Coffee Co., inside gVisor on a Vultr VM. Production only changes when you approve. Each click starts a real rehearsal.</p>
+              {ws === "demo" && health?.demo?.state.startsWith("changed") ? (
+                <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-2 rounded-xl border border-amber-500/40 bg-amber-50/90 px-4 py-3 text-sm text-amber-950">
+                  <span className="min-w-0 flex-1">This demo business has changed since it was set up ({health.demo.state.slice(9)}), so the steps below may tell a different story.</span>
+                  <Button variant="outline" className="h-8 rounded-full bg-white px-3" onClick={reset} disabled={busy || running}><RotateCcw className="size-3.5" /> Reset demo</Button>
+                </div>
+              ) : null}
               <ol className="mt-6 space-y-3">
                 {[
                   { n: "1", t: "Watch a wrong plan become the right one", featured: true, d: "\"Refund everyone who was double-charged.\" Before the plan runs, the engine writes down what that means: 104 refunds, nothing else. The plan refunds 744. It proves which line chose the 640 wrong ones, cuts them, and offers you exactly the 104.", preset: "Obvious refund plan (rules miss it)" },
