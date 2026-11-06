@@ -198,20 +198,20 @@ function Different() {
         </div>
         <div className="mt-12 grid gap-4 lg:grid-cols-5">
           <Panel className="lg:col-span-5"
-            shot={<Showcase tone="warm" title="Try to fool it" src="/shots/lie.webp" width={1410} height={328} alt="The plan said it made no changes; a separate sandbox measured 300 changed rows" className="rounded-none" />}
+            shot={<Showcase tone="warm" title="Try to fool it" src="/shots/lie.webp" width={2115} height={483} alt="The plan said it made no changes; a separate sandbox measured 300 changed rows" className="rounded-none" />}
             title={<>The plan <em>can&apos;t lie.</em></>}
             cta="Try it: judge step 3"
-            body="A “read-only audit” quietly refunds 300 charges, says it changed nothing and forges its own report. It doesn't matter: the plan runs in one sandbox and our code measures the result in a fresh one. That measurement is what you approve and what gets applied." />
+            body="A “read-only audit” secretly refunds 300 charges and forges its own report. It doesn't matter: a separate sandbox measures what really changed, and that is what you approve." />
           <Panel className="lg:col-span-3"
             shot={<Showcase tone="blue" title="AI jury · Vultr Serverless Inference" src="/shots/jury.webp" width={1364} height={590} alt="Three models from different labs each found that 640 of 744 refunds were wrong" className="rounded-none" />}
             title={<>A jury, <em>not a guess.</em></>}
             cta="Try it: judge step 1"
-            body="Three models from different labs investigate the data on their own and must agree. The jury can make a verdict stricter, never more lenient. You approve consequences in dollars and people, not code." />
+            body="Three models from three labs check the data on their own. They can make a verdict stricter, never softer." />
           <Panel className="lg:col-span-2"
             shot={<Showcase tone="green" title="Learned" src="/shots/learned.webp" width={1008} height={478} alt="The same plan blocked by a learned rule, no AI needed" className="rounded-none" />}
             title={<>Every catch <em>becomes a rule.</em></>}
             cta="Learn a rule: judge step 1"
-            body="The AI writes the check it used. Stunt Double proves it won't block correct work, then one click makes it a rule: the same mistake is blocked in seconds, with no AI." />
+            body="Every catch comes with the check that found it. One click makes it a rule, and the same mistake is blocked in seconds, with no AI." />
         </div>
       </div>
     </section>
