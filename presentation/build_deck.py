@@ -3,7 +3,7 @@
 Every headline, number and label is a real text box; cards are shapes; the market chart is a native chart; the
 744 units of work are 744 shapes. Fonts: Georgia and Helvetica Neue, already on every Mac and PC.
 
-    python3 presentation/build_deck.py        # writes presentation/StuntDouble.pptx
+    python3 presentation/build_deck.py        # StuntDouble.pptx, StuntDouble.pdf, cover.png and web/public/og.png
 """
 from __future__ import annotations
 
@@ -692,5 +692,22 @@ def build() -> Path:
     return OUT
 
 
+def export_images() -> None:
+    """The PDF (the submission's slides), the cover image (slide 1, 1920x1080) and the site's social preview (1200x630).
+    Needs LibreOffice (soffice) and poppler (pdftoppm)."""
+    import shutil
+    import subprocess
+    from PIL import Image
+    if not (shutil.which("soffice") and shutil.which("pdftoppm")):
+        print("soffice/pdftoppm not found: skipped the PDF and images")
+        return
+    subprocess.run(["soffice", "--headless", "--convert-to", "pdf", "--outdir", str(HERE), str(OUT)], check=True, capture_output=True)
+    subprocess.run(["pdftoppm", "-f", "1", "-l", "1", "-png", "-singlefile", "-scale-to-x", "1920", "-scale-to-y", "1080",
+                    str(HERE / "StuntDouble.pdf"), str(HERE / "cover")], check=True)
+    im = Image.open(HERE / "cover.png").convert("RGB").resize((1200, 675), Image.LANCZOS)
+    im.crop((0, 38, 1200, 668)).save(HERE.parent / "web" / "public" / "og.png", optimize=True)
+
+
 if __name__ == "__main__":
     print(build())
+    export_images()
