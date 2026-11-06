@@ -59,7 +59,7 @@ export function ContractCard({ contract, result, className, onStrike }: {
     return (
       <div className={cn("flex items-center gap-3 rounded-2xl border bg-card px-5 py-4 text-sm", className)}>
         <span className="relative flex size-2.5"><span className="absolute inline-flex size-full animate-ping rounded-full bg-signal opacity-60" /><span className="relative inline-flex size-2.5 rounded-full bg-signal" /></span>
-        <span><span className="font-medium">Writing the contract.</span> <span className="text-muted-foreground">What your request means, from the request, the glossary and the schema alone, before any plan exists.</span></span>
+        <span><span className="font-medium">Writing the contract.</span> <span className="text-muted-foreground">What your request means, from the request, the glossary and the schema alone, before any plan exists. Two models on Vultr read it independently; a new request takes up to a minute.</span></span>
       </div>
     );
   }

@@ -567,6 +567,7 @@ export default function AppPage() {
             <div className="flex min-h-[420px] flex-col items-center justify-center gap-3 rounded-2xl border bg-card p-10 text-center">
               <Loader2 className="size-6 animate-spin text-muted-foreground" />
               <div className="text-sm text-muted-foreground">{STATUS_LABEL[run.status]}…</div>
+              {run.status === "planning" ? <p className="max-w-sm text-xs text-muted-foreground">The agent investigates your data and writes its plan live on Vultr Serverless Inference: usually one to two minutes. Every step it takes appears in the timeline.</p> : null}
             </div>
           ) : (
             <>
