@@ -60,7 +60,7 @@ PLANS = {
 
 def build(path: str | Path, seed: int = 7) -> dict:
     """Write the database. Returns the ground truth: how many enrollments the right plan and the obvious plan cancel."""
-    rng = random.Random(seed)
+    rng = random.Random(seed)  # noqa: S311 - deterministic test data, not cryptography
     path = Path(path)
     path.unlink(missing_ok=True)
     db = sqlite3.connect(path)
