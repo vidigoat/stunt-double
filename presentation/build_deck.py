@@ -508,7 +508,7 @@ def s08_proof(prs):
     kicker(s, "Proof, measured live on Vultr")
     headline(s, [[("Bad plans stopped. Good ones ", False), ("approved.", True)]], h=0.9)
     underline(s, 1.95)
-    y, hh = 2.4, 3.9
+    y, hh = 2.45, 3.55
     cw = (W - 2 * MX - 0.66) / 4
     for i, (n, l, dots, per) in enumerate([("12/12", "bad plans stopped", [RED] * 12, 6),
                                            ("8/8", "good plans approved, zero false alarms", [GREEN] * 8, 6),
@@ -519,14 +519,14 @@ def s08_proof(prs):
         icon(s, "check", "green", x + cw - 0.62, y + 0.32, 0.36)
         text(s, x + 0.28, y + 0.25, cw - 0.95, 0.8, [[R(n, MONO, 36, INK)]])
         para(s, x + 0.28, y + 1.05, cw - 0.5, 0.9, l, size=15)
-        d = 0.27 if per == 6 else 0.13
+        d = 0.3 if per == 6 else 0.14
         step = (cw - 0.56) / per
         rows_n = (len(dots) + per - 1) // per
-        top = y + hh - 0.4 - rows_n * step
+        top = y + hh - 0.35 - rows_n * step
         for k, c in enumerate(dots):
             r, col = divmod(k, per)
             oval(s, x + 0.28 + col * step, top + r * step, d if per == 6 else min(d, step * 0.82), c)
-    para(s, MX, 6.55, W - 2 * MX, 0.35, "No wrong plan was ever approved. Every case, and every miss, is published.", size=15)
+    text(s, MX, 6.3, W - 2 * MX, 0.45, [[R("No wrong plan was ever approved. ", SANS, 18, INK, bold=True), R("Every case, and every miss, is published.", SANS, 18, MUTED)]])
     notes(s, "Measured live on Vultr: the engine stopped 12 of 12 bad plans and approved 8 of 8 good ones, with no false "
              "alarms. On 16 held-out cases written before the run, it stopped all 8 wrong plans (3 of 8 right plans were "
              "approved outright; the other 5 went to a person with a reason). On a school's database it had never seen, "
