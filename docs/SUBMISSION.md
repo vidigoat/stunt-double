@@ -84,7 +84,7 @@ Three places, nothing else needed:
 
 ## Files
 - Slides PDF: `presentation/StuntDouble.pdf` (11 slides; the editable deck is `presentation/StuntDouble.pptx`, built by
-  `python3 presentation/build_deck.py`; speaker notes on every slide; install `presentation/fonts/` to edit it)
+  `python3 presentation/build_deck.py`; speaker notes on every slide; fonts are Georgia and Helvetica Neue, already on every Mac and PC)
 - Cover (16:9): `presentation/cover.png`
 - Video: required. The official page sets no length limit; Challenge 01 requires it to show at least one containment
   moment (judge step 2 does: sandbox 0, production 1,300, approval locked). Shot list: docs/DEMO_1MIN.md.
