@@ -285,6 +285,7 @@ Details in [SECURITY.md](SECURITY.md).
 | | |
 |---|---|
 | **12 / 12 · 8 / 8** | the Consequence Engine on the live server: bad plans stopped, correct plans approved, 0 false alarms, the refund trap cut to exactly the right 104 ([eval](docs/VERIFIER_EVAL.md)) |
+| **8 / 8** | wrong plans stopped on 16 [held-out cases](docs/HELDOUT.md) the engine was never tuned on; 3 of 8 right plans approved outright, the other 5 sent to a person with a stated reason (4 ambiguities, 1 policy limit) |
 | **48 / 48** | bad plans caught by the AI jury alone, in earlier live runs, with **0 of 26** false alarms on correct ones ([eval](docs/VERIFIER_EVAL.md)) |
 | **3 of 3** | jurors from different labs independently caught every trap on production |
 | **199** | API tests in CI (tampered evidence, hidden connections and forged logs among them), plus a real MCP client and an end-to-end browser test against production |

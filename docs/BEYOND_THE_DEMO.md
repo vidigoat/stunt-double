@@ -54,6 +54,12 @@ Running on a new business found two real gaps. Both are fixed, with tests, and t
    models first wrote "63 to do". It now sees the values of short, status-like text columns (at most 8 values of 24
    characters), and never names, emails, notes, free text or dates. Read again, both models found 41.
 
+## And on cases nobody tuned for
+
+16 [held-out cases](HELDOUT.md) (a gym chain generated only for the test, and new requests on the coffee shop), written
+and committed before the run: every wrong plan stopped (8/8); 3 of 8 right plans approved outright, the other 5 sent
+to a person with a stated reason. Each miss is explained there.
+
 ## Reproduce it
 
 ```bash
