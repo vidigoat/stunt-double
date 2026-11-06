@@ -263,17 +263,17 @@ def s04_how(prs):
              ("03", "Measure", "Sandbox 2, our code only, measures what changed."),
              ("04", "Approve", "A person approves the consequences, in plain English."),
              ("05", "Replay", "Only those effects reach production, after a drift check.")]
-    y, gap = 2.45, 0.22
+    y, gap = 2.4, 0.4
     bw = (W - 2 * MX - gap * 4) / 5
-    for i, (n, t, d) in enumerate(steps):
+    for i, ((n, t, d), ic) in enumerate(zip(steps, ["copy", "play", "measure", "approve", "replay"])):
         x = MX + i * (bw + gap)
         hi = i == 3
-        box(s, x, y, bw, 2.2, fill=INK if hi else CARD, line=None if hi else LINE)
-        text(s, x + 0.25, y + 0.25, bw - 0.4, 0.3, [[R(n, MONO, 10.5, BLUE_ON_DARK if hi else BLUE)]])
-        text(s, x + 0.25, y + 0.6, bw - 0.4, 0.5, [[R(t, SERIF, 24, "FAFAF8" if hi else INK)]])
-        text(s, x + 0.25, y + 1.18, bw - 0.4, 0.9, [[R(d, SANS, 12.5, "C9C9C4" if hi else MUTED)]], spacing=1.1)
+        box(s, x, y, bw, 2.35, fill=INK if hi else CARD, line=None if hi else LINE)
+        badge(s, ic, x + 0.25, y + 0.25, d=0.6, fill=BLUE if hi else BLUE_SOFT, tone="white" if hi else "blue")
+        text(s, x + 0.25, y + 1.0, bw - 0.4, 0.5, [[R(t, SERIF, 23, "FAFAF8" if hi else INK)]])
+        text(s, x + 0.25, y + 1.52, bw - 0.4, 0.8, [[R(d, SANS, 11.5, "C9C9C4" if hi else MUTED)]], spacing=1.1)
         if i < 4:
-            text(s, x + bw - 0.02, y + 0.92, gap + 0.04, 0.4, [[R("›", SANS, 20, FAINT)]], align=PP_ALIGN.CENTER)
+            arrow_line(s, x + bw + 0.07, y + 1.17, x + bw + gap - 0.07, y + 1.17, color=BLUE, width=2.25)
     y2 = 5.0
     for i, (n, l) in enumerate([("1.8 s", "median rehearsal, both sandboxes, on one $20/month Vultr VM"),
                                  ("0", "lines of the agent's code ever run against production"),
@@ -281,6 +281,7 @@ def s04_how(prs):
         bw2 = (W - 2 * MX - 0.44) / 3
         x = MX + i * (bw2 + 0.22)
         box(s, x, y2, bw2, 1.55)
+        icon(s, ["gauge", "shield", "users"][i], "blue", x + bw2 - 0.75, y2 + 0.28, 0.42)
         text(s, x + 0.3, y2 + 0.2, bw2 - 0.5, 0.7, [[R(n, MONO, 38, INK)]])
         text(s, x + 0.3, y2 + 0.95, bw2 - 0.5, 0.5, [[R(l, SANS, 12.5, MUTED)]], spacing=1.1)
     footer(s, 4)
@@ -298,11 +299,13 @@ def s05_containment(prs):
     y, hh = 2.4, 2.75
     half = (W - 2 * MX - 0.3) / 2
     box(s, MX, y, half, hh, fill=RED_SOFT, line="F3B9BB")
+    badge(s, "play", MX + 0.3, y + 0.28, d=0.5, fill="FFFFFF", tone="red")
     text(s, MX, y + 0.35, half, 0.3, [[R("SANDBOX  ·  CUSTOMERS", MONO, 11, RED)]], align=PP_ALIGN.CENTER)
     text(s, MX, y + 0.62, half, 1.4, [[R("0", MONO, 84, RED)]], align=PP_ALIGN.CENTER)
     text(s, MX, y + 2.2, half, 0.35, [[R("the plan deleted all 1,300, on the double", SANS, 14, MUTED)]], align=PP_ALIGN.CENTER)
     x = MX + half + 0.3
     box(s, x, y, half, hh)
+    badge(s, "shield", x + 0.3, y + 0.28, d=0.5, fill=GREEN_SOFT, tone="green")
     text(s, x, y + 0.35, half, 0.3, [[R("PRODUCTION  ·  CUSTOMERS", MONO, 11, MUTED)]], align=PP_ALIGN.CENTER)
     text(s, x, y + 0.62, half, 1.4, [[R("1,300", MONO, 84, INK)]], align=PP_ALIGN.CENTER)
     text(s, x, y + 2.2, half, 0.35, [[R("untouched. Approval locked.", SANS, 14, MUTED)]], align=PP_ALIGN.CENTER)
@@ -325,11 +328,14 @@ def s06_engine(prs):
     # the 744 units of work: 93 columns x 8 rows
     cols, rows = 93, 8
     gx, gy = MX, 2.85
-    cell = (W - 2 * MX) / cols
-    sq = cell * 0.8
+    pitch = int(Inches(W - 2 * MX)) // cols            # exact EMU pitch: every gap identical
+    gap = int(pitch * 0.18)
     for i in range(744):
         r, c = divmod(i, cols)
-        sh = box(s, gx + c * cell, gy + r * cell, sq, sq, fill=GREEN_ON_DARK if i in KEPT else "C2474B", line=None, radius=0)
+        sh = s.shapes.add_shape(MSO_SHAPE.RECTANGLE, Inches(gx) + c * pitch, Inches(gy) + r * pitch, pitch - gap, pitch - gap)
+        sh.fill.solid(); sh.fill.fore_color.rgb = rgb(GREEN_ON_DARK if i in KEPT else "C2474B")
+        sh.line.fill.background(); sh.shadow.inherit = False; flat(sh)
+    cell = pitch / 914400
     text(s, MX, gy + rows * cell + 0.08, 8, 0.25, [[R("each square is one unit of work: a charge, its refund and its email", MONO, 9, "77776F")]])
     text(s, W - MX - 4, gy + rows * cell + 0.08, 4, 0.25, [[R("■ ", MONO, 9, GREEN_ON_DARK), R("keep 104   ", MONO, 9, "77776F"),
                                                              R("■ ", MONO, 9, "C2474B"), R("cut 640", MONO, 9, "77776F")]], align=PP_ALIGN.RIGHT)
@@ -368,11 +374,12 @@ def s07_proof(prs):
     cards = [("12/12", "bad plans stopped by the engine", [RED] * 12, 6, "live eval"),
              ("8/8", "correct plans approved, 0 false alarms", [GREEN] * 8, 6, "live eval"),
              ("8/8", "wrong plans stopped on 16 cases written before the run, never tuned on", [INK] * 8, 6, "held-out cases"),
-             ("63 → 41", "a school's database it had never seen: the trap found, the cut exact", [GREEN] * 41 + [RED] * 22, 13, "beyond the demo")]
+             ("63→41", "a school's database it had never seen: the trap found, the cut exact", [GREEN] * 41 + [RED] * 22, 13, "beyond the demo")]
     for i, (n, l, dots, per, src) in enumerate(cards):
         x = MX + i * (cw + 0.22)
         box(s, x, y, cw, hh)
-        text(s, x + 0.28, y + 0.25, cw - 0.5, 0.8, [[R(n, MONO, 40 if len(n) < 6 else 34, INK)]])
+        icon(s, "check", "green", x + cw - 0.62, y + 0.32, 0.36)
+        text(s, x + 0.28, y + 0.25, cw - 0.95, 0.8, [[R(n, MONO, 40 if len(n) < 5 else 34, INK)]])
         text(s, x + 0.28, y + 1.05, cw - 0.5, 0.9, [[R(l, SANS, 12.5, MUTED)]], spacing=1.1)
         d = 0.27 if per == 6 else 0.13
         step = (cw - 0.56) / per
@@ -408,6 +415,7 @@ def s08_vultr(prs):
             ("Vultr API", "A read-only double of your real server fleet. The key is used once and never kept.", [])]
     for (t, d, chips), w in zip(cols, widths):
         box(s, x, y + 0.3, w, hh, fill=D_CARD, line=D_LINE)
+        icon(s, {"Cloud Compute": "cpu", "Serverless Inference": "brain", "Vultr API": "cloud"}[t], "white", x + w - 0.72, y + 0.55, 0.4)
         text(s, x + 0.3, y + 0.55, w - 0.55, 0.45, [[R(t, SANS, 19, "FAFAF8", bold=True)]])
         text(s, x + 0.3, y + 1.02, w - 0.55, 0.9, [[R(d, SANS, 13, D_MUTED)]], spacing=1.12)
         cx, cy = x + 0.3, y + 1.72
@@ -481,22 +489,23 @@ def s12_vision(prs):
               ("NEXT", "Every system agents touch", "More connectors, a Vultr VM per risky rehearsal, approvals in Slack."),
               ("THE STANDARD", "The approval layer for AI", "Every agent action rehearsed, approved, and sealed as evidence.")]
     y, cw = 2.55, (W - 2 * MX - 0.5) / 3
-    box(s, MX, y + 0.42, W - 2 * MX, 0.04, fill=D_LINE, line=None, radius=0)
+    arrow_line(s, MX + 0.3, y + 0.44, W - MX, y + 0.44, color="3A3A38", width=2.5)
     for i, (k, t, d) in enumerate(stages):
         x = MX + i * (cw + 0.25)
-        oval(s, x, y + 0.3, 0.28, BLUE if i == 0 else D_LINE)
+        badge(s, ["check", "zap", "flag"][i], x, y + 0.13, d=0.62, fill=BLUE if i == 0 else "262624", tone="white")
         text(s, x, y + 0.85, cw - 0.2, 0.3, [[R(k, MONO, 10.5, "8E8E88")]])
         text(s, x, y + 1.15, cw - 0.2, 0.5, [[R(t, SERIF, 22, "FAFAF8")]], spacing=1.0)
         text(s, x, y + 1.62, cw - 0.3, 0.8, [[R(d, SANS, 12.5, D_MUTED)]], spacing=1.12)
     # why it wins, against the four judging criteria
     yb, bw = 5.6, (W - 2 * MX - 0.6) / 4
     text(s, MX, yb - 0.4, 6, 0.3, [[R("WHY IT WINS", MONO, 10.5, "8E8E88")]])
-    for i, (k, v) in enumerate([("Application of technology", "gVisor on Cloud Compute, 4 labs on Serverless Inference"),
+    for i, (k, v) in enumerate([("Technology", "gVisor on Cloud Compute, 4 labs on Serverless Inference"),
                                 ("Originality", "It approves the right part of a plan, proven by replay"),
                                 ("Business value", "One catch pays a seat for 55 years; 73% margin"),
                                 ("Presentation", "Live today: judge mode is eight clicks")]):
         x = MX + i * (bw + 0.2)
         box(s, x, yb, bw, 1.05, fill=D_CARD, line=D_LINE, radius=0.16)
+        icon(s, ["cpu", "sparkles", "trophy", "eye"][i], "blue", x + bw - 0.5, yb + 0.15, 0.3)
         text(s, x + 0.22, yb + 0.14, bw - 0.4, 0.3, [[R(k, SANS, 12.5, "FFFFFF", bold=True)]])
         text(s, x + 0.22, yb + 0.45, bw - 0.4, 0.55, [[R(v, SANS, 11, D_MUTED)]], spacing=1.05)
     footer(s, 0, dark=True)
@@ -508,6 +517,32 @@ def s12_vision(prs):
 
 
 # ---- final-version overrides: no tiny footers; sections are the kicker ----------------------------------------
+ICONS = HERE / "img" / "icons"
+
+
+def icon(slide, name, tone, x, y, size):
+    slide.shapes.add_picture(str(ICONS / f"{name}-{tone}.png"), Inches(x), Inches(y), Inches(size), Inches(size))
+
+
+def badge(slide, name, x, y, d=0.62, fill=BLUE_SOFT, tone="blue", pad=0.27):
+    """An icon in a soft circle: the deck's one recurring ornament."""
+    oval(slide, x, y, d, fill)
+    icon(slide, name, tone, x + d * pad, y + d * pad, d * (1 - 2 * pad))
+
+
+def arrow_line(slide, x1, y1, x2, y2, color=FAINT, width=2.0):
+    """A straight connector with a real arrowhead."""
+    from lxml import etree
+    from pptx.enum.shapes import MSO_CONNECTOR
+    c = slide.shapes.add_connector(MSO_CONNECTOR.STRAIGHT, Inches(x1), Inches(y1), Inches(x2), Inches(y2))
+    c.line.color.rgb = rgb(color)
+    c.line.width = Pt(width)
+    ln = c.line._get_or_add_ln()
+    tail = etree.SubElement(ln, qn("a:tailEnd"))
+    tail.set("type", "triangle"); tail.set("w", "med"); tail.set("len", "med")
+    return c
+
+
 def footer(*_a, **_k) -> None:          # page numbers and footers removed: nothing small on any slide
     return None
 
@@ -569,9 +604,9 @@ def s02_problem(prs):
     ]):
         yy = y + i * 1.88
         box(s, MX, yy, 6.9, 1.7)
-        box(s, MX, yy + 0.3, 0.06, 1.1, fill=RED, line=None, radius=0)
-        text(s, MX + 0.35, yy + 0.27, 6.3, 0.3, [[R(when, MONO, 11.5, RED)]])
-        text(s, MX + 0.35, yy + 0.62, 6.3, 0.9, [[R(what, SERIF, 21, INK)]], spacing=1.05)
+        badge(s, "alert", MX + 0.32, yy + 0.32, d=0.62, fill=RED_SOFT, tone="red")
+        text(s, MX + 1.18, yy + 0.27, 5.5, 0.3, [[R(when, MONO, 11.5, RED)]])
+        text(s, MX + 1.18, yy + 0.62, 5.5, 0.9, [[R(what, SERIF, 21, INK)]], spacing=1.05)
     x = MX + 7.15
     dw = W - MX - x
     box(s, x, y, dw, 3.58, fill=INK, line=None, radius=0.2)
