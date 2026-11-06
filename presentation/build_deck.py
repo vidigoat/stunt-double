@@ -135,7 +135,7 @@ def R(t, font=SANS, size=16, color=INK, **o):
 
 
 def kicker(slide, label: str, dark=False, y=0.62):
-    text(slide, MX, y, 9, 0.3, [[R("●  ", MONO, 12, BLUE), R(label.upper(), MONO, 12, D_MUTED if dark else MUTED, bold=True)]])
+    text(slide, MX, y, 9, 0.3, [[R("●  ", MONO, 14, BLUE), R(label.upper(), MONO, 14, D_MUTED if dark else MUTED, bold=True)]])
 
 
 def headline(slide, parts, dark=False, y=0.98, size=40, w=11.6, h=1.5):
@@ -149,13 +149,6 @@ def underline(slide, y):
     box(slide, MX, y, 0.58, 0.045, fill=BLUE, line=None, radius=0.02)
 
 
-def footer(slide, n: int, dark=False, left="Stunt Double  ·  live on Vultr"):
-    c = "5C5C58" if dark else FAINT
-    text(slide, MX, H - 0.48, 8, 0.25, [[R(left, MONO, 9, c)]])
-    text(slide, W - MX - 2, H - 0.48, 2, 0.25, [[R(f"{n:02d} / {TOTAL}", MONO, 9, c)]], align=PP_ALIGN.RIGHT)
-
-
-# The Vultr mark (Simple Icons, 24-unit box), as two polygons; the tiny corner rounding is dropped.
 VULTR_MARK = [
     [(8.36, 2.172), (7.348, 1.6), (1.2, 1.6), (0, 2.8), (0.182, 3.44), (11.782, 21.84), (13.817, 21.84),
      (16.892, 16.966), (17.074, 16.326), (16.892, 15.684)],
@@ -180,28 +173,10 @@ def notes(slide, s: str) -> None:
     slide.notes_slide.notes_text_frame.text = s
 
 
-def chip(slide, x, y, label, dark=False, color=None, w=None):
-    w = w or (0.16 + 0.085 * len(label))
-    box(slide, x, y, w, 0.34, fill=D_CARD if dark else CARD, line=D_LINE if dark else LINE, radius=0.17)
-    text(slide, x, y + 0.075, w, 0.25, [[R(label, MONO, 9.5, color or ("DDDDDA" if dark else MUTED))]], align=PP_ALIGN.CENTER)
-    return w
-
-
 # ---- slides ---------------------------------------------------------------------------------------------------
 
 IMG = HERE / "img"
 CUR = [0]
-
-def veil(slide, x, y, w, h, color: str, alpha: float):
-    """A rectangle of one color at a given opacity (0..1), for legibility over photos."""
-    from lxml import etree
-    s = box(slide, x, y, w, h, fill=color, line=None, radius=0)
-    clr = s.fill._xPr.find(qn("a:solidFill")).find(qn("a:srgbClr"))
-    a = etree.SubElement(clr, qn("a:alpha"))
-    a.set("val", str(int(alpha * 100000)))
-    return s
-
-
 
 def gradient_veil(slide, x, y, w, h, color: str, a_from: float, a_to: float, angle: float = 90.0):
     """A rectangle fading from one opacity to another (photo overlays)."""
@@ -223,326 +198,11 @@ def logo(slide, x, y, size, dark=False):
 
 
 
-def column_chart(slide, x, y, w, h, cats, vals, colors, fmt, labels=None, maxv=None, label_size=18):
-    cd = CategoryChartData()
-    cd.categories = cats
-    cd.add_series("s", vals)
-    ch = slide.shapes.add_chart(XL_CHART_TYPE.COLUMN_CLUSTERED, Inches(x), Inches(y), Inches(w), Inches(h), cd).chart
-    ch.has_legend = False
-    ch.has_title = False
-    ch.font.name, ch.font.size = MONO, Pt(11)
-    plot = ch.plots[0]
-    plot.gap_width = 55
-    ser = plot.series[0]
-    for k, c in enumerate(colors):
-        pt = ser.points[k]
-        pt.format.fill.solid(); pt.format.fill.fore_color.rgb = rgb(c)
-        pt.format.line.fill.background()
-    plot.has_data_labels = True
-    dl = plot.data_labels
-    dl.number_format, dl.number_format_is_linked = fmt, False
-    dl.position = XL_LABEL_POSITION.OUTSIDE_END
-    dl.font.size, dl.font.name, dl.font.color.rgb = Pt(label_size), MONO, rgb(INK)
-    if labels:
-        for k, t in enumerate(labels):
-            if t:
-                tf = ser.points[k].data_label.text_frame
-                tf.text = t
-                for r in tf.paragraphs[0].runs:
-                    r.font.size, r.font.name, r.font.color.rgb = Pt(label_size), MONO, rgb(INK)
-                ser.points[k].data_label.position = XL_LABEL_POSITION.OUTSIDE_END
-    va = ch.value_axis
-    va.visible = False
-    va.has_major_gridlines = False
-    va.minimum_scale = 0
-    if maxv:
-        va.maximum_scale = maxv
-    ca = ch.category_axis
-    ca.tick_labels.font.size, ca.tick_labels.font.color.rgb = Pt(12), rgb(MUTED)
-    ca.format.line.color.rgb = rgb(LINE)
-    return ch
-
-
-
-def title(slide, parts, dark=False, size=42, y=0.98, h=1.6):
-    headline(slide, parts, dark=dark, y=y, size=size, h=h)
-
-
-
-def s04_how(prs):
-    s = prs.slides.add_slide(prs.slide_layouts[6]); bg(s, PAPER)
-    kicker(s, "How it works")
-    headline(s, [[("Rehearse. Measure. ", False), ("Then", True), (" approve.", False)]], h=0.9)
-    underline(s, 1.95)
-    steps = [("01", "Copy", "A fresh copy of the data the agent needs."),
-             ("02", "Rehearse", "Sandbox 1 runs the plan. gVisor, no network, no secrets."),
-             ("03", "Measure", "Sandbox 2, our code only, measures what changed."),
-             ("04", "Approve", "A person approves the consequences, in plain English."),
-             ("05", "Replay", "Only those effects reach production, after a drift check.")]
-    y, gap = 2.4, 0.4
-    bw = (W - 2 * MX - gap * 4) / 5
-    for i, ((n, t, d), ic) in enumerate(zip(steps, ["copy", "play", "measure", "approve", "replay"])):
-        x = MX + i * (bw + gap)
-        hi = i == 3
-        box(s, x, y, bw, 2.35, fill=INK if hi else CARD, line=None if hi else LINE)
-        badge(s, ic, x + 0.25, y + 0.25, d=0.6, fill=BLUE if hi else BLUE_SOFT, tone="white" if hi else "blue")
-        text(s, x + 0.25, y + 1.0, bw - 0.4, 0.5, [[R(t, SERIF, 23, "FAFAF8" if hi else INK)]])
-        text(s, x + 0.25, y + 1.52, bw - 0.4, 0.8, [[R(d, SANS, 11.5, "C9C9C4" if hi else MUTED)]], spacing=1.1)
-        if i < 4:
-            badge(s, "arrow", x + bw + gap / 2 - 0.21, y + 0.96, d=0.42, fill="FFFFFF", tone="blue", pad=0.25)
-    y2 = 5.0
-    for i, (n, l) in enumerate([("1.8 s", "median rehearsal, both sandboxes, on one $20/month Vultr VM"),
-                                 ("0", "lines of the agent's code ever run against production"),
-                                 ("2", "different people must approve big changes; every undo is rehearsed too")]):
-        bw2 = (W - 2 * MX - 0.44) / 3
-        x = MX + i * (bw2 + 0.22)
-        box(s, x, y2, bw2, 1.55)
-        icon(s, ["gauge", "shield", "users"][i], "blue", x + bw2 - 0.75, y2 + 0.28, 0.42)
-        text(s, x + 0.3, y2 + 0.2, bw2 - 0.5, 0.7, [[R(n, MONO, 38, INK)]])
-        text(s, x + 0.3, y2 + 0.95, bw2 - 0.5, 0.5, [[R(l, SANS, 12.5, MUTED)]], spacing=1.1)
-    footer(s, 4)
-    notes(s, "Every action runs first on a copy of the business, sealed in a gVisor sandbox on Vultr. A second "
-             "sandbox, running only our code, measures what really changed. A person approves that, and only those "
-             "measured effects are replayed for real, after a drift check.")
-
-
-
-def s05_containment(prs):
-    s = prs.slides.add_slide(prs.slide_layouts[6]); bg(s, PAPER)
-    kicker(s, "Containment  ·  Challenge 01")
-    headline(s, [[("The blast radius is ", False), ("zero.", True)]], h=0.9)
-    underline(s, 1.95)
-    y, hh, cw = 2.45, 2.55, 5.1
-    for k, (ic, tone, fill, lab, n, sub, ncol) in enumerate([
-            ("trash", "red", RED_SOFT, "THE DOUBLE", "0", "customers left after the plan ran", RED),
-            ("shield", "green", GREEN_SOFT, "PRODUCTION", "1,300", "customers, untouched", INK)]):
-        x = MX if k == 0 else W - MX - cw
-        box(s, x, y, cw, hh, fill=CARD, line=LINE, radius=0.22)
-        badge(s, ic, x + 0.35, y + 0.35, d=0.6, fill=fill, tone=tone)
-        text(s, x + 1.1, y + 0.47, cw - 1.4, 0.35, [[R(lab, MONO, 12, RED if k == 0 else GREEN)]])
-        text(s, x + 0.35, y + 0.95, cw - 0.7, 1.0, [[R(n, MONO, 60, ncol)]])
-        text(s, x + 0.35, y + 2.02, cw - 0.7, 0.4, [[R(sub, SANS, 15, MUTED)]])
-    # the wall between them
-    wx = W / 2
-    box(s, wx - 0.015, y + 0.15, 0.03, hh - 0.3, fill=LINE, line=None, radius=0)
-    badge(s, "lock", wx - 0.36, y + hh / 2 - 0.36, d=0.72, fill=INK, tone="white", pad=0.27)
-    text(s, wx - 0.8, y + hh / 2 + 0.42, 1.6, 0.3, [[R("gVisor sandbox", MONO, 10, MUTED)]], align=PP_ALIGN.CENTER)
-    # the plan that lied
-    y2 = 5.35
-    box(s, MX, y2, W - 2 * MX, 1.15, fill=CARD, line=LINE, radius=0.2)
-    badge(s, "quote", MX + 0.3, y2 + 0.28, d=0.6, fill=BLUE_SOFT, tone="blue")
-    text(s, MX + 1.1, y2 + 0.22, 5.2, 0.75, [[R("Another plan said", SANS, 12, MUTED)], [R("“Read-only audit. No changes were made.”", SERIF, 18, INK)]], spacing=1.1)
-    badge(s, "eye", MX + 6.55, y2 + 0.28, d=0.6, fill=RED_SOFT, tone="red")
-    text(s, MX + 7.35, y2 + 0.22, 4.2, 0.75, [[R("A separate sandbox measured", SANS, 12, MUTED)],
-                                              [R("300 rows changed. ", SANS, 18, INK, bold=True), R("Caught.", SANS, 18, RED, bold=True)]], spacing=1.1)
-    notes(s, "Here's a plan that deletes every customer. It ran for real, on the double: zero customers left. Production "
-             "still has 1,300, and approval locks. Because our own code measures the result in a second sandbox, a plan "
-             "that lies about what it did is caught too: one said 'no changes' and had changed 300 rows.")
-
-
-def s06_engine(prs):
-    s = prs.slides.add_slide(prs.slide_layouts[6]); bg(s, INK)
-    kicker(s, "The Consequence Engine", dark=True)
-    headline(s, [[("744 refunds planned. ", False), ("104 were right.", True)], [("It kept exactly those.", False)]], dark=True, h=1.7)
-    # 744 units of work, 62 x 12: squares big enough, and gaps wide enough, that screen rounding can't show
-    cols, rows = 62, 12
-    gx, gy = MX, 2.78
-    pitch = int(Inches(W - 2 * MX)) // cols
-    gap = int(pitch * 0.24)
-    for i in range(744):
-        r, c = divmod(i, cols)
-        sh = s.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, Inches(gx) + c * pitch, Inches(gy) + r * pitch, pitch - gap, pitch - gap)
-        sh.adjustments[0] = 0.18
-        sh.fill.solid(); sh.fill.fore_color.rgb = rgb(GREEN_ON_DARK if i in KEPT else "B8434A")
-        sh.line.fill.background(); sh.shadow.inherit = False; flat(sh)
-    bottom = gy + rows * pitch / 914400
-    text(s, MX, bottom + 0.06, 8, 0.3, [[R("Each square: one charge, its refund and its email", SANS, 12, "8E8E88")]])
-    text(s, W - MX - 4, bottom + 0.06, 4, 0.3, [[R("■ ", SANS, 12, GREEN_ON_DARK), R("keep 104     ", SANS, 12, "8E8E88"),
-                                                 R("■ ", SANS, 12, "B8434A"), R("cut 640", SANS, 12, "8E8E88")]], align=PP_ALIGN.RIGHT)
-    y, hh = 5.5, 1.55
-    cw = 2.9
-    for i, (k, n, l, kc, nc) in enumerate([("KEEP", "$5,136", "the right 104 refunds", GREEN_ON_DARK, "FAFAF8"),
-                                           ("CUT", "$32,268", "640 never double-charged", RED_ON_DARK, RED_ON_DARK)]):
-        x = MX + i * (cw + 0.22)
-        box(s, x, y, cw, hh, fill=D_CARD, line=D_LINE)
-        text(s, x + 0.3, y + 0.22, cw - 0.5, 0.3, [[R(k, MONO, 10.5, kc)]])
-        text(s, x + 0.3, y + 0.48, cw - 0.4, 0.7, [[R(n, MONO, 34, nc)]])
-        text(s, x + 0.3, y + 1.1, cw - 0.5, 0.35, [[R(l, SANS, 12.5, D_MUTED)]])
-    x = MX + 2 * (cw + 0.22)
-    hw = W - MX - x
-    box(s, x, y, hw, hh, fill=D_CARD, line=D_LINE)
-    steps = [("contract", "A contract before the plan: 104 to do"), ("graph", "Every change linked into 744 units"),
-             ("replayproof", "Replay proves line 1 chose the 640"), ("scissors", "Cut them, re-run, check again")]
-    colw = (hw - 0.6) / 2
-    for j, (ic, t) in enumerate(steps):
-        r, c = divmod(j, 2)
-        ix, iy = x + 0.3 + c * colw, y + 0.27 + r * 0.6
-        badge(s, ic, ix, iy, d=0.42, fill="1E2A4A", tone="lightblue", pad=0.24)
-        text(s, ix + 0.52, iy - 0.02, colw - 0.6, 0.48, [[R(t, SANS, 12, "E4E4E0")]], anchor=MSO_ANCHOR.MIDDLE, spacing=1.0)
-    notes(s, "Now the hard case: a plan that's only partly wrong. Ask it to refund everyone who was double-charged. "
-             "Before the plan exists, the engine writes down what that means: 104 refunds. The plan does 744. Replaying "
-             "it proves line 1 chose the 640 wrong ones. The engine cuts them out, re-runs just the 104 in a fresh "
-             "sandbox, and every check passes. You approve exactly the right part.")
-
-
-def s07_proof(prs):
-    s = prs.slides.add_slide(prs.slide_layouts[6]); bg(s, PAPER)
-    kicker(s, "Proof, measured live on Vultr")
-    headline(s, [[("Bad plans stopped. Good ones ", False), ("approved.", True)]], h=0.9)
-    underline(s, 1.95)
-    y, hh = 2.4, 3.85
-    cw = (W - 2 * MX - 0.66) / 4
-    cards = [("12/12", "bad plans stopped by the engine", [RED] * 12, 6, "live eval"),
-             ("8/8", "correct plans approved, 0 false alarms", [GREEN] * 8, 6, "live eval"),
-             ("8/8", "wrong plans stopped on 16 cases written before the run, never tuned on", [INK] * 8, 6, "held-out cases"),
-             ("63→41", "a school's database it had never seen: the trap found, the cut exact", [GREEN] * 41 + [RED] * 22, 13, "beyond the demo")]
-    for i, (n, l, dots, per, src) in enumerate(cards):
-        x = MX + i * (cw + 0.22)
-        box(s, x, y, cw, hh)
-        icon(s, "check", "green", x + cw - 0.62, y + 0.32, 0.36)
-        text(s, x + 0.28, y + 0.25, cw - 0.95, 0.8, [[R(n, MONO, 40 if len(n) < 5 else 34, INK)]])
-        text(s, x + 0.28, y + 1.05, cw - 0.5, 0.9, [[R(l, SANS, 12.5, MUTED)]], spacing=1.1)
-        d = 0.27 if per == 6 else 0.13
-        step = (cw - 0.56) / per
-        rows_n = (len(dots) + per - 1) // per
-        top = y + hh - 0.62 - rows_n * step
-        for k, c in enumerate(dots):
-            r, col = divmod(k, per)
-            oval(s, x + 0.28 + col * step, top + r * step, d if per == 6 else min(d, step * 0.82), c)
-    text(s, MX, 6.48, W - 2 * MX, 0.3, [[R("Held-out, honestly: 3 of 8 right plans approved outright; the other 5 were sent to a person with a stated reason. "
-                                           "No wrong plan was approved.", SANS, 13, MUTED)]])
-    footer(s, 7)
-    notes(s, "Measured live, not on slides. Twelve of twelve bad plans stopped, eight of eight good ones approved, "
-             "every wrong plan stopped on cases we wrote down before running them, and the same engine found the trap in "
-             "a school's database it had never seen.")
-
-
-
-def s08_vultr(prs):
-    s = prs.slides.add_slide(prs.slide_layouts[6]); bg(s, INK)
-    kicker(s, "Built on Vultr", dark=True)
-    headline(s, [[("One VM. Four labs. ", False), ("Disposable doubles.", True)]], dark=True, h=0.9)
-    y, hh = 2.25, 2.65
-    box(s, MX, y, W - 2 * MX, hh + 0.5, fill=None, line=D_LINE, width=1.25)
-    box(s, MX + 0.3, y - 0.2, 1.12, 0.4, fill=INK, line=None, radius=0)
-    vultr_mark(s, MX + 0.42, y - 0.15, 0.3)
-    text(s, MX + 0.8, y - 0.14, 0.8, 0.3, [[R("Vultr", SANS, 14, "FAFAF8", bold=True)]])
-    widths = [3.25, 4.75, 3.0]
-    gap = (W - 2 * MX - 0.5 - sum(widths)) / 2
-    x = MX + 0.25
-    cols = [("Cloud Compute", "Web app, API and MCP server. Every rehearsal runs in two fresh gVisor sandboxes: no network, no secrets.", []),
-            ("Serverless Inference", "Writes what a request means, cross-checks it, and judges the outcome.",
-             ["Qwen · contract", "DeepSeek · cross-check", "GLM · jury + vision", "DeepSeek · jury", "MiniMax · jury"]),
-            ("Vultr API", "A read-only double of your real server fleet. The key is used once and never kept.", [])]
-    for (t, d, chips), w in zip(cols, widths):
-        box(s, x, y + 0.3, w, hh, fill=D_CARD, line=D_LINE)
-        icon(s, {"Cloud Compute": "cpu", "Serverless Inference": "brain", "Vultr API": "cloud"}[t], "white", x + w - 0.72, y + 0.55, 0.4)
-        text(s, x + 0.3, y + 0.55, w - 0.55, 0.45, [[R(t, SANS, 19, "FAFAF8", bold=True)]])
-        text(s, x + 0.3, y + 1.02, w - 0.55, 0.9, [[R(d, SANS, 13, D_MUTED)]], spacing=1.12)
-        cx, cy = x + 0.3, y + 1.72
-        for c in chips:
-            cw = 0.16 + 0.078 * len(c)
-            if cx + cw > x + w - 0.25:
-                cx, cy = x + 0.3, cy + 0.4
-            chip(s, cx, cy, c, dark=True, w=cw)
-            cx += cw + 0.1
-        x += w + gap
-    y2 = 5.72
-    half = (W - 2 * MX - 0.22) / 2
-    for i, (n, l, c) in enumerate([("MCP", "Any agent plugs in: MCP, SDK, CLI or REST. No approve tool.", "FAFAF8"),
-                                    ("$8.64", "The whole build on Vultr, every test run included.", BLUE_ON_DARK)]):
-        x = MX + i * (half + 0.22)
-        box(s, x, y2, half, 1.0, fill=D_CARD, line=D_LINE)
-        if i == 0:
-            for k, b in enumerate(["claude", "cursor", "mcp", "python"]):
-                icon(s, f"brand-{b}", "white", x + 0.32 + k * 0.52, y2 + 0.3, 0.4)
-            text(s, x + 2.5, y2 + 0.16, half - 2.75, 0.7, [[R(l, SANS, 13, D_MUTED)]], anchor=MSO_ANCHOR.MIDDLE, spacing=1.1)
-        else:
-            text(s, x + 0.3, y2 + 0.16, 1.9, 0.7, [[R(n, MONO, 32, c)]], anchor=MSO_ANCHOR.MIDDLE)
-            text(s, x + 2.15, y2 + 0.16, half - 2.4, 0.7, [[R(l, SANS, 13, D_MUTED)]], anchor=MSO_ANCHOR.MIDDLE, spacing=1.1)
-    footer(s, 8, dark=True)
-    notes(s, "All of it runs on Vultr: one Cloud Compute VM running disposable gVisor sandboxes, four labs' models on "
-             "Serverless Inference writing the contract, cross-checking it and judging the result, and the Vultr API for "
-             "a read-only double of your fleet. The whole build, every test included, cost under nine dollars.")
-
-
-
-def s09_business(prs):
-    s = prs.slides.add_slide(prs.slide_layouts[6]); bg(s, PAPER)
-    kicker(s, "Business")
-    headline(s, [[("One caught mistake pays for a seat for ", False), ("55 years.", True)]], size=36, h=0.9)
-    underline(s, 1.95)
-    y, hh = 2.4, 4.05
-    lw = 4.6
-    box(s, MX, y, lw, hh)
-    text(s, MX + 0.3, y + 0.28, lw - 0.5, 0.35, [[R("One catch vs a year of a seat", SANS, 15, INK, bold=True)]])
-    column_chart(s, MX + 0.15, y + 0.75, lw - 0.3, hh - 1.0, ["one caught mistake", "a seat, for a year"], (32268, 588), [RED, BLUE], '"$"#,##0', labels=["$32,268", "$588"], maxv=38000, label_size=15)
-    x = MX + lw + 0.25
-    rw = W - MX - x
-    box(s, x, y, rw, hh)
-    text(s, x + 0.3, y + 0.28, rw - 0.5, 0.35, [[R("Unit economics, measured on Vultr", SANS, 15, INK, bold=True)]])
-    tiles = [("dollar", "$49", "per approver, per month"), ("percent", "73%", "gross margin at full use"),
-             ("bolt", "$0.00003", "per rehearsal"), ("brain", "≤ $0.044", "per three-model AI check")]
-    tw = (rw - 0.6 - 0.2) / 2
-    for k, (ic, n, l) in enumerate(tiles):
-        r, c = divmod(k, 2)
-        tx, ty = x + 0.3 + c * (tw + 0.2), y + 0.78 + r * 1.06
-        box(s, tx, ty, tw, 0.94, fill=PAPER, line=LINE, radius=0.14)
-        badge(s, ic, tx + 0.2, ty + 0.2, d=0.54, fill=BLUE_SOFT, tone="blue", pad=0.24)
-        text(s, tx + 0.88, ty + 0.12, tw - 1.0, 0.45, [[R(n, MONO, 22, INK)]])
-        text(s, tx + 0.88, ty + 0.55, tw - 1.0, 0.3, [[R(l, SANS, 11.5, MUTED)]])
-    rows = [("users", "Who buys", "Heads of Operations, Support and Finance Ops"),
-            ("law", "Why they must", "EU AI Act Art. 14 and SOC 2 ask for this record"),
-            ("code", "How it spreads", "Open core, MIT: self-host on your Vultr in one command")]
-    for j, (ic, k, v) in enumerate(rows):
-        ry = y + 3.0 + j * 0.34
-        icon(s, ic, "blue", x + 0.32, ry + 0.02, 0.24)
-        text(s, x + 0.66, ry, rw - 1.0, 0.3, [[R(k + ":  ", SANS, 12, INK, bold=True), R(v, SANS, 12, MUTED)]])
-    notes(s, "One caught mistake in the demo is 32 thousand dollars. A seat is 49 dollars a month, so that single catch "
-             "pays for it for 55 years. A rehearsal costs us three thousandths of a cent, and the EU AI Act and SOC 2 "
-             "already ask companies for exactly this approval record.")
-
-
 def fade(slide) -> None:
     """A quiet fade between slides (PowerPoint and Keynote play it; it must follow clrMapOvr)."""
     from lxml import etree
     t = etree.SubElement(slide._element, qn("p:transition"), spd="med")
     etree.SubElement(t, qn("p:fade"))
-
-
-
-def s12_vision(prs):
-    s = prs.slides.add_slide(prs.slide_layouts[6]); bg(s, INK)
-    section(s, "The bigger picture", 11, dark=True)
-    title(s, [[("Code got CI/CD. Money got audits.", False)], [("Agent actions get a double.", True)]], dark=True, h=1.7)
-    stages = [("TODAY", "Live on Vultr", "Databases, payments, email, APIs, a real browser and your Vultr fleet."),
-              ("NEXT", "Every system", "More connectors, a Vultr VM per risky rehearsal, approvals in Slack."),
-              ("THE STANDARD", "The approval layer for AI", "Every agent action rehearsed, approved, and sealed as evidence.")]
-    y, cw = 2.55, (W - 2 * MX - 0.5) / 3
-    arrow_line(s, MX + 0.3, y + 0.44, W - MX, y + 0.44, color="3A3A38", width=2.5)
-    for i, (k, t, d) in enumerate(stages):
-        x = MX + i * (cw + 0.25)
-        badge(s, ["check", "zap", "flag"][i], x, y + 0.13, d=0.62, fill=BLUE if i == 0 else "262624", tone="white")
-        text(s, x, y + 0.85, cw - 0.2, 0.3, [[R(k, MONO, 10.5, "8E8E88")]])
-        text(s, x, y + 1.15, cw - 0.2, 0.5, [[R(t, SERIF, 22, "FAFAF8")]], spacing=1.0)
-        text(s, x, y + 1.62, cw - 0.3, 0.8, [[R(d, SANS, 12.5, D_MUTED)]], spacing=1.12)
-    # why it wins, against the four judging criteria
-    yb, bw = 5.6, (W - 2 * MX - 0.6) / 4
-    text(s, MX, yb - 0.4, 6, 0.3, [[R("WHY IT WINS", MONO, 10.5, "8E8E88")]])
-    for i, (k, v) in enumerate([("Technology", "gVisor on Cloud Compute, 4 labs on Serverless Inference"),
-                                ("Originality", "It approves the right part of a plan, proven by replay"),
-                                ("Business value", "One catch pays a seat for 55 years; 73% margin"),
-                                ("Presentation", "Live today: judge mode is eight clicks")]):
-        x = MX + i * (bw + 0.2)
-        box(s, x, yb, bw, 1.05, fill=D_CARD, line=D_LINE, radius=0.16)
-        icon(s, ["cpu", "sparkles", "trophy", "eye"][i], "blue", x + bw - 0.5, yb + 0.15, 0.3)
-        text(s, x + 0.22, yb + 0.14, bw - 0.4, 0.3, [[R(k, SANS, 12.5, "FFFFFF", bold=True)]])
-        text(s, x + 0.22, yb + 0.45, bw - 0.4, 0.55, [[R(v, SANS, 11, D_MUTED)]], spacing=1.05)
-    footer(s, 0, dark=True)
-    notes(s, "Why it wins: real Vultr tech, a genuinely new idea, measured business value, and it's live. The bigger picture: code got CI/CD, money got audits, and agent actions need the same thing. Today Stunt "
-             "Double rehearses databases, payments, email, APIs, browsers and cloud fleets. Next, every system agents "
-             "touch. The goal: the approval layer every company uses before an agent acts.")
-
 
 
 
@@ -560,19 +220,6 @@ def badge(slide, name, x, y, d=0.62, fill=BLUE_SOFT, tone="blue", pad=0.27):
     icon(slide, name, tone, x + d * pad, y + d * pad, d * (1 - 2 * pad))
 
 
-def arrow_line(slide, x1, y1, x2, y2, color=FAINT, width=2.0):
-    """A straight connector with a real arrowhead."""
-    from lxml import etree
-    from pptx.enum.shapes import MSO_CONNECTOR
-    c = slide.shapes.add_connector(MSO_CONNECTOR.STRAIGHT, Inches(x1), Inches(y1), Inches(x2), Inches(y2))
-    c.line.color.rgb = rgb(color)
-    c.line.width = Pt(width)
-    ln = c.line._get_or_add_ln()
-    tail = etree.SubElement(ln, qn("a:tailEnd"))
-    tail.set("type", "triangle"); tail.set("w", "med"); tail.set("len", "med")
-    return c
-
-
 def bars(slide, x, y, w, h, items, maxv):
     """items: (category, value, label, color). Rounded-top bars, labels above, categories below."""
     n = len(items)
@@ -587,21 +234,13 @@ def bars(slide, x, y, w, h, items, maxv):
         b.adjustments[0] = 0.12 if bh > 0.3 else 0.0
         b.fill.solid(); b.fill.fore_color.rgb = rgb(col); b.line.fill.background(); b.shadow.inherit = False; flat(b)
         text(slide, x + i * slot, base - bh - 0.48, slot, 0.42, [[R(lab, MONO, 21, INK)]], align=PP_ALIGN.CENTER)
-        text(slide, x + i * slot, base + 0.08, slot, 0.3, [[R(cat, SANS, 13, MUTED)]], align=PP_ALIGN.CENTER)
+        text(slide, x + i * slot, base + 0.08, slot, 0.3, [[R(cat, SANS, 14, MUTED)]], align=PP_ALIGN.CENTER)
 
 
 def pill(slide, x, y, label, fill=BLUE_SOFT, color=BLUE, size=12, w=None):
     w = w or (0.3 + 0.1 * len(label))
     box(slide, x, y, w, 0.36, fill=fill, line=None, radius=0.18)
     text(slide, x, y, w, 0.36, [[R(label, MONO, size, color, bold=True)]], align=PP_ALIGN.CENTER, anchor=MSO_ANCHOR.MIDDLE)
-
-
-def footer(*_a, **_k) -> None:          # page numbers and footers removed: nothing small on any slide
-    return None
-
-
-def section(slide, label, _n=0, dark=False):
-    kicker(slide, label, dark=dark)
 
 
 def mesh(slide, color="ECECE6", step=0.42):
@@ -626,83 +265,350 @@ def wordmark(slide, x, y, size=26, dark=False):
     text(slide, x + icon + 0.12, y, 5, icon, [[R("Stunt ", SERIF, size, ink), R("Double", SERIF, size, ink, italic=True)]], anchor=MSO_ANCHOR.MIDDLE)
 
 
+# ==== the deck: 12 slides, nothing under 14 pt ======================================================================
+def new_slide(prs, color=PAPER):
+    s = prs.slides.add_slide(prs.slide_layouts[6])
+    bg(s, color)
+    return s
+
+
+def para(slide, x, y, w, h, t, size=15, color=MUTED, font=SANS, align=PP_ALIGN.LEFT, **o):
+    return text(slide, x, y, w, h, [[R(t, font, size, color, **o)]], align=align, spacing=1.12)
+
+
 def s01_cover(prs):
-    s = prs.slides.add_slide(prs.slide_layouts[6]); bg(s, PAPER)
-    mesh(s)
-    wordmark(s, W / 2 - 1.65, 0.8, size=28)
-    box(s, W / 2 - 2.55, 1.72, 5.1, 0.42, fill=CARD, line=LINE, radius=0.21)
-    text(s, W / 2 - 2.55, 1.72, 5.1, 0.42, [[R("NEW  ", MONO, 10.5, BLUE, bold=True), R("Built for Vultr: Agent Rush  ·  Blast Radius Zero", SANS, 12.5, MUTED)]], align=PP_ALIGN.CENTER, anchor=MSO_ANCHOR.MIDDLE)
-    text(s, 0.5, 2.25, W - 1, 1.3, [[R("Let the double", SERIF, 88, INK)]], align=PP_ALIGN.CENTER)
-    box(s, 3.05, 3.55, 7.23, 1.45, fill=BLUE, line=None, radius=0.12)
-    text(s, 3.05, 3.53, 7.23, 1.4, [[R("take the hit.", SERIF, 88, "FFFFFF", italic=True)]], align=PP_ALIGN.CENTER, anchor=MSO_ANCHOR.MIDDLE)
-    text(s, 2.2, 5.2, W - 4.4, 0.8, [[R("Your AI agent tries every action on a throwaway copy of your business first. "
-                                         "You see what would happen, and approve the ", SANS, 17, MUTED), R("consequences", SANS, 17, INK, bold=True),
-                                       R(", not the code.", SANS, 17, MUTED)]], align=PP_ALIGN.CENTER, spacing=1.15)
+    s = new_slide(prs); mesh(s)
+    wordmark(s, W / 2 - 1.65, 0.72, size=28)
+    box(s, W / 2 - 2.8, 1.62, 5.6, 0.48, fill=CARD, line=LINE, radius=0.24)
+    text(s, W / 2 - 2.8, 1.62, 5.6, 0.48, [[R("NEW   ", SANS, 14, BLUE, bold=True), R("Built for Vultr: Agent Rush  ·  Blast Radius Zero", SANS, 14, MUTED)]],
+         align=PP_ALIGN.CENTER, anchor=MSO_ANCHOR.MIDDLE)
+    text(s, 0.5, 2.18, W - 1, 1.3, [[R("Let the double", SERIF, 88, INK)]], align=PP_ALIGN.CENTER)
+    box(s, 3.05, 3.5, 7.23, 1.45, fill=BLUE, line=None, radius=0.12)
+    text(s, 3.05, 3.48, 7.23, 1.4, [[R("take the hit.", SERIF, 88, "FFFFFF", italic=True)]], align=PP_ALIGN.CENTER, anchor=MSO_ANCHOR.MIDDLE)
+    para(s, 2.0, 5.25, W - 4.0, 0.8, "Your AI agent tries every action on a copy of your business first. You approve what would happen, not code.",
+         size=18, align=PP_ALIGN.CENTER)
     cy = 6.3
-    for k, (ic, tone, fill, big, small, x0) in enumerate([("x", "red", RED_SOFT, "$37,404", "the plan: 744 refunds", 2.55),
-                                                         ("check2", "green", GREEN_SOFT, "$5,136", "approved: the right 104", 7.03)]):
-        box(s, x0, cy, 3.75, 0.82, fill=CARD, line=LINE, radius=0.41)
-        badge(s, ic, x0 + 0.14, cy + 0.13, d=0.56, fill=fill, tone=tone, pad=0.26)
-        text(s, x0 + 0.85, cy + 0.08, 2.8, 0.4, [[R(big, MONO, 20, RED if k == 0 else INK)]])
-        text(s, x0 + 0.85, cy + 0.44, 2.8, 0.3, [[R(small, SANS, 12, MUTED)]])
-    badge(s, "arrow", 6.38, cy + 0.17, d=0.48, fill=BLUE, tone="white", pad=0.25)
+    for k, (ic, tone, fill, big, small, x0) in enumerate([("x", "red", RED_SOFT, "$37,404", "the plan: 744 refunds", 2.45),
+                                                         ("check2", "green", GREEN_SOFT, "$5,136", "approved: the right 104", 7.13)]):
+        box(s, x0, cy, 3.75, 0.86, fill=CARD, line=LINE, radius=0.43)
+        badge(s, ic, x0 + 0.15, cy + 0.15, d=0.56, fill=fill, tone=tone, pad=0.26)
+        text(s, x0 + 0.86, cy + 0.07, 2.8, 0.4, [[R(big, MONO, 20, RED if k == 0 else INK)]])
+        text(s, x0 + 0.86, cy + 0.46, 2.8, 0.32, [[R(small, SANS, 14, MUTED)]])
+    badge(s, "arrow", W / 2 - 0.26, cy + 0.17, d=0.52, fill=BLUE, tone="white", pad=0.25)
     notes(s, "In the movies, the star never jumps from the burning building. The stunt double does. Stunt Double gives "
              "every AI agent a double of your business to take the hit first.")
 
 
 def s02_problem(prs):
-    s = prs.slides.add_slide(prs.slide_layouts[6]); bg(s, PAPER)
+    s = new_slide(prs)
     kicker(s, "The problem")
     headline(s, [[("Agents stopped answering.", False)], [("They started acting.", True)]], h=1.7)
     underline(s, 2.62)
     y = 3.05
-    for i, (when, what) in enumerate([
-        ("JULY 2025", "An AI agent deleted a company's production database, during a code freeze."),
-        ("SPRING 2026", "Another deleted a startup's database and its backups, in nine seconds."),
-    ]):
+    for i, (when, what) in enumerate([("JULY 2025", "An AI agent deleted a company's production database, during a code freeze."),
+                                       ("SPRING 2026", "Another deleted a startup's database and its backups, in nine seconds.")]):
         yy = y + i * 1.88
         box(s, MX, yy, 6.9, 1.7)
         badge(s, "alert", MX + 0.32, yy + 0.32, d=0.62, fill=RED_SOFT, tone="red")
-        text(s, MX + 1.18, yy + 0.27, 5.5, 0.3, [[R(when, MONO, 11.5, RED)]])
+        text(s, MX + 1.18, yy + 0.26, 5.5, 0.3, [[R(when, MONO, 14, RED, bold=True)]])
         text(s, MX + 1.18, yy + 0.62, 5.5, 0.9, [[R(what, SERIF, 21, INK)]], spacing=1.05)
     x = MX + 7.15
     dw = W - MX - x
     box(s, x, y, dw, 3.58, fill=INK, line=None, radius=0.2)
-    text(s, x + 0.4, y + 0.35, dw - 0.8, 0.3, [[R("AND TODAY'S SAFETY STEP?", MONO, 11, "8E8E88")]])
-    text(s, x + 0.4, y + 0.75, dw - 0.8, 1.4, [[R("A manager reads code they can't read, and clicks ", SERIF, 24, "FAFAF8"), R("approve.", SERIF, 24, BLUE_ON_DARK, italic=True)]], spacing=1.05)
-    box(s, x + 0.4, y + 2.25, dw - 0.8, 0.015, fill="2C2C2A", line=None, radius=0)
-    text(s, x + 0.4, y + 2.45, 1.7, 0.7, [[R("40%+", MONO, 34, RED_ON_DARK)]])
-    text(s, x + 2.05, y + 2.45, dw - 2.45, 0.9, [[R("of agentic AI projects will be cancelled by 2027, partly for weak risk controls (Gartner)", SANS, 12.5, "C9C9C4")]], spacing=1.08)
+    text(s, x + 0.4, y + 0.34, dw - 0.8, 0.3, [[R("AND TODAY'S SAFETY STEP?", MONO, 14, "9A9A94", bold=True)]])
+    text(s, x + 0.4, y + 0.74, dw - 0.8, 1.4, [[R("A manager reads code they can't read, and clicks ", SERIF, 24, "FAFAF8"),
+                                                R("approve.", SERIF, 24, BLUE_ON_DARK, italic=True)]], spacing=1.05)
+    box(s, x + 0.4, y + 2.3, dw - 0.8, 0.015, fill="2C2C2A", line=None, radius=0)
+    text(s, x + 0.4, y + 2.5, 1.7, 0.7, [[R("40%+", MONO, 34, RED_ON_DARK)]])
+    para(s, x + 2.05, y + 2.48, dw - 2.4, 0.9, "of agent projects scrapped by 2027 (Gartner)", size=14, color="C9C9C4")
     notes(s, "AI agents don't just answer any more. They refund customers, send email, delete servers. In July 2025 one "
              "deleted a company's production database during a code freeze (eWeek); this spring another wiped a database "
              "and its backups in nine seconds (Information Age, May 2026). And today's safety step is a person reading "
-             "code they can't read. Gartner expects over 40% of agentic AI projects to be cancelled by 2027.")
+             "code they can't read. Gartner expects over 40% of agentic AI projects to be cancelled by 2027, partly for "
+             "inadequate risk controls.")
 
 
-def s07_studies(prs):
-    s = prs.slides.add_slide(prs.slide_layouts[6]); bg(s, PAPER)
+def s03_how(prs):
+    s = new_slide(prs)
+    kicker(s, "How it works")
+    headline(s, [[("Rehearse. Measure. ", False), ("Then", True), (" approve.", False)]], h=0.9)
+    underline(s, 1.95)
+    steps = [("copy", "Copy", "A fresh copy of your business."), ("play", "Rehearse", "The plan runs sealed, offline."),
+             ("measure", "Measure", "A second sandbox records every change."), ("approve", "Approve", "A person approves the consequences."),
+             ("replay", "Replay", "Only those changes go live.")]
+    y, gap = 2.4, 0.4
+    bw = (W - 2 * MX - gap * 4) / 5
+    for i, (ic, t, d) in enumerate(steps):
+        x = MX + i * (bw + gap)
+        hi = i == 3
+        box(s, x, y, bw, 2.45, fill=INK if hi else CARD, line=None if hi else LINE)
+        badge(s, ic, x + 0.25, y + 0.25, d=0.6, fill=BLUE if hi else BLUE_SOFT, tone="white" if hi else "blue")
+        text(s, x + 0.25, y + 1.0, bw - 0.4, 0.5, [[R(t, SERIF, 23, "FAFAF8" if hi else INK)]])
+        para(s, x + 0.25, y + 1.5, bw - 0.4, 0.9, d, size=14, color="C9C9C4" if hi else MUTED)
+        if i < 4:
+            badge(s, "arrow", x + bw + gap / 2 - 0.21, y + 1.0, d=0.42, fill="FFFFFF", tone="blue", pad=0.25)
+    y2 = 5.15
+    bw2 = (W - 2 * MX - 0.44) / 3
+    for i, (ic, n, l) in enumerate([("gauge", "1.8 s", "median rehearsal, on one Vultr VM"),
+                                    ("shield", "0", "agent code lines run on production"),
+                                    ("users", "2", "people approve every big change")]):
+        x = MX + i * (bw2 + 0.22)
+        box(s, x, y2, bw2, 1.45)
+        icon(s, ic, "blue", x + bw2 - 0.75, y2 + 0.3, 0.42)
+        text(s, x + 0.3, y2 + 0.18, bw2 - 1.2, 0.7, [[R(n, MONO, 38, INK)]])
+        para(s, x + 0.3, y2 + 0.88, bw2 - 0.5, 0.5, l, size=15)
+    notes(s, "Every action runs first on a copy of the business, sealed in a gVisor sandbox on Vultr with no network and no "
+             "secrets. A second sandbox, running only our code, measures what really changed. A person approves that, and "
+             "only those measured effects are replayed for real, after a drift check. A rehearsal takes 1.8 seconds.")
+
+
+def s04_containment(prs):
+    s = new_slide(prs)
+    kicker(s, "Containment  ·  Challenge 01")
+    headline(s, [[("The blast radius is ", False), ("zero.", True)]], h=0.9)
+    underline(s, 1.95)
+    y, hh, cw = 2.45, 2.6, 5.1
+    for k, (ic, tone, fill, lab, n, sub, ncol) in enumerate([
+            ("trash", "red", RED_SOFT, "THE DOUBLE", "0", "customers left after the plan ran", RED),
+            ("shield", "green", GREEN_SOFT, "PRODUCTION", "1,300", "customers, untouched", INK)]):
+        x = MX if k == 0 else W - MX - cw
+        box(s, x, y, cw, hh, fill=CARD, line=LINE, radius=0.22)
+        badge(s, ic, x + 0.35, y + 0.35, d=0.6, fill=fill, tone=tone)
+        text(s, x + 1.1, y + 0.5, cw - 1.4, 0.35, [[R(lab, MONO, 14, RED if k == 0 else GREEN, bold=True)]])
+        text(s, x + 0.35, y + 0.95, cw - 0.7, 1.0, [[R(n, MONO, 60, ncol)]])
+        para(s, x + 0.35, y + 2.02, cw - 0.7, 0.4, sub, size=16)
+    wx = W / 2
+    box(s, wx - 0.015, y + 0.15, 0.03, hh - 0.3, fill=LINE, line=None, radius=0)
+    badge(s, "lock", wx - 0.38, y + hh / 2 - 0.5, d=0.76, fill=INK, tone="white", pad=0.27)
+    para(s, wx - 1.0, y + hh / 2 + 0.34, 2.0, 0.3, "gVisor wall", size=14, align=PP_ALIGN.CENTER)
+    y2 = 5.35
+    box(s, MX, y2, W - 2 * MX, 1.2, fill=CARD, line=LINE, radius=0.2)
+    badge(s, "quote", MX + 0.3, y2 + 0.3, d=0.6, fill=BLUE_SOFT, tone="blue")
+    text(s, MX + 1.1, y2 + 0.2, 5.3, 0.85, [[R("Another plan said", SANS, 14, MUTED)], [R("“Read-only audit. No changes made.”", SERIF, 19, INK)]], spacing=1.1)
+    badge(s, "eye", MX + 6.55, y2 + 0.3, d=0.6, fill=RED_SOFT, tone="red")
+    text(s, MX + 7.35, y2 + 0.2, 4.3, 0.85, [[R("A second sandbox measured", SANS, 14, MUTED)],
+                                             [R("300 rows changed. ", SANS, 19, INK, bold=True), R("Caught.", SANS, 19, RED, bold=True)]], spacing=1.1)
+    notes(s, "Here's a plan that deletes every customer. It ran for real, on the double: zero customers left. Production "
+             "still has 1,300, and approval locks. Because our own code measures the result in a second sandbox, a plan "
+             "that lies about what it did is caught too: one said 'no changes' and had changed 300 rows.")
+
+
+def s05_engine(prs):
+    s = new_slide(prs, INK)
+    kicker(s, "The Consequence Engine", dark=True)
+    headline(s, [[("744 refunds planned. ", False), ("104 were right.", True)], [("It kept exactly those.", False)]], dark=True, h=1.7)
+    cols, rows = 62, 12
+    gx, gy = MX, 2.75
+    pitch = int(Inches(W - 2 * MX)) // cols
+    gap = int(pitch * 0.24)
+    for i in range(744):
+        r, c = divmod(i, cols)
+        sh = s.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, Inches(gx) + c * pitch, Inches(gy) + r * pitch, pitch - gap, pitch - gap)
+        sh.adjustments[0] = 0.18
+        sh.fill.solid(); sh.fill.fore_color.rgb = rgb(GREEN_ON_DARK if i in KEPT else "B8434A")
+        sh.line.fill.background(); sh.shadow.inherit = False; flat(sh)
+    bottom = gy + rows * pitch / 914400
+    para(s, MX, bottom + 0.05, 8, 0.3, "Each square: one charge, its refund and its email", size=14, color="9A9A94")
+    text(s, W - MX - 4, bottom + 0.05, 4, 0.3, [[R("■ ", SANS, 14, GREEN_ON_DARK), R("keep 104     ", SANS, 14, "9A9A94"),
+                                                 R("■ ", SANS, 14, "B8434A"), R("cut 640", SANS, 14, "9A9A94")]], align=PP_ALIGN.RIGHT)
+    y, hh, cw = 5.5, 1.55, 2.9
+    for i, (k, n, l, kc, nc) in enumerate([("KEEP", "$5,136", "the right 104", GREEN_ON_DARK, "FAFAF8"),
+                                           ("CUT", "$32,268", "never double-charged", RED_ON_DARK, RED_ON_DARK)]):
+        x = MX + i * (cw + 0.22)
+        box(s, x, y, cw, hh, fill=D_CARD, line=D_LINE)
+        text(s, x + 0.3, y + 0.2, cw - 0.5, 0.3, [[R(k, MONO, 14, kc, bold=True)]])
+        text(s, x + 0.3, y + 0.45, cw - 0.4, 0.7, [[R(n, MONO, 34, nc)]])
+        para(s, x + 0.3, y + 1.08, cw - 0.5, 0.35, l, size=14, color=D_MUTED)
+    x = MX + 2 * (cw + 0.22)
+    hw = W - MX - x
+    box(s, x, y, hw, hh, fill=D_CARD, line=D_LINE)
+    colw = (hw - 0.5) / 2
+    for j, (ic, t) in enumerate([("contract", "Contract: 104 to do"), ("graph", "744 units of work"),
+                                 ("replayproof", "Line 1 chose the 640"), ("scissors", "Cut, re-run, re-check")]):
+        r, c = divmod(j, 2)
+        ix, iy = x + 0.28 + c * colw, y + 0.24 + r * 0.6
+        badge(s, ic, ix, iy, d=0.46, fill="1E2A4A", tone="lightblue", pad=0.24)
+        text(s, ix + 0.56, iy, colw - 0.6, 0.46, [[R(t, SANS, 14, "E4E4E0")]], anchor=MSO_ANCHOR.MIDDLE)
+    notes(s, "Now the hard case: a plan that's only partly wrong. Before the plan exists, the engine writes down what the "
+             "request means: 104 refunds. The plan does 744. Replaying it proves line 1 chose the 640 wrong ones. The "
+             "engine cuts them out, re-runs just the 104 in a fresh sandbox, and every check passes. Guardrails block or "
+             "allow; this approves exactly the right part.")
+
+
+def browser(slide, x, y, w, img, url="149-28-206-186.sslip.io/app"):
+    from PIL import Image
+    iw, ih = Image.open(img).size
+    h = w * ih / iw
+    bar = 0.4
+    box(slide, x, y, w + 0.16, h + bar + 0.08, fill=CARD, line=LINE, radius=0.16)
+    for k, c in enumerate(["F2B8BA", "F5DCA0", "BFE3CB"]):
+        oval(slide, x + 0.2 + k * 0.2, y + 0.14, 0.12, c)
+    box(slide, x + 0.95, y + 0.09, w - 1.6, 0.24, fill=PAPER, line=None, radius=0.12)
+    slide.shapes.add_picture(str(img), Inches(x + 0.08), Inches(y + bar), Inches(w))
+    return h + bar + 0.08
+
+
+def s06_product(prs):
+    s = new_slide(prs)
+    kicker(s, "The real product, live on Vultr")
+    headline(s, [[("Six checks.", False)], [("One click.", True)]], h=1.7, w=5.6)
+    underline(s, 2.62)
+    for j, (ic, t, d) in enumerate([("check", "Every layer explains itself", "Measured, proven, contract, rules, jury."),
+                                    ("scissors", "The wrong part, cut out", "Line 1 chose 640 refunds. All removed."),
+                                    ("approve", "You approve the rest", "The 104 re-run fresh. Then you approve.")]):
+        yy = 3.1 + j * 1.1
+        badge(s, ic, MX, yy, d=0.62, fill=BLUE_SOFT, tone="blue")
+        text(s, MX + 0.85, yy - 0.03, 4.6, 0.4, [[R(t, SANS, 18, INK, bold=True)]])
+        para(s, MX + 0.85, yy + 0.38, 4.6, 0.6, d, size=15)
+    para(s, MX, 6.55, 5.4, 0.35, "Try it: 149-28-206-186.sslip.io", size=15, color=BLUE, bold=True)
+    browser(s, 6.75, 0.62, 5.55, HERE / "img" / "product.png")
+    notes(s, "This is the real screen, on the live server. Six independent layers each give one plain reason: what was "
+             "measured, the proof by replay, the intent contract, the rules, the AI jury and the sign-off. The engine shows "
+             "exactly which part of the plan is wrong, line 1 chose 640 refunds, and offers to keep just the 104 that are "
+             "right. One click, and those 104 are re-rehearsed in a fresh sandbox and checked again before you approve.")
+
+
+def s07_vultr(prs):
+    s = new_slide(prs, INK)
+    kicker(s, "Built on Vultr", dark=True)
+    headline(s, [[("One VM. Four labs. ", False), ("Disposable doubles.", True)]], dark=True, h=0.9)
+    y, hh = 2.3, 2.75
+    box(s, MX, y, W - 2 * MX, hh, fill=None, line=D_LINE, width=1.25)
+    box(s, MX + 0.3, y - 0.22, 1.25, 0.44, fill=INK, line=None, radius=0)
+    vultr_mark(s, MX + 0.42, y - 0.15, 0.3)
+    text(s, MX + 0.8, y - 0.17, 0.8, 0.34, [[R("Vultr", SANS, 15, "FAFAF8", bold=True)]])
+    cw = (W - 2 * MX - 0.5 - 0.5) / 3
+    for i, (ic, t, d) in enumerate([("cpu", "Cloud Compute", "Every rehearsal runs in two fresh gVisor sandboxes."),
+                                    ("brain", "Serverless Inference", "Qwen, DeepSeek, GLM and MiniMax write, check and judge."),
+                                    ("cloud", "Vultr API", "A read-only double of your real server fleet.")]):
+        x = MX + 0.25 + i * (cw + 0.25)
+        box(s, x, y + 0.3, cw, hh - 0.55, fill=D_CARD, line=D_LINE)
+        badge(s, ic, x + 0.3, y + 0.55, d=0.6, fill=BLUE, tone="white")
+        text(s, x + 0.3, y + 1.3, cw - 0.5, 0.45, [[R(t, SANS, 20, "FAFAF8", bold=True)]])
+        para(s, x + 0.3, y + 1.75, cw - 0.55, 0.7, d, size=15, color=D_MUTED)
+    y2 = 5.45
+    half = (W - 2 * MX - 0.25) / 2
+    box(s, MX, y2, half, 1.15, fill=D_CARD, line=D_LINE)
+    for k, b in enumerate(["claude", "cursor", "mcp", "python"]):
+        icon(s, f"brand-{b}", "white", MX + 0.32 + k * 0.55, y2 + 0.36, 0.42)
+    text(s, MX + 2.65, y2 + 0.15, half - 2.9, 0.85, [[R("Any agent plugs in. There is no approve tool.", SANS, 15, D_MUTED)]], anchor=MSO_ANCHOR.MIDDLE, spacing=1.12)
+    x = MX + half + 0.25
+    box(s, x, y2, half, 1.15, fill=D_CARD, line=D_LINE)
+    text(s, x + 0.32, y2 + 0.2, 2.0, 0.75, [[R("$8.64", MONO, 34, BLUE_ON_DARK)]], anchor=MSO_ANCHOR.MIDDLE)
+    text(s, x + 2.3, y2 + 0.15, half - 2.55, 0.85, [[R("The whole build on Vultr, every test included.", SANS, 15, D_MUTED)]], anchor=MSO_ANCHOR.MIDDLE, spacing=1.12)
+    notes(s, "All of it runs on Vultr. Cloud Compute runs the web app, the API, the MCP server and every rehearsal in two "
+             "fresh gVisor sandboxes. Serverless Inference runs four labs' models: Qwen writes the intent contract, DeepSeek "
+             "cross-checks it, and GLM, DeepSeek and MiniMax judge the outcome; GLM also reads browser screenshots. The "
+             "Vultr API gives a read-only double of your real fleet. Agents connect over MCP, an SDK, a CLI or REST. The "
+             "whole build, every test run included, cost $8.64.")
+
+
+def s08_proof(prs):
+    s = new_slide(prs)
+    kicker(s, "Proof, measured live on Vultr")
+    headline(s, [[("Bad plans stopped. Good ones ", False), ("approved.", True)]], h=0.9)
+    underline(s, 1.95)
+    y, hh = 2.4, 3.9
+    cw = (W - 2 * MX - 0.66) / 4
+    for i, (n, l, dots, per) in enumerate([("12/12", "bad plans stopped", [RED] * 12, 6),
+                                           ("8/8", "good plans approved, zero false alarms", [GREEN] * 8, 6),
+                                           ("8/8", "wrong plans stopped on cases it never saw", [INK] * 8, 6),
+                                           ("63→41", "a school's data, cut to exactly the right 41", [GREEN] * 41 + [RED] * 22, 13)]):
+        x = MX + i * (cw + 0.22)
+        box(s, x, y, cw, hh)
+        icon(s, "check", "green", x + cw - 0.62, y + 0.32, 0.36)
+        text(s, x + 0.28, y + 0.25, cw - 0.95, 0.8, [[R(n, MONO, 36, INK)]])
+        para(s, x + 0.28, y + 1.05, cw - 0.5, 0.9, l, size=15)
+        d = 0.27 if per == 6 else 0.13
+        step = (cw - 0.56) / per
+        rows_n = (len(dots) + per - 1) // per
+        top = y + hh - 0.4 - rows_n * step
+        for k, c in enumerate(dots):
+            r, col = divmod(k, per)
+            oval(s, x + 0.28 + col * step, top + r * step, d if per == 6 else min(d, step * 0.82), c)
+    para(s, MX, 6.55, W - 2 * MX, 0.35, "No wrong plan was ever approved. Every case, and every miss, is published.", size=15)
+    notes(s, "Measured live on Vultr: the engine stopped 12 of 12 bad plans and approved 8 of 8 good ones, with no false "
+             "alarms. On 16 held-out cases written before the run, it stopped all 8 wrong plans (3 of 8 right plans were "
+             "approved outright; the other 5 went to a person with a reason). On a school's database it had never seen, "
+             "it found the 22 students who took their withdrawal back and kept exactly the right 41 of 63. 201 tests run in CI.")
+
+
+def s09_studies(prs):
+    s = new_slide(prs)
     kicker(s, "Why it matters now")
     headline(s, [[("Agents are getting the keys, ", False), ("fast.", True)]], h=0.9)
     underline(s, 1.95)
-    y, hh = 2.4, 4.35
+    y, hh = 2.4, 4.4
     cw = (W - 2 * MX - 0.5) / 3
-    panels = [("Enterprise apps with AI agents", "33×", [("2024", 0.6, "<1%", BLUE_SOFT), ("2028", 33, "33%", BLUE)], 33, "Gartner"),
-              ("Work decisions made by agents", "0 → 15%", [("2024", 0.0, "0%", BLUE_SOFT), ("2028", 15, "15%+", BLUE)], 15, "Gartner"),
-              ("AI agents market", "6.7×", [("2025", 7.84, "$7.8B", BLUE_SOFT), ("2030", 52.62, "$52.6B", BLUE)], 52.62, "MarketsandMarkets")]
-    for i, (title_, growth, items, maxv, src) in enumerate(panels):
+    for i, (t, growth, items, maxv, src) in enumerate([
+            ("Enterprise apps with AI agents", "33×", [("2024", 0.6, "<1%", BLUE_SOFT), ("2028", 33, "33%", BLUE)], 33, "Gartner"),
+            ("Work decisions made by agents", "0 → 15%", [("2024", 0.0, "0%", BLUE_SOFT), ("2028", 15, "15%+", BLUE)], 15, "Gartner"),
+            ("AI agents market", "6.7×", [("2025", 7.84, "$7.8B", BLUE_SOFT), ("2030", 52.62, "$52.6B", BLUE)], 52.62, "MarketsandMarkets")]):
         x = MX + i * (cw + 0.25)
         box(s, x, y, cw, hh, fill=CARD, line=LINE, radius=0.22)
-        text(s, x + 0.32, y + 0.32, cw - 1.6, 0.7, [[R(title_, SANS, 15, INK, bold=True)]], spacing=1.05)
-        pill(s, x + cw - 0.32 - (0.3 + 0.1 * len(growth)), y + 0.32, growth)
-        bars(s, x + 0.3, y + 1.0, cw - 0.6, hh - 1.45, items, maxv)
-        text(s, x + 0.32, y + hh - 0.42, cw - 0.6, 0.3, [[R(src, SANS, 10.5, FAINT)]])
+        text(s, x + 0.32, y + 0.32, cw - 1.75, 0.75, [[R(t, SANS, 16, INK, bold=True)]], spacing=1.05)
+        pw = 0.36 + 0.11 * len(growth)
+        pill(s, x + cw - 0.32 - pw, y + 0.32, growth, size=14, w=pw)
+        bars(s, x + 0.3, y + 1.05, cw - 0.6, hh - 1.55, items, maxv)
+        para(s, x + 0.32, y + hh - 0.45, cw - 0.6, 0.3, src, size=14, color=FAINT)
     notes(s, "Why now: Gartner expects a third of enterprise software to include agentic AI by 2028, up from under 1%, "
              "and agents to make at least 15% of day-to-day work decisions. The AI agents market grows from about $7.8 "
              "billion in 2025 to $52.6 billion by 2030 (MarketsandMarkets). Every one of those agents needs a stunt double.")
 
 
-def s11_close(prs):
-    s = prs.slides.add_slide(prs.slide_layouts[6]); bg(s, INK)
+def s10_business(prs):
+    s = new_slide(prs)
+    kicker(s, "Business")
+    headline(s, [[("One caught mistake pays for a seat for ", False), ("55 years.", True)]], size=36, h=0.9)
+    underline(s, 1.95)
+    y, hh = 2.4, 4.15
+    lw = 4.6
+    box(s, MX, y, lw, hh)
+    text(s, MX + 0.32, y + 0.32, lw - 0.5, 0.4, [[R("One catch vs a year of a seat", SANS, 16, INK, bold=True)]])
+    bars(s, MX + 0.3, y + 0.95, lw - 0.6, hh - 1.15, [("one mistake", 32268, "$32,268", RED), ("a seat, a year", 588, "$588", BLUE)], 32268)
+    x = MX + lw + 0.25
+    rw = W - MX - x
+    box(s, x, y, rw, hh)
+    tw, th = (rw - 0.6 - 0.2) / 2, 1.7
+    for k, (ic, n, l) in enumerate([("dollar", "$49", "per approver, per month"), ("percent", "73%", "gross margin, measured"),
+                                    ("bolt", "$0.00003", "per rehearsal"), ("law", "Required", "by EU AI Act, SOC 2")]):
+        r, c = divmod(k, 2)
+        tx, ty = x + 0.3 + c * (tw + 0.2), y + 0.3 + r * (th + 0.2)
+        box(s, tx, ty, tw, th, fill=PAPER, line=LINE, radius=0.16)
+        badge(s, ic, tx + 0.25, ty + 0.25, d=0.56, fill=BLUE_SOFT, tone="blue", pad=0.24)
+        text(s, tx + 0.25, ty + 0.85, tw - 0.4, 0.45, [[R(n, MONO, 26, INK)]])
+        para(s, tx + 0.25, ty + 1.27, tw - 0.4, 0.35, l, size=15)
+    notes(s, "One caught mistake in the demo is $32,268; a seat is $49 a month, so that single catch pays for it for 55 "
+             "years. A rehearsal costs us $0.00003 and a three-model AI check at most $0.044, so a full seat runs at a 73% "
+             "gross margin. Buyers: Heads of Operations, Support and Finance Ops. The EU AI Act (Articles 14 and 12) and "
+             "SOC 2 (CC8.1) already ask for exactly this approval record. Open core, MIT: one command self-hosts it on "
+             "your own Vultr account.")
+
+
+def s11_why(prs):
+    s = new_slide(prs, INK)
+    kicker(s, "Why it wins", dark=True)
+    headline(s, [[("Code got CI/CD. Money got audits.", False)], [("Agent actions get a double.", True)]], dark=True, h=1.7)
+    cw, ch = (W - 2 * MX - 0.25) / 2, 1.78
+    for i, (ic, t, d) in enumerate([("cpu", "Application of technology", "gVisor on Cloud Compute, four labs on Serverless Inference."),
+                                    ("sparkles", "Originality", "Not block or allow: it approves exactly the right part, proven by replay."),
+                                    ("trophy", "Business value", "One caught mistake pays for a seat for 55 years, at a 73% margin."),
+                                    ("eye", "Live, not a mockup", "Judge mode is eight clicks, each a real rehearsal on Vultr.")]):
+        r, c = divmod(i, 2)
+        x, y = MX + c * (cw + 0.25), 2.95 + r * (ch + 0.22)
+        box(s, x, y, cw, ch, fill=D_CARD, line=D_LINE, radius=0.2)
+        badge(s, ic, x + 0.35, y + 0.38, d=0.68, fill=BLUE, tone="white")
+        text(s, x + 1.3, y + 0.32, cw - 1.6, 0.42, [[R(t, SANS, 20, "FAFAF8", bold=True)]])
+        para(s, x + 1.3, y + 0.8, cw - 1.6, 0.85, d, size=16, color=D_MUTED)
+    notes(s, "Why it wins. Application of technology: real gVisor isolation on Vultr Cloud Compute and four labs' models on "
+             "Serverless Inference. Originality: guardrails block or allow; this approves exactly the right part of a plan, "
+             "with promises written before the plan and proof by replay. Business value: one catch pays for a seat for 55 "
+             "years. And it's live today. Next: more connectors, a Vultr VM per risky rehearsal, approvals in Slack, and the "
+             "approval layer every company uses before an agent acts.")
+
+
+def s12_close(prs):
+    s = new_slide(prs, INK)
     s.shapes.add_picture(str(IMG / "close-16x9.jpg"), 0, 0, Inches(W), Inches(H))
     gradient_veil(s, 0, 0, W, H, "05070D", 0.25, 0.7, angle=90)
     wordmark(s, W / 2 - 1.55, 0.85, size=26, dark=True)
@@ -710,26 +616,24 @@ def s11_close(prs):
                                     [R("Businesses should be ", SERIF, 62, "FFFFFF"), R("safe.", SERIF, 62, "9DB8FF", italic=True)]], align=PP_ALIGN.CENTER, spacing=0.95)
     bx, by, bw, bh = 2.55, 4.4, 8.23, 1.7
     box(s, bx, by, bw, bh, fill="FFFFFF", line=None, radius=0.24)
-    qr = HERE / "qr.png"
-    if qr.exists():
-        s.shapes.add_picture(str(qr), Inches(bx + 0.27), Inches(by + 0.22), Inches(1.26), Inches(1.26))
-    text(s, bx + 1.85, by + 0.3, bw - 2.1, 0.5, [[R("149-28-206-186.sslip.io", MONO, 24, INK)]])
-    text(s, bx + 1.85, by + 0.85, bw - 2.1, 0.35, [[R("Judge mode: eight clicks, each a real rehearsal on Vultr.", SANS, 15, MUTED)]])
-    text(s, bx + 1.85, by + 1.2, bw - 2.1, 0.3, [[R("github.com/vidigoat/stunt-double", MONO, 12, MUTED)]])
+    s.shapes.add_picture(str(HERE / "qr.png"), Inches(bx + 0.27), Inches(by + 0.22), Inches(1.26), Inches(1.26))
+    text(s, bx + 1.85, by + 0.28, bw - 2.1, 0.5, [[R("149-28-206-186.sslip.io", MONO, 24, INK)]])
+    para(s, bx + 1.85, by + 0.82, bw - 2.1, 0.35, "Judge mode: eight clicks, each a real rehearsal.", size=16)
+    para(s, bx + 1.85, by + 1.18, bw - 2.1, 0.35, "github.com/vidigoat/stunt-double", size=14, font=MONO)
     text(s, 0.5, 6.45, W - 1, 0.45, [[R("Let the double ", SERIF, 22, "FFFFFF"), R("take the hit.", SERIF, 22, "9DB8FF", italic=True)]], align=PP_ALIGN.CENTER)
     notes(s, "Agents should be bold. Businesses should be safe. Now they can be both. Try it live: judge mode is eight "
              "clicks. Let the double take the hit. Photo: 'Stormy sunset over the Waimakariri River basin, New Zealand', "
              "Wikimedia Commons, CC BY-SA 4.0.")
 
 
-SLIDES = (s01_cover, s02_problem, s04_how, s05_containment, s06_engine, s08_vultr, s07_proof, s07_studies, s09_business, s12_vision, s11_close)
+SLIDES = (s01_cover, s02_problem, s03_how, s04_containment, s05_engine, s06_product, s07_vultr, s08_proof, s09_studies,
+          s10_business, s11_why, s12_close)
 
 
 def build() -> Path:
     prs = Presentation()
     prs.slide_width, prs.slide_height = Inches(W), Inches(H)
-    for i, f in enumerate(SLIDES, 1):
-        CUR[0] = i
+    for f in SLIDES:
         f(prs)
     for sl in list(prs.slides)[1:]:
         fade(sl)
