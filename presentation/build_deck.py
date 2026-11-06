@@ -320,7 +320,7 @@ def s02_problem(prs):
                                                 R("approve.", SERIF, 24, BLUE_ON_DARK, italic=True)]], spacing=1.05)
     box(s, x + 0.4, y + 2.3, dw - 0.8, 0.015, fill="2C2C2A", line=None, radius=0)
     text(s, x + 0.4, y + 2.5, 1.7, 0.7, [[R("40%+", MONO, 34, RED_ON_DARK)]])
-    para(s, x + 2.05, y + 2.48, dw - 2.4, 0.9, "of agent projects scrapped by 2027 (Gartner)", size=14, color="C9C9C4")
+    para(s, x + 2.05, y + 2.48, dw - 2.4, 0.9, "of agent projects to be scrapped by 2027 (Gartner)", size=14, color="C9C9C4")
     notes(s, "AI agents don't just answer any more. They refund customers, send email, delete servers. In July 2025 one "
              "deleted a company's production database during a code freeze (eWeek); this spring another wiped a database "
              "and its backups in nine seconds (Information Age, May 2026). And today's safety step is a person reading "
@@ -350,10 +350,10 @@ def s03_how(prs):
     y2 = 5.15
     bw2 = (W - 2 * MX - 0.44) / 3
     for i, (ic, n, l) in enumerate([("gauge", "1.8 s", "median rehearsal, on one Vultr VM"),
-                                    ("shield", "0", "agent code lines run on production"),
+                                    ("shield", "0", "lines of agent code run in production"),
                                     ("users", "2", "people approve every big change")]):
         x = MX + i * (bw2 + 0.22)
-        box(s, x, y2, bw2, 1.45)
+        box(s, x, y2, bw2, 1.62)
         icon(s, ic, "blue", x + bw2 - 0.75, y2 + 0.3, 0.42)
         text(s, x + 0.3, y2 + 0.18, bw2 - 1.2, 0.7, [[R(n, MONO, 38, INK)]])
         para(s, x + 0.3, y2 + 0.88, bw2 - 0.5, 0.5, l, size=15)
@@ -370,7 +370,7 @@ def s04_containment(prs):
     y, hh, cw = 2.45, 2.6, 5.1
     for k, (ic, tone, fill, lab, n, sub, ncol) in enumerate([
             ("trash", "red", RED_SOFT, "THE DOUBLE", "0", "customers left after the plan ran", RED),
-            ("shield", "green", GREEN_SOFT, "PRODUCTION", "1,300", "customers, untouched", INK)]):
+            ("shield", "green", GREEN_SOFT, "PRODUCTION", "1,300", "customers, untouched. Approval locked.", INK)]):
         x = MX if k == 0 else W - MX - cw
         box(s, x, y, cw, hh, fill=CARD, line=LINE, radius=0.22)
         badge(s, ic, x + 0.35, y + 0.35, d=0.6, fill=fill, tone=tone)
@@ -413,7 +413,7 @@ def s05_engine(prs):
                                                  R("■ ", SANS, 14, "B8434A"), R("cut 640", SANS, 14, "9A9A94")]], align=PP_ALIGN.RIGHT)
     y, hh, cw = 5.5, 1.55, 2.9
     for i, (k, n, l, kc, nc) in enumerate([("KEEP", "$5,136", "the right 104", GREEN_ON_DARK, "FAFAF8"),
-                                           ("CUT", "$32,268", "never double-charged", RED_ON_DARK, RED_ON_DARK)]):
+                                           ("CUT", "$32,268", "640 never double-charged", RED_ON_DARK, RED_ON_DARK)]):
         x = MX + i * (cw + 0.22)
         box(s, x, y, cw, hh, fill=D_CARD, line=D_LINE)
         text(s, x + 0.3, y + 0.2, cw - 0.5, 0.3, [[R(k, MONO, 14, kc, bold=True)]])
@@ -453,7 +453,7 @@ def s06_product(prs):
     kicker(s, "The real product, live on Vultr")
     headline(s, [[("Six checks.", False)], [("One click.", True)]], h=1.7, w=5.6)
     underline(s, 2.62)
-    for j, (ic, t, d) in enumerate([("check", "Every layer explains itself", "Measured, proven, contract, rules, jury."),
+    for j, (ic, t, d) in enumerate([("check", "Every layer explains itself", "Six layers, one plain reason each."),
                                     ("scissors", "The wrong part, cut out", "Line 1 chose 640 refunds. All removed."),
                                     ("approve", "You approve the rest", "The 104 re-run fresh. Then you approve.")]):
         yy = 3.1 + j * 1.1
