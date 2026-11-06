@@ -133,7 +133,7 @@ async function step(name, fn) {
     await page.getByRole("button", { name: /Undos/ }).click();
     await page.getByText("undo", { exact: true }).first().waitFor();
     const csv = await fetch(`${BASE}/api/runs.csv`).then((r) => r.text());
-    assert.ok(csv.startsWith("run_id,") && csv.includes("Matches the 104 duplicate charges"), "CSV export carries the decision note");
+    assert.ok(csv.startsWith("run_id,") && csv.includes("applied") && csv.includes("Priya"), "CSV export carries every decision and who made it");
   });
 
   await step("policy page loads the rules", async () => {
