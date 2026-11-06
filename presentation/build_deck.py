@@ -139,6 +139,27 @@ def footer(slide, n: int, dark=False, left="Stunt Double  ·  live on Vultr"):
     text(slide, W - MX - 2, H - 0.48, 2, 0.25, [[R(f"{n:02d} / {TOTAL}", MONO, 9, c)]], align=PP_ALIGN.RIGHT)
 
 
+# The Vultr mark (Simple Icons, 24-unit box), as two polygons; the tiny corner rounding is dropped.
+VULTR_MARK = [
+    [(8.36, 2.172), (7.348, 1.6), (1.2, 1.6), (0, 2.8), (0.182, 3.44), (11.782, 21.84), (13.817, 21.84),
+     (16.892, 16.966), (17.074, 16.326), (16.892, 15.684)],
+    [(18.709, 10.852), (20.744, 10.852), (21.8, 9.178), (23.817, 5.978), (24.0, 5.338), (23.817, 4.698), (22.217, 2.172),
+     (21.201, 1.601), (15.053, 1.601), (13.852, 2.801), (14.04, 3.441)],
+]
+
+
+def vultr_mark(slide, x, y, size, color="007BFC"):
+    k = Inches(size) / 24
+    for poly in VULTR_MARK:
+        (x0, y0), rest = poly[0], poly[1:]
+        fb = slide.shapes.build_freeform(Inches(x) + int(x0 * k), Inches(y) + int(y0 * k), scale=1.0)
+        fb.add_line_segments([(Inches(x) + int(px * k), Inches(y) + int(py * k)) for px, py in rest], close=True)
+        sh = fb.convert_to_shape()
+        sh.fill.solid(); sh.fill.fore_color.rgb = rgb(color)
+        sh.line.fill.background(); sh.shadow.inherit = False
+        flat(sh)
+
+
 def notes(slide, s: str) -> None:
     slide.notes_slide.notes_text_frame.text = s
 
@@ -375,8 +396,9 @@ def s08_vultr(prs):
     headline(s, [[("One VM. Four labs. ", False), ("Disposable doubles.", True)]], dark=True, h=0.9)
     y, hh = 2.25, 2.65
     box(s, MX, y, W - 2 * MX, hh + 0.5, fill=None, line=D_LINE, width=1.25)
-    box(s, MX + 0.35, y - 0.17, 0.95, 0.34, fill=INK, line=None, radius=0)
-    text(s, MX + 0.35, y - 0.14, 0.95, 0.3, [[R("VULTR", MONO, 11, BLUE_ON_DARK, bold=True)]], align=PP_ALIGN.CENTER)
+    box(s, MX + 0.3, y - 0.2, 1.12, 0.4, fill=INK, line=None, radius=0)
+    vultr_mark(s, MX + 0.42, y - 0.15, 0.3)
+    text(s, MX + 0.8, y - 0.14, 0.8, 0.3, [[R("Vultr", SANS, 14, "FAFAF8", bold=True)]])
     widths = [3.25, 4.75, 3.0]
     gap = (W - 2 * MX - 0.5 - sum(widths)) / 2
     x = MX + 0.25
