@@ -53,10 +53,10 @@ async function step(name, fn) {
     // with inference on, the AI verifier reads the data first (60-125 s on the live server)
     const approve = page.getByRole("button", { name: /Approve and apply|Approve anyway/ });
     await approve.waitFor({ timeout: 240000 });
-    await page.getByLabel("Decision note").fill("Matches the 104 duplicate charges in ticket #88");
+    // the note field appears only when a written reason is required (the AI or a promise objected)
+    if (/anyway/.test(await approve.innerText())) await page.getByLabel("Decision note").fill("Matches the 104 duplicate charges in ticket #88");
     await approve.click();
     await page.getByText("Applied for real").waitFor({ timeout: 60000 });
-    await page.getByText(/Matches the 104 duplicate charges/).first().waitFor();
     const ledger = await fetch(`${BASE}/api/beanpay/ledger`).then((r) => r.json());
     assert.strictEqual(ledger.count, 104);
     assert.strictEqual(ledger.total_cents, 513600);
