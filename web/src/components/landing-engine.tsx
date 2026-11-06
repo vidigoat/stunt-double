@@ -157,6 +157,7 @@ JOIN (SELECT customer_id, amount_cents, date(created_at) d
         <div className="mt-8 flex flex-wrap items-center gap-x-6 gap-y-3">
           <Link href="/app" className="inline-flex h-11 items-center gap-2 rounded-full bg-foreground px-5 text-[15px] font-medium text-background hover:opacity-90">See it on the live server <ArrowRight className="size-4" /></Link>
           <a href={`${GITHUB}/blob/main/docs/ENGINE.md`} target="_blank" rel="noreferrer" className="text-[15px] text-muted-foreground underline-offset-4 hover:text-foreground hover:underline">How the engine works ↗</a>
+          <a href={`${GITHUB}/blob/main/docs/BEYOND_THE_DEMO.md`} target="_blank" rel="noreferrer" className="text-[15px] text-muted-foreground underline-offset-4 hover:text-foreground hover:underline">Not just this demo: a school and a SaaS company it never saw ↗</a>
         </div>
       </div>
     </section>
