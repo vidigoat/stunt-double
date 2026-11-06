@@ -68,6 +68,8 @@ Rules for each promise:
 - Write every date as a literal ('2026-01-31'), worked out from today's date. Never use 'now'.
 - Always write one promise that limits the change to exactly what was asked: no row, refund, email or request outside
   it. And, if the request asks for work to be done, one promise that is broken until that work is done.
+- A correct plan must keep every promise. So a guard checks the facts that matter, not every column: doing the work
+  naturally sets some columns (a status, a timestamp such as refunded_at or updated_at) on the rows the request is about.
 - Promise only about THIS request. Use a glossary entry only if the request is about that term; most entries will not
   apply. Never add work the request does not ask for.
 - The business's protections still hold: rows marked production, protected or critical stay untouched unless the
