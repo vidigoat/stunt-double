@@ -101,6 +101,11 @@ rehearsal returns the decision, the contract and the proof, and `keep_only_what_
 approves nothing). The code is in [`api/app/engine/`](api/app/engine),
 the design and what production measured in [docs/ENGINE.md](docs/ENGINE.md).
 
+**Not just one demo.** On a business it was never built for (an online school with its own schema and its own
+trap) the engine, live on Vultr, proved all 63 changes, caught the 22 wrong ones with a promise written before the
+plan, and cut it to exactly the right 41; on a SaaS company's Postgres it approved the two correct plans and blocked
+the destructive one. What it found, and what we fixed: [docs/BEYOND_THE_DEMO.md](docs/BEYOND_THE_DEMO.md).
+
 ## What makes it different
 
 ### The plan can't lie
@@ -282,7 +287,7 @@ Details in [SECURITY.md](SECURITY.md).
 | **12 / 12 · 8 / 8** | the Consequence Engine on the live server: bad plans stopped, correct plans approved, 0 false alarms, the refund trap cut to exactly the right 104 ([eval](docs/VERIFIER_EVAL.md)) |
 | **48 / 48** | bad plans caught by the AI jury alone, in earlier live runs, with **0 of 26** false alarms on correct ones ([eval](docs/VERIFIER_EVAL.md)) |
 | **3 of 3** | jurors from different labs independently caught every trap on production |
-| **196** | API tests in CI (tampered evidence, hidden connections and forged logs among them), plus a real MCP client and an end-to-end browser test against production |
+| **199** | API tests in CI (tampered evidence, hidden connections and forged logs among them), plus a real MCP client and an end-to-end browser test against production |
 | **1.8 s** | median two-phase rehearsal in gVisor ([benchmark](docs/BENCH.md)) |
 | **0** | lines of agent code ever run against production |
 
