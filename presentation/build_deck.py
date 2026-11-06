@@ -325,43 +325,45 @@ def s06_engine(prs):
     s = prs.slides.add_slide(prs.slide_layouts[6]); bg(s, INK)
     kicker(s, "The Consequence Engine", dark=True)
     headline(s, [[("744 refunds planned. ", False), ("104 were right.", True)], [("It kept exactly those.", False)]], dark=True, h=1.7)
-    # the 744 units of work: 93 columns x 8 rows
-    cols, rows = 93, 8
-    gx, gy = MX, 2.85
-    pitch = int(Inches(W - 2 * MX)) // cols            # exact EMU pitch: every gap identical
-    gap = int(pitch * 0.18)
+    # 744 units of work, 62 x 12: squares big enough, and gaps wide enough, that screen rounding can't show
+    cols, rows = 62, 12
+    gx, gy = MX, 2.78
+    pitch = int(Inches(W - 2 * MX)) // cols
+    gap = int(pitch * 0.24)
     for i in range(744):
         r, c = divmod(i, cols)
-        sh = s.shapes.add_shape(MSO_SHAPE.RECTANGLE, Inches(gx) + c * pitch, Inches(gy) + r * pitch, pitch - gap, pitch - gap)
-        sh.fill.solid(); sh.fill.fore_color.rgb = rgb(GREEN_ON_DARK if i in KEPT else "C2474B")
+        sh = s.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, Inches(gx) + c * pitch, Inches(gy) + r * pitch, pitch - gap, pitch - gap)
+        sh.adjustments[0] = 0.18
+        sh.fill.solid(); sh.fill.fore_color.rgb = rgb(GREEN_ON_DARK if i in KEPT else "B8434A")
         sh.line.fill.background(); sh.shadow.inherit = False; flat(sh)
-    cell = pitch / 914400
-    text(s, MX, gy + rows * cell + 0.08, 8, 0.25, [[R("each square is one unit of work: a charge, its refund and its email", MONO, 9, "77776F")]])
-    text(s, W - MX - 4, gy + rows * cell + 0.08, 4, 0.25, [[R("■ ", MONO, 9, GREEN_ON_DARK), R("keep 104   ", MONO, 9, "77776F"),
-                                                             R("■ ", MONO, 9, "C2474B"), R("cut 640", MONO, 9, "77776F")]], align=PP_ALIGN.RIGHT)
-    y = 4.42
-    cw = 3.4
-    cards = [("KEEP", "$5,136", "104 refunds · 104 emails", GREEN_ON_DARK, "FAFAF8"),
-             ("CUT", "$32,268", "640 refunds to people never double-charged", RED_ON_DARK, RED_ON_DARK)]
-    for i, (k, n, l, kc, nc) in enumerate(cards):
+    bottom = gy + rows * pitch / 914400
+    text(s, MX, bottom + 0.06, 8, 0.3, [[R("Each square: one charge, its refund and its email", SANS, 12, "8E8E88")]])
+    text(s, W - MX - 4, bottom + 0.06, 4, 0.3, [[R("■ ", SANS, 12, GREEN_ON_DARK), R("keep 104     ", SANS, 12, "8E8E88"),
+                                                 R("■ ", SANS, 12, "B8434A"), R("cut 640", SANS, 12, "8E8E88")]], align=PP_ALIGN.RIGHT)
+    y, hh = 5.5, 1.55
+    cw = 2.9
+    for i, (k, n, l, kc, nc) in enumerate([("KEEP", "$5,136", "the right 104 refunds", GREEN_ON_DARK, "FAFAF8"),
+                                           ("CUT", "$32,268", "640 never double-charged", RED_ON_DARK, RED_ON_DARK)]):
         x = MX + i * (cw + 0.22)
-        box(s, x, y, cw, 2.15, fill=D_CARD, line=D_LINE)
-        text(s, x + 0.32, y + 0.28, cw - 0.6, 0.3, [[R(k, MONO, 10.5, kc)]])
-        text(s, x + 0.32, y + 0.62, cw - 0.5, 0.9, [[R(n, MONO, 42, nc)]])
-        text(s, x + 0.32, y + 1.5, cw - 0.6, 0.5, [[R(l, SANS, 13, D_MUTED)]])
+        box(s, x, y, cw, hh, fill=D_CARD, line=D_LINE)
+        text(s, x + 0.3, y + 0.22, cw - 0.5, 0.3, [[R(k, MONO, 10.5, kc)]])
+        text(s, x + 0.3, y + 0.48, cw - 0.4, 0.7, [[R(n, MONO, 34, nc)]])
+        text(s, x + 0.3, y + 1.1, cw - 0.5, 0.35, [[R(l, SANS, 12.5, D_MUTED)]])
     x = MX + 2 * (cw + 0.22)
-    cw = W - MX - x
-    box(s, x, y, cw, 2.15, fill=D_CARD, line=D_LINE)
-    text(s, x + 0.32, y + 0.28, cw - 0.6, 0.3, [[R("HOW", MONO, 10.5, BLUE_ON_DARK)]])
-    for j, (n, t) in enumerate([("1", "Contract, before the plan: 104 to do"), ("2", "Effect graph: 744 units of work"),
-                                ("3", "Replay proof: line 1 chose the 640"), ("4", "Cut, re-run fresh, checked again")]):
-        text(s, x + 0.32, y + 0.64 + j * 0.34, cw - 0.5, 0.3, [[R(n + "   ", MONO, 11, BLUE_ON_DARK), R(t, SANS, 12, "DDDDDA")]])
-    footer(s, 6, dark=True)
+    hw = W - MX - x
+    box(s, x, y, hw, hh, fill=D_CARD, line=D_LINE)
+    steps = [("contract", "A contract before the plan: 104 to do"), ("graph", "Every change linked into 744 units"),
+             ("replayproof", "Replay proves line 1 chose the 640"), ("scissors", "Cut them, re-run, check again")]
+    colw = (hw - 0.6) / 2
+    for j, (ic, t) in enumerate(steps):
+        r, c = divmod(j, 2)
+        ix, iy = x + 0.3 + c * colw, y + 0.27 + r * 0.6
+        badge(s, ic, ix, iy, d=0.42, fill="1E2A4A", tone="lightblue", pad=0.24)
+        text(s, ix + 0.52, iy - 0.02, colw - 0.6, 0.48, [[R(t, SANS, 12, "E4E4E0")]], anchor=MSO_ANCHOR.MIDDLE, spacing=1.0)
     notes(s, "Now the hard case: a plan that's only partly wrong. Ask it to refund everyone who was double-charged. "
              "Before the plan exists, the engine writes down what that means: 104 refunds. The plan does 744. Replaying "
              "it proves line 1 chose the 640 wrong ones. The engine cuts them out, re-runs just the 104 in a fresh "
              "sandbox, and every check passes. You approve exactly the right part.")
-
 
 
 def s07_proof(prs):
@@ -428,12 +430,17 @@ def s08_vultr(prs):
         x += w + gap
     y2 = 5.72
     half = (W - 2 * MX - 0.22) / 2
-    for i, (n, l, c) in enumerate([("MCP", "Any agent connects: MCP, Python SDK, CLI or REST. There is no approve tool.", "FAFAF8"),
+    for i, (n, l, c) in enumerate([("MCP", "Any agent plugs in: MCP, SDK, CLI or REST. No approve tool.", "FAFAF8"),
                                     ("$8.64", "The whole build on Vultr, every test run included.", BLUE_ON_DARK)]):
         x = MX + i * (half + 0.22)
         box(s, x, y2, half, 1.0, fill=D_CARD, line=D_LINE)
-        text(s, x + 0.3, y2 + 0.16, 1.9, 0.7, [[R(n, MONO, 32, c)]], anchor=MSO_ANCHOR.MIDDLE)
-        text(s, x + 2.15, y2 + 0.16, half - 2.4, 0.7, [[R(l, SANS, 13, D_MUTED)]], anchor=MSO_ANCHOR.MIDDLE, spacing=1.1)
+        if i == 0:
+            for k, b in enumerate(["claude", "cursor", "mcp", "python"]):
+                icon(s, f"brand-{b}", "white", x + 0.32 + k * 0.52, y2 + 0.3, 0.4)
+            text(s, x + 2.5, y2 + 0.16, half - 2.75, 0.7, [[R(l, SANS, 13, D_MUTED)]], anchor=MSO_ANCHOR.MIDDLE, spacing=1.1)
+        else:
+            text(s, x + 0.3, y2 + 0.16, 1.9, 0.7, [[R(n, MONO, 32, c)]], anchor=MSO_ANCHOR.MIDDLE)
+            text(s, x + 2.15, y2 + 0.16, half - 2.4, 0.7, [[R(l, SANS, 13, D_MUTED)]], anchor=MSO_ANCHOR.MIDDLE, spacing=1.1)
     footer(s, 8, dark=True)
     notes(s, "All of it runs on Vultr: one Cloud Compute VM running disposable gVisor sandboxes, four labs' models on "
              "Serverless Inference writing the contract, cross-checking it and judging the result, and the Vultr API for "
@@ -446,31 +453,35 @@ def s09_business(prs):
     kicker(s, "Business")
     headline(s, [[("One caught mistake pays for a seat for ", False), ("55 years.", True)]], h=0.9)
     underline(s, 1.95)
-    y, hh = 2.4, 3.95
+    y, hh = 2.4, 4.05
     lw = 4.6
     box(s, MX, y, lw, hh)
-    text(s, MX + 0.3, y + 0.25, lw - 0.5, 0.3, [[R("ONE CATCH VS A YEAR OF A SEAT", MONO, 10.5, MUTED)]])
-    column_chart(s, MX + 0.15, y + 0.65, lw - 0.3, hh - 1.0, ["one caught mistake", "a seat, for a year"], (32268, 588), [RED, BLUE], '"$"#,##0', labels=["$32,268", "$588"], maxv=38000, label_size=15)
+    text(s, MX + 0.3, y + 0.28, lw - 0.5, 0.35, [[R("One catch vs a year of a seat", SANS, 15, INK, bold=True)]])
+    column_chart(s, MX + 0.15, y + 0.75, lw - 0.3, hh - 1.0, ["one caught mistake", "a seat, for a year"], (32268, 588), [RED, BLUE], '"$"#,##0', labels=["$32,268", "$588"], maxv=38000, label_size=15)
     x = MX + lw + 0.25
     rw = W - MX - x
     box(s, x, y, rw, hh)
-    text(s, x + 0.3, y + 0.25, rw - 0.5, 0.3, [[R("UNIT ECONOMICS, MEASURED ON VULTR", MONO, 10.5, MUTED)]])
-    tiles = [("$49", "per approver, per month"), ("73%", "gross margin at full use"), ("$0.00003", "per rehearsal"), ("$0.02–0.044", "per three-model AI check")]
+    text(s, x + 0.3, y + 0.28, rw - 0.5, 0.35, [[R("Unit economics, measured on Vultr", SANS, 15, INK, bold=True)]])
+    tiles = [("dollar", "$49", "per approver, per month"), ("percent", "73%", "gross margin at full use"),
+             ("bolt", "$0.00003", "per rehearsal"), ("brain", "≤ $0.044", "per three-model AI check")]
     tw = (rw - 0.6 - 0.2) / 2
-    for k, (n, l) in enumerate(tiles):
+    for k, (ic, n, l) in enumerate(tiles):
         r, c = divmod(k, 2)
-        tx, ty = x + 0.3 + c * (tw + 0.2), y + 0.68 + r * 1.12
-        box(s, tx, ty, tw, 0.98, fill=PAPER, line=LINE, radius=0.14)
-        text(s, tx + 0.22, ty + 0.12, tw - 0.4, 0.5, [[R(n, MONO, 24, INK)]])
-        text(s, tx + 0.22, ty + 0.6, tw - 0.4, 0.3, [[R(l, SANS, 11.5, MUTED)]])
-    text(s, x + 0.3, y + 3.05, rw - 0.6, 0.8, [[R("Who buys: ", SANS, 12, INK, bold=True), R("Heads of Operations, Support and Finance Ops.  ", SANS, 12, MUTED),
-                                                R("Why they must: ", SANS, 12, INK, bold=True), R("EU AI Act Art. 14 & 12 (human oversight, records) and SOC 2 CC8.1 (approved changes). ", SANS, 12, MUTED),
-                                                R("Open core: ", SANS, 12, INK, bold=True), R("MIT, one command to self-host on your own Vultr.", SANS, 12, MUTED)]], spacing=1.15)
-    footer(s, 9)
+        tx, ty = x + 0.3 + c * (tw + 0.2), y + 0.78 + r * 1.06
+        box(s, tx, ty, tw, 0.94, fill=PAPER, line=LINE, radius=0.14)
+        badge(s, ic, tx + 0.2, ty + 0.2, d=0.54, fill=BLUE_SOFT, tone="blue", pad=0.24)
+        text(s, tx + 0.88, ty + 0.12, tw - 1.0, 0.45, [[R(n, MONO, 22, INK)]])
+        text(s, tx + 0.88, ty + 0.55, tw - 1.0, 0.3, [[R(l, SANS, 11.5, MUTED)]])
+    rows = [("users", "Who buys", "Heads of Operations, Support and Finance Ops"),
+            ("law", "Why they must", "EU AI Act Art. 14 and SOC 2 ask for this record"),
+            ("code", "How it spreads", "Open core, MIT: self-host on your Vultr in one command")]
+    for j, (ic, k, v) in enumerate(rows):
+        ry = y + 3.0 + j * 0.34
+        icon(s, ic, "blue", x + 0.32, ry + 0.02, 0.24)
+        text(s, x + 0.66, ry, rw - 1.0, 0.3, [[R(k + ":  ", SANS, 12, INK, bold=True), R(v, SANS, 12, MUTED)]])
     notes(s, "One caught mistake in the demo is 32 thousand dollars. A seat is 49 dollars a month, so that single catch "
              "pays for it for 55 years. A rehearsal costs us three thousandths of a cent, and the EU AI Act and SOC 2 "
              "already ask companies for exactly this approval record.")
-
 
 
 def fade(slide) -> None:
