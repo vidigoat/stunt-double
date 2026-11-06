@@ -350,3 +350,18 @@ def test_a_failed_reading_is_remembered_not_paid_for_again(fresh_business, tmp_p
         except RuntimeError as e:
             assert "no valid promises" in str(e)
     assert bad.calls == 1
+
+
+def test_the_contract_writer_sees_status_values_but_nothing_personal(tmp_path):
+    p = tmp_path / "s.db"
+    db = sqlite3.connect(p)
+    db.execute("CREATE TABLE requests (id INTEGER PRIMARY KEY, status TEXT, email TEXT, note TEXT, plan TEXT, created_at TEXT, city TEXT)")
+    for i in range(30):
+        db.execute("INSERT INTO requests VALUES (?, ?, ?, ?, ?, ?, ?)", (i, ["pending", "rescinded"][i % 2], f"u{i}@x.com",
+                   "please cancel", "pro", f"2026-11-0{i % 5 + 1}", f"City {i}"))
+    db.commit()
+    db.close()
+    text, _ = contracts.schema_text(p)
+    assert "status TEXT [values: 'pending', 'rescinded']" in text and "plan TEXT [values: 'pro']" in text
+    assert "u0@x.com" not in text and "please cancel" not in text and "2026-11-01" not in text
+    assert "City 1" not in text                                    # more than 8 distinct values: free-form, left out

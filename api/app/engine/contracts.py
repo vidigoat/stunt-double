@@ -99,15 +99,36 @@ def schema_text(db_path: str | Path) -> tuple[str, str]:
     """A compact schema for the prompt, and its signature (so a changed schema means a fresh contract)."""
     db = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
     try:
-        lines = []
+        lines, shape = [], []
         for (t,) in db.execute("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name"):
             qt = '"' + t.replace('"', '""') + '"'
-            cols = ", ".join(f"{r[1]} {r[2]}".strip() for r in db.execute(f"PRAGMA table_info({qt})"))
+            info = [(r[1], r[2]) for r in db.execute(f"PRAGMA table_info({qt})")]
+            shape.append(f"{t}({', '.join(f'{c} {k}'.strip() for c, k in info)})")
+            cols = ", ".join(f"{c} {k}".strip() + _values(db, qt, c, k) for c, k in info)
             lines.append(f"{t}({cols}) · {db.execute(f'SELECT COUNT(*) FROM {qt}').fetchone()[0]:,} rows")
     finally:
         db.close()
-    sig = hashlib.sha256(re.sub(r"· [\d,]+ rows", "", "\n".join(lines)).encode()).hexdigest()
+    sig = hashlib.sha256("\n".join(f"{x} " for x in shape).encode()).hexdigest()   # the shape only, byte-identical to before
     return "\n".join(lines + list(state.SENT_SCHEMA)), sig
+
+
+_PERSONAL = re.compile(r"name|mail|phone|address|note|body|subject|title|description|comment|text|message|url|token|key|secret", re.I)
+
+
+def _values(db: sqlite3.Connection, qt: str, col: str, kind: str) -> str:
+    """The values of a short, status-like text column, so a promise can say 'rescinded' when the data does.
+    Nothing personal or free-form: such columns, and any with more than 8 distinct values, are left out."""
+    if _PERSONAL.search(col) or re.search(r"(_at|_on|date|time)$", col, re.I) or (kind and "CHAR" not in kind.upper() and "TEXT" not in kind.upper()):
+        return ""
+    try:
+        qc = '"' + col.replace('"', '""') + '"'
+        vals = [v for (v,) in db.execute(f"SELECT DISTINCT {qc} FROM {qt} WHERE {qc} IS NOT NULL LIMIT 9")]
+    except sqlite3.Error:
+        return ""
+    if not vals or len(vals) > 8 or not all(isinstance(v, str) and 0 < len(v) <= 24 and "@" not in v
+                                            and not re.match(r"\d{4}-\d{2}-\d{2}", v) for v in vals):
+        return ""
+    return " [values: " + ", ".join("'" + v.replace("'", "") + "'" for v in sorted(vals)) + "]"
 
 
 def classify(raw: list[dict], db_path: str | Path) -> list[Promise]:
