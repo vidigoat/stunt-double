@@ -23,10 +23,10 @@ async function step(name, fn) {
     await step("instant verdict: the refund catch comes back labelled, in seconds", async () => {
       await page.goto(`${BASE}/app`, { waitUntil: "networkidle" });
       await page.getByRole("tab", { name: /Break it yourself/ }).click();
-      await page.getByRole("button", { name: "Obvious refund plan (rules miss it)", exact: true }).click();
+      await page.getByLabel("Start from an example").selectOption({ label: "Obvious refund plan (rules miss it)" });
       const t = Date.now();
       await page.getByRole("button", { name: "Rehearse it", exact: true }).click();
-      await page.getByText(/Instant verdict: the same request/).waitFor({ timeout: 60000 });
+      await page.getByText(/checked this exact plan live/).waitFor({ timeout: 60000 });
       assert.ok(Date.now() - t < 30000, `took ${Date.now() - t} ms`);
       await page.getByText(/640/).first().waitFor();
       assert.ok(await page.getByRole("button", { name: /Re-check live/ }).isVisible());
@@ -36,7 +36,7 @@ async function step(name, fn) {
   await step("SQL export: the correct refund plan downloads as 104 guarded UPDATEs", async () => {
     await page.goto(`${BASE}/app`, { waitUntil: "networkidle" });
     await page.getByRole("tab", { name: /Break it yourself/ }).click();
-    await page.getByRole("button", { name: "✓ A correct refund plan", exact: true }).click();
+    await page.getByLabel("Start from an example").selectOption({ label: "✓ A correct refund plan" });
     await page.getByRole("button", { name: "Rehearse it", exact: true }).click();
     const link = page.getByRole("link", { name: /Export as SQL/ });
     await link.waitFor({ timeout: 240000 });
@@ -47,7 +47,8 @@ async function step(name, fn) {
 
   await step("your Vultr fleet: a bad key is refused and never echoed", async () => {
     await page.goto(`${BASE}/app`, { waitUntil: "networkidle" });
-    await page.getByRole("button", { name: /Your Vultr fleet/ }).click();
+    await page.getByRole("button", { name: "Use your own data" }).click();
+    await page.getByRole("button", { name: /Vultr fleet/ }).click();
     const fake = "ZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZ";
     await page.getByLabel("Vultr API key").fill(fake);
     await page.getByRole("button", { name: "Import", exact: true }).click();
@@ -58,7 +59,7 @@ async function step(name, fn) {
   if (health.inference_configured) {
     await step("what does this mean: the contract appears before any plan", async () => {
       await page.goto(`${BASE}/app`, { waitUntil: "networkidle" });
-      await page.getByRole("button", { name: /What does this mean/ }).click();
+      await page.getByRole("button", { name: /What does it mean/ }).click();
       await page.getByText("Consequence engine · intent contract").first().waitFor({ timeout: 180000 });
       await page.getByText(/to do/).first().waitFor();
     });

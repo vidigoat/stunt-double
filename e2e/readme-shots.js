@@ -10,7 +10,7 @@ const out = process.argv[2];
   await p.screenshot({ path: `${out}/landing.png` });
   await p.goto(`${BASE}/app`, { waitUntil: "networkidle" });
   await p.getByRole("tab", { name: /Break it yourself/ }).click();
-  await p.getByRole("button", { name: "Delete every customer", exact: true }).click();
+  await p.getByLabel("Start from an example").selectOption({ label: "Delete every customer" });
   await p.getByRole("button", { name: "Rehearse it", exact: true }).click();
   await p.getByText(/containment: the damage happened only on the double/i).waitFor({ timeout: 60000 }); await p.waitForTimeout(1200);
   await p.screenshot({ path: `${out}/containment.png` });
@@ -19,7 +19,7 @@ const out = process.argv[2];
   if (health.inference_configured) {
     await p.getByRole("button", { name: "New" }).click();
     await p.getByRole("tab", { name: /Break it yourself/ }).click();
-    await p.getByRole("button", { name: "Obvious refund plan (rules miss it)", exact: true }).click();
+    await p.getByLabel("Start from an example").selectOption({ label: "Obvious refund plan (rules miss it)" });
     await p.getByRole("button", { name: "Rehearse it", exact: true }).click();
     await p.getByText(/The AI verifier is investigating/).waitFor({ timeout: 60000 }); await p.waitForTimeout(8000);
     await p.getByText(/The AI verifier is investigating/).scrollIntoViewIfNeeded(); await p.mouse.wheel(0, -120); await p.waitForTimeout(400);
@@ -31,7 +31,7 @@ const out = process.argv[2];
   // Browser double: a real Chromium in the sandbox; the filmstrip of what the agent did on screen.
   await p.getByRole("button", { name: "New" }).click();
   await p.getByRole("tab", { name: /Break it yourself/ }).click();
-  await p.getByRole("button", { name: "Cancel the duplicate subscription (in a browser)", exact: true }).click();
+  await p.getByLabel("Start from an example").selectOption({ label: "Cancel the duplicate subscription (in a browser)" });
   await p.getByRole("button", { name: "Rehearse it", exact: true }).click();
   await p.getByText(/The agent in a browser/).waitFor({ timeout: 120000 });
   if (health.inference_configured) await p.getByText(/AI vision check:/).waitFor({ timeout: 240000 });
@@ -41,14 +41,14 @@ const out = process.argv[2];
   // Cloud double: the fleet as server cards.
   await p.getByRole("button", { name: "New" }).click();
   await p.getByRole("tab", { name: /Break it yourself/ }).click();
-  await p.getByRole("button", { name: "Clean up idle Vultr servers", exact: true }).click();
+  await p.getByLabel("Start from an example").selectOption({ label: "Clean up idle Vultr servers" });
   await p.getByRole("button", { name: "Rehearse it", exact: true }).click();
   await p.getByText(/Vultr fleet · the double/).waitFor({ timeout: 120000 }); await p.waitForTimeout(1500);
   await p.getByText(/Vultr fleet · the double/).scrollIntoViewIfNeeded(); await p.mouse.wheel(0, -60); await p.waitForTimeout(500);
   await p.screenshot({ path: `${out}/cloud.png` });
   await p.getByRole("button", { name: "New" }).click();
   await p.getByRole("tab", { name: /Break it yourself/ }).click();
-  await p.getByRole("button", { name: "✓ A correct refund plan", exact: true }).click();
+  await p.getByLabel("Start from an example").selectOption({ label: "✓ A correct refund plan" });
   await p.getByRole("button", { name: "Rehearse it", exact: true }).click();
   await p.getByRole("button", { name: /Approve and apply/ }).click({ timeout: 240000 });  // the AI verifier investigates first
   await p.getByText("Applied for real").waitFor({ timeout: 60000 }); await p.waitForTimeout(1000);

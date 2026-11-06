@@ -8,7 +8,7 @@ const out = process.argv[2];
   await card.screenshot({ path: `${out}/approval-card.png` });
   await p.goto('http://localhost:3000/app', { waitUntil: 'networkidle' }); await p.waitForTimeout(500);
   await p.getByRole('tab', { name: /Break it yourself/ }).click();
-  await p.getByRole('button', { name: 'Delete every customer', exact: true }).click();
+  await p.getByLabel('Start from an example').selectOption({ label: 'Delete every customer' });
   await p.getByRole('button', { name: 'Rehearse it', exact: true }).click();
   await p.waitForSelector('text=containment', { timeout: 30000 }); await p.waitForTimeout(1000);
   await p.screenshot({ path: `${out}/console-containment.png` });

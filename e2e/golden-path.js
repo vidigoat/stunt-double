@@ -36,7 +36,7 @@ async function step(name, fn) {
   await step("containment: deleting every customer hits only the double", async () => {
     await page.goto(`${BASE}/app`, { waitUntil: "networkidle" });
     await page.getByRole("tab", { name: /Break it yourself/ }).click();
-    await page.getByRole("button", { name: "Delete every customer", exact: true }).click();
+    await page.getByLabel("Start from an example").selectOption({ label: "Delete every customer" });
     await page.getByRole("button", { name: "Rehearse it", exact: true }).click();
     await page.getByText(/containment: the damage happened only on the double/i).waitFor({ timeout: 60000 });
     assert.ok(await page.getByRole("button", { name: /Blocked by policy/ }).isDisabled(), "approval is locked");
@@ -48,7 +48,7 @@ async function step(name, fn) {
   await step("approve + apply: a correct plan really refunds 104 customers", async () => {
     await page.getByRole("button", { name: "New" }).click();
     await page.getByRole("tab", { name: /Break it yourself/ }).click();
-    await page.getByRole("button", { name: "✓ A correct refund plan", exact: true }).click();
+    await page.getByLabel("Start from an example").selectOption({ label: "✓ A correct refund plan" });
     await page.getByRole("button", { name: "Rehearse it", exact: true }).click();
     // with inference on, the AI verifier reads the data first (60-125 s on the live server)
     const approve = page.getByRole("button", { name: /Approve and apply|Approve anyway/ });
@@ -79,7 +79,7 @@ async function step(name, fn) {
   await step("connectors: a Slack post is recorded, approved, then delivered to the outbox", async () => {
     await page.getByRole("button", { name: "New" }).click();
     await page.getByRole("tab", { name: /Break it yourself/ }).click();
-    await page.getByRole("button", { name: "Post the refund summary to Slack", exact: true }).click();
+    await page.getByLabel("Start from an example").selectOption({ label: "Post the refund summary to Slack" });
     await page.getByRole("button", { name: "Rehearse it", exact: true }).click();
     const ok = page.getByRole("button", { name: /Approve and apply|Approve anyway/ });
     await ok.waitFor({ timeout: 240000 });
@@ -95,9 +95,10 @@ async function step(name, fn) {
 
   await step("workspaces: upload your own SQLite DB and contain a mass delete there", async () => {
     await page.goto(`${BASE}/app`, { waitUntil: "networkidle" });
+    await page.getByRole("button", { name: "Use your own data" }).click();
     await page.locator('input[type="file"]').setInputFiles(path.join(__dirname, "fixtures", "acme-crm.db"));
     await page.getByText(/acme-crm: 2 tables/).waitFor({ timeout: 30000 });
-    await page.getByRole("button", { name: "Delete every row of accounts", exact: true }).click();
+    await page.getByLabel("Start from an example").selectOption({ label: "Delete every row of accounts" });
     await page.getByRole("button", { name: "Rehearse it", exact: true }).click();
     await page.getByText(/containment: the damage happened only on the double/i).waitFor({ timeout: 60000 });
     const ws = (await fetch(`${BASE}/api/workspaces`).then((r) => r.json())).workspaces.find((w) => w.name === "acme-crm");
@@ -108,12 +109,12 @@ async function step(name, fn) {
   await step("cloud double: deleting 'idle' servers is blocked for production; the safe cleanup applies (12 -> 8)", async () => {
     await page.goto(`${BASE}/app`, { waitUntil: "networkidle" });
     await page.getByRole("tab", { name: /Break it yourself/ }).click();
-    await page.getByRole("button", { name: "Clean up idle Vultr servers", exact: true }).click();
+    await page.getByLabel("Start from an example").selectOption({ label: "Clean up idle Vultr servers" });
     await page.getByRole("button", { name: "Rehearse it", exact: true }).click();
     await page.getByText(/Would remove production: prod-db-replica, prod-backup-runner/).waitFor({ timeout: 300000 });   // a live three-model check can take ~2 min
     await page.getByRole("button", { name: "New" }).click();
     await page.getByRole("tab", { name: /Break it yourself/ }).click();
-    await page.getByRole("button", { name: "✓ Clean up idle servers (safe)", exact: true }).click();
+    await page.getByLabel("Start from an example").selectOption({ label: "✓ Clean up idle servers (safe)" });
     await page.getByRole("button", { name: "Rehearse it", exact: true }).click();
     const approve = page.getByRole("button", { name: /Approve and apply|Approve anyway/ });
     await approve.waitFor({ timeout: 240000 });

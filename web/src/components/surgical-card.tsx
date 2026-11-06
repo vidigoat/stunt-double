@@ -35,10 +35,9 @@ export function SurgicalCard({ offer, check, busy, onCut }: { offer: SurgicalOff
           <span className="text-safe">{num(offer.units_kept)}</span> of these {num(offer.units_total)} changes are right.
         </h3>
         <p className="mt-1.5 max-w-2xl text-[15px] leading-relaxed text-foreground/75">
-          The engine traced every row {(offer.checks?.length ?? 0) > 1 ? `the ${offer.checks!.length} checks that fired (${[...new Set(offer.checks!.map((c) => c.source))].join(", ")})` : check?.source === "learned rule" ? "the learned rule" : check?.source === "intent contract" ? "the broken promise" : "the AI jury"} flagged back through the plan&apos;s effect graph,
-          and cut each wrong refund out together with its email. What&apos;s left passes {(offer.checks?.length ?? 0) > 1 ? "every one of them" : "the check"}.
-          {offer.caused_by?.length === 1 ? <> Every cut row was {offer.caused_by[0].how === "chose" ? "chosen" : "written"} by <b className="font-semibold">statement {offer.caused_by[0].i}</b> of the plan (shown below, proven by replay).</>
-            : offer.caused_by?.length ? <> The cut rows came from statements <b className="font-semibold">{offer.caused_by.map((c) => c.i).join(", ")}</b> of the plan (shown below, proven by replay).</> : null}
+          {offer.caused_by?.length === 1 ? <>Every wrong one was {offer.caused_by[0].how === "chose" ? "chosen" : "written"} by <b className="font-semibold">line {offer.caused_by[0].i}</b> of the plan. </>
+            : offer.caused_by?.length ? <>The wrong ones came from lines <b className="font-semibold">{offer.caused_by.map((c) => c.i).join(", ")}</b> of the plan. </> : null}
+          Cut them, and what&apos;s left passes {(offer.checks?.length ?? 0) > 1 ? "every check" : check?.source === "intent contract" ? "the contract" : "the check"}.
         </p>
         <UnitStrip total={offer.units_total} dropped={offer.dropped_units} className="mt-4 rounded-xl bg-card/80 p-3" />
         <div className="mt-1.5 flex justify-between font-mono text-[11px] text-foreground/60">

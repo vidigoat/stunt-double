@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
-import { ArrowRight, Ban, Bot, Check, CircleDashed, FileSignature, FlaskConical, Loader2, Lock, RotateCcw, ShieldAlert, ShieldCheck, Sparkles, Undo2, User, Users, Scissors, Wrench, X, Zap } from "lucide-react";
+import { ArrowRight, Ban, Bot, Check, ChevronDown, CircleDashed, FileSignature, FlaskConical, Loader2, Lock, RotateCcw, ShieldAlert, ShieldCheck, Sparkles, Undo2, User, Users, Scissors, Wrench, X, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -166,6 +166,7 @@ export default function AppPage() {
   const [vultrOpen, setVultrOpen] = useState(false);
   const [vultrKey, setVultrKey] = useState("");
   const [pgOpen, setPgOpen] = useState(false);
+  const [dataOpen, setDataOpen] = useState(false);
   const [pgUrl, setPgUrl] = useState("");
   const [breakTask, setBreakTask] = useState(BREAK_IT[0].task);
   const touchedMode = useRef(false);
@@ -302,6 +303,12 @@ export default function AppPage() {
   }
 
   const running = run ? ACTIVE.has(run.status) : false;
+  const kind = spaces.find((w) => w.id === ws)?.kind;
+  const presets: { label: string; task: string; code: string }[] = ws === "demo" ? BREAK_IT
+    : kind === "vultr" ? FLEET_PLANS
+    : [...(kind === "postgres" && biz?.tables && "accounts" in biz.tables ? SAAS_PLANS : []),
+       ...(() => { const big = Object.entries(biz?.tables ?? {}).sort((a, b) => b[1] - a[1])[0]?.[0];
+         return big ? [{ label: `Delete every row of ${big}`, task: `Clean up ${big}`, code: `def run(ctx):\n    ctx.db.execute('DELETE FROM "${big}"')\n` }] : []; })()];
 
   return (
     <div className="min-h-dvh">
@@ -327,7 +334,8 @@ export default function AppPage() {
                   <option key={w.id} value={w.id}>{w.name}{w.kind === "upload" ? " (yours)" : ""}</option>
                 ))}
               </select>
-              <span className="font-mono text-[11px] uppercase tracking-wider text-muted-foreground">production</span>
+              <button onClick={() => { setDataOpen((v) => !v); setPgOpen(false); setVultrOpen(false); }}
+                className={cn("shrink-0 rounded-full border px-3 py-1 text-xs text-muted-foreground transition hover:text-foreground", dataOpen && "border-foreground/40 text-foreground")}>Use your own data</button>
             </div>
             <div className="mt-4 grid grid-cols-5 gap-2 font-mono text-sm">
               {Object.entries(biz?.tables ?? (biz ? { customers: biz.counts.customers, orders: biz.counts.orders, charges: biz.counts.charges, tickets: biz.counts.tickets, servers: biz.counts.servers } : {})).slice(0, 5).map(([k, v]) => (
@@ -337,36 +345,39 @@ export default function AppPage() {
                 </div>
               ))}
             </div>
-            <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 border-t pt-3 font-mono text-[11px] text-muted-foreground">
-              {ws === "demo" ? <>
-                <span>BeanPay refunds: {biz ? `${num(biz.beanpay.count)} · ${usd(biz.beanpay.total_cents)}` : "—"}</span>
-                <Link href="/ledger" className="underline-offset-4 hover:text-foreground hover:underline">Outbox →</Link>
-                <a href="/mail/" target="_blank" rel="noreferrer" className="underline-offset-4 hover:text-foreground hover:underline">Inbox →</a>
-              </> : <>
-                <span>{spaces.find((w) => w.id === ws)?.kind === "vultr" ? "A double of your Vultr fleet · imported read-only · your account is never changed"
-                  : spaces.find((w) => w.id === ws)?.kind === "postgres" ? "A double of your Postgres · imported read-only · apply with Export as SQL" : `Your database · ${Object.keys(biz?.tables ?? {}).length} tables · rehearsals never touch it until you approve`}</span>
+            {ws !== "demo" ? (
+              <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 border-t pt-3 text-xs text-muted-foreground">
+                <span>{spaces.find((w) => w.id === ws)?.kind === "vultr" ? "A read-only double of your Vultr fleet. Your account is never changed."
+                  : spaces.find((w) => w.id === ws)?.kind === "postgres" ? "A read-only double of your Postgres. Approved changes leave as SQL." : "Your database. Nothing touches it until you approve."}</span>
                 <button disabled={running} className="underline-offset-4 hover:text-foreground hover:underline" onClick={async () => {
                   if (!window.confirm("Delete this uploaded database from the server? The demo business isn't affected.")) return;
                   try { await api.deleteWorkspace(ws); setSpaces((cur) => cur.filter((w) => w.id !== ws)); setWs("demo"); setRun(null); toast.success("Deleted your database from the server."); }
                   catch (err) { toast.error((err as Error).message); }
                 }}>Delete it</button>
-              </>}
-              <button className="ml-auto underline-offset-4 hover:text-foreground hover:underline" onClick={() => { setPgOpen((v) => !v); setVultrOpen(false); }}>Your Postgres ↗</button>
-              <button className="underline-offset-4 hover:text-foreground hover:underline" onClick={() => { setVultrOpen((v) => !v); setPgOpen(false); }}>Your Vultr fleet ↗</button>
-              <label className={cn("cursor-pointer underline-offset-4 hover:text-foreground hover:underline", uploading && "opacity-50")}>
-                {uploading ? "Uploading…" : "Use your own SQLite DB ↑"}
-                <input type="file" accept=".db,.sqlite,.sqlite3,application/octet-stream" className="sr-only" disabled={uploading} onChange={async (e) => {
+              </div>
+            ) : null}
+            {dataOpen ? (
+              <div className="animate-rise mt-4 grid grid-cols-3 gap-2">
+                {[["PostgreSQL", "connection string", () => { setPgOpen(true); setDataOpen(false); }], ["Vultr fleet", "API key", () => { setVultrOpen(true); setDataOpen(false); }]].map(([t, d, f]) => (
+                  <button key={t as string} onClick={f as () => void} className="rounded-xl border bg-background p-3 text-left transition hover:border-foreground/30">
+                    <div className="text-sm font-medium">{t as string}</div><div className="text-xs text-muted-foreground">{d as string}</div>
+                  </button>
+                ))}
+                <label className={cn("cursor-pointer rounded-xl border bg-background p-3 transition hover:border-foreground/30", uploading && "opacity-50")}>
+                  <div className="text-sm font-medium">SQLite</div><div className="text-xs text-muted-foreground">{uploading ? "uploading…" : "upload a file"}</div>
+                  <input type="file" accept=".db,.sqlite,.sqlite3,application/octet-stream" className="sr-only" disabled={uploading} onChange={async (e) => {
                   const f = e.target.files?.[0]; e.target.value = "";
                   if (!f) return;
                   setUploading(true);
                   try {
                     const w = await api.uploadWorkspace(f.name.replace(/\.(db|sqlite3?|sqlite)$/i, ""), f);
-                    setSpaces((cur) => [...cur, w]); setWs(w.id); setRun(null); setMode("break");
+                    setSpaces((cur) => [...cur, w]); setWs(w.id); setRun(null); setMode("break"); setDataOpen(false);
                     toast.success(`${w.name}: ${w.description}. Rehearse any plan against it.`);
                   } catch (err) { toast.error((err as Error).message); } finally { setUploading(false); }
                 }} />
-              </label>
-            </div>
+                </label>
+              </div>
+            ) : null}
             {pgOpen ? (
               <form className="mt-3 space-y-2 rounded-xl border bg-background p-3" onSubmit={async (e) => {
                 e.preventDefault();
@@ -438,37 +449,16 @@ export default function AppPage() {
                     <button key={ex} onClick={() => { setTask(ex); setPreview(null); }} className={cn("max-w-full truncate rounded-full border px-2.5 py-1 text-xs text-muted-foreground hover:text-foreground", task === ex && "border-foreground text-foreground")}>{ex}</button>
                   ))}
                 </div>
-                {health?.inference_configured ? (
-                  <button disabled={task.trim().length < 3 || preview?.status === "writing"} onClick={async () => {
-                    if (run && !running) setRun(null);
-                    setPreview({ status: "writing" });
-                    try { setPreview(await api.previewContract(task.trim(), ws)); }
-                    catch (e) { setPreview(null); toast.error((e as Error).message); }
-                  }} className="flex items-start gap-1.5 text-left text-sm font-medium text-signal hover:underline disabled:opacity-50">
-                    <FileSignature className="mt-0.5 size-3.5 shrink-0" /> What does this mean? See the contract before any plan
-                  </button>
-                ) : null}
               </TabsContent>
               <TabsContent value="break" className="space-y-3 pt-3">
-                <p className="text-sm text-muted-foreground">Paste any plan, even a malicious one. It only ever runs on the double. Or try a correct one and approve it.</p>
-                <div className="flex flex-wrap gap-1.5">
-                  {spaces.find((w) => w.id === ws)?.kind === "postgres" && biz?.tables && "accounts" in biz.tables ? SAAS_PLANS.map((b) => (
-                    <button key={b.label} onClick={() => { setCode(b.code); setBreakTask(b.task); }} className={cn("rounded-full border px-2.5 py-1 text-xs text-muted-foreground hover:text-foreground", code === b.code && "border-foreground text-foreground")}>{b.label}</button>
-                  )) : null}
-                  {spaces.find((w) => w.id === ws)?.kind === "vultr" ? FLEET_PLANS.map((b) => (
-                    <button key={b.label} onClick={() => { setCode(b.code); setBreakTask(b.task); }} className={cn("rounded-full border px-2.5 py-1 text-xs text-muted-foreground hover:text-foreground", code === b.code && "border-foreground text-foreground")}>{b.label}</button>
-                  )) : ws !== "demo" && biz?.tables ? (() => {
-                    const big = Object.entries(biz.tables).sort((a, b) => b[1] - a[1])[0]?.[0];
-                    if (!big) return null;
-                    const c = `def run(ctx):\n    ctx.db.execute('DELETE FROM "${big}"')\n`;
-                    return <button onClick={() => { setCode(c); setBreakTask(`Clean up ${big}`); }} className={cn("rounded-full border px-2.5 py-1 text-xs text-muted-foreground hover:text-foreground", code === c && "border-foreground text-foreground")}>Delete every row of {big}</button>;
-                  })() : null}
-                  {(ws === "demo" ? BREAK_IT : []).map((b) => (
-                    <button key={b.label} onClick={() => { setCode(b.code); setBreakTask(b.task); }} className={cn("rounded-full border px-2.5 py-1 text-xs text-muted-foreground hover:text-foreground", code === b.code && "border-foreground text-foreground")}>{b.label}</button>
-                  ))}
-                </div>
-                <label className="block text-xs text-muted-foreground">Request the plan is judged against
-                  <input value={breakTask} onChange={(e) => setBreakTask(e.target.value)} maxLength={300} className="mt-1 h-9 w-full rounded-lg border bg-background px-3 text-sm text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring/50" />
+                <select aria-label="Start from an example" value={presets.find((b) => b.code === code)?.label ?? ""}
+                  onChange={(e) => { const b = presets.find((x) => x.label === e.target.value); if (b) { setCode(b.code); setBreakTask(b.task); } }}
+                  className="h-10 w-full rounded-xl border bg-background px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring/50">
+                  <option value="">Start from an example…</option>
+                  {presets.map((b) => <option key={b.label} value={b.label}>{b.label}</option>)}
+                </select>
+                <label className="block text-xs text-muted-foreground">The request
+                  <input value={breakTask} onChange={(e) => setBreakTask(e.target.value)} maxLength={300} placeholder="What was the plan asked to do?" className="mt-1 h-9 w-full rounded-lg border bg-background px-3 text-sm text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring/50" />
                 </label>
                 <Textarea value={code} onChange={(e) => setCode(e.target.value)} rows={9} spellCheck={false} wrap="off" className="max-h-60 resize-none overflow-auto font-mono text-[12.5px] [field-sizing:fixed]" />
                 {health?.vm_isolation ? (
@@ -479,9 +469,19 @@ export default function AppPage() {
                 ) : null}
               </TabsContent>
             </Tabs>
-            <Button className="mt-4 h-11 w-full rounded-full text-[15px]" onClick={() => start()} disabled={busy || running || (mode === "agent" ? task.trim().length < 3 || health?.inference_configured === false : code.trim().length < 10)}>
+            <div className="mt-4 flex gap-2">
+            {mode === "agent" && health?.inference_configured ? (
+              <Button variant="outline" className="h-11 rounded-full px-4 text-[14px]" disabled={task.trim().length < 3 || preview?.status === "writing"} onClick={async () => {
+                if (run && !running) setRun(null);
+                setPreview({ status: "writing" });
+                try { setPreview(await api.previewContract(task.trim(), ws)); }
+                catch (e) { setPreview(null); toast.error((e as Error).message); }
+              }}><FileSignature className="size-4" /> What does it mean?</Button>
+            ) : null}
+            <Button className="h-11 flex-1 rounded-full text-[15px]" onClick={() => start()} disabled={busy || running || (mode === "agent" ? task.trim().length < 3 || health?.inference_configured === false : code.trim().length < 10)}>
               {running ? <><Loader2 className="size-4 animate-spin" /> {STATUS_LABEL[run!.status]}</> : <><FlaskConical className="size-4" /> Rehearse it</>}
             </Button>
+            </div>
           </div>
 
           {run ? (
@@ -490,13 +490,12 @@ export default function AppPage() {
                 <div className="text-sm font-medium">Timeline</div>
                 <span className={cn("rounded-full border px-2 py-0.5 font-mono text-[11px]", (["drifted", "failed"].includes(run.status) || (run.status === "review" && critical)) && "border-damage/40 text-damage")}>{run.status === "review" && critical ? "Blocked: cannot be approved" : STATUS_LABEL[run.status]}</span>
               </div>
-              <ol className="mt-4 space-y-3">
+              <ol className="mt-4 space-y-2.5">
                 {run.events.map((e, i) => (
-                  <li key={i} className="animate-rise flex gap-3 text-sm">
+                  <li key={i} className="animate-rise flex gap-3 text-sm" title={e.detail || undefined}>
                     <span className="mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-full border bg-background"><EventIcon kind={e.kind} /></span>
                     <div className="min-w-0">
                       <div>{e.title}</div>
-                      {e.detail ? <div className="mt-0.5 truncate font-mono text-[11px] text-muted-foreground" title={e.detail}>{e.detail}</div> : null}
                     </div>
                   </li>
                 ))}
@@ -514,24 +513,24 @@ export default function AppPage() {
           {!run ? (
             <div className="grain backdrop-blue rounded-[22px] p-6 sm:p-8 [&>*]:relative [&>*]:z-[2]">
               <FlaskConical className="size-7 text-signal" />
-              <div className="mt-4 font-display text-3xl">Judge mode: eight clicks</div>
-              <p className="mt-1 max-w-md text-sm text-muted-foreground">Everything runs on a throwaway copy of Bean There Coffee Co., inside gVisor on a Vultr VM. Production only changes when you approve. Each click starts a real rehearsal.</p>
+              <div className="mt-4 font-display text-3xl">Judge mode</div>
+              <p className="mt-1 max-w-md text-sm text-muted-foreground">Each click is a real rehearsal on a copy of the business. Nothing real changes unless you approve.</p>
               {ws === "demo" && health?.demo?.state.startsWith("changed") ? (
                 <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-2 rounded-xl border border-amber-500/40 bg-amber-50/90 px-4 py-3 text-sm text-amber-950">
                   <span className="min-w-0 flex-1">This demo business has changed since it was set up ({health.demo.state.slice(9)}), so the steps below may tell a different story.</span>
                   <Button variant="outline" className="h-8 rounded-full bg-white px-3" onClick={reset} disabled={busy || running}><RotateCcw className="size-3.5" /> Reset demo</Button>
                 </div>
               ) : null}
-              <ol className="mt-6 space-y-3">
+              <ol className="mt-6 space-y-2">
                 {[
-                  { n: "1", t: "Watch a wrong plan become the right one", featured: true, d: "\"Refund everyone who was double-charged.\" Before the plan runs, the engine writes down what that means: 104 refunds, nothing else. The plan refunds 744. It proves which line chose the 640 wrong ones, cuts them, and offers you exactly the 104.", preset: "Obvious refund plan (rules miss it)" },
-                  { n: "2", t: "Break it", d: "A plan that deletes every customer. It hits only the double; approval locks.", preset: "Delete every customer", task: "Clean up the customer table" },
-                  { n: "3", t: "Try to fool it", d: "A \"read-only audit\" quietly refunds 300 charges, says it changed nothing and forges its own report. A separate sandbox measures the truth.", preset: "A plan that lies about what it did" },
-                  { n: "4", t: "Watch it work in a browser", d: "The agent cancels a subscription on the double of the admin site, in a real Chromium. Every screen is captured, and the AI vision check sees it cancelled the wrong one.", preset: "Cancel the duplicate subscription (in a browser)" },
-                  { n: "5", t: "Clean up the cloud", d: "\"Delete idle Vultr servers\": the obvious plan would delete the failover database and the backup runner. The double of the fleet shows it; approval locks.", preset: "Clean up idle Vultr servers" },
-                  { n: "6", t: "Approve a good one, then undo it", d: "104 real refunds and apology emails after a drift check. Then rehearse the undo.", preset: "✓ A correct refund plan" },
-                  { n: "7", t: "Hand it to the agent", d: "The AI agent on Vultr Serverless Inference gets the contract first, investigates, writes a plan and rehearses it. About 2 minutes, live.", agent: true },
-                  ...(health?.sample_postgres ? [{ n: "8", t: "Try it on real infrastructure", d: "Imports a read-only double of a PostgreSQL database and rehearses \"deactivate accounts inactive for 90 days\". The verifier spells out the cost; approved changes leave as drift-guarded SQL.", pg: true }] : []),
+                  { n: "1", t: "Watch a wrong plan become the right one", featured: true, d: "It plans 744 refunds. 104 are right. The engine proves it and keeps just those.", preset: "Obvious refund plan (rules miss it)" },
+                  { n: "2", t: "Break it", d: "A plan deletes every customer. Only the copy gets hurt.", preset: "Delete every customer", task: "Clean up the customer table" },
+                  { n: "3", t: "Try to fool it", d: "A plan lies about what it changed. It gets caught.", preset: "A plan that lies about what it did" },
+                  { n: "4", t: "Watch it work in a browser", d: "The agent clicks the wrong Cancel button. The vision check sees it.", preset: "Cancel the duplicate subscription (in a browser)" },
+                  { n: "5", t: "Clean up the cloud", d: "The \"idle\" servers include the failover database.", preset: "Clean up idle Vultr servers" },
+                  { n: "6", t: "Approve a good one, then undo it", d: "Real refunds and emails, then a two-person undo.", preset: "✓ A correct refund plan" },
+                  { n: "7", t: "Hand it to the agent", d: "The AI agent does the task itself, live. About 2 minutes.", agent: true },
+                  ...(health?.sample_postgres ? [{ n: "8", t: "Try it on real infrastructure", d: "A read-only double of a Postgres database.", pg: true }] : []),
                 ].map((s: { n: string; t: string; d: string; preset?: string; task?: string; agent?: boolean; pg?: boolean; featured?: boolean }) => (
                   <li key={s.n}>
                     <button disabled={busy || running} onClick={() => {
@@ -549,19 +548,17 @@ export default function AppPage() {
                       }
                       const b = BREAK_IT.find((x) => x.label === s.preset)!; const t = s.task ?? b.task;
                       setMode("break"); setCode(b.code); setBreakTask(t); void start({ mode: "break", task: t, code: b.code });
-                    }} className={cn("group flex w-full items-start gap-4 rounded-xl border bg-card/95 p-4 text-left shadow-[0_12px_30px_-22px_rgba(20,30,80,.6)] transition hover:-translate-y-px hover:border-signal disabled:opacity-60",
+                    }} className={cn("group flex w-full items-center gap-3.5 rounded-xl border bg-card/95 px-4 py-3 text-left shadow-[0_12px_30px_-22px_rgba(20,30,80,.6)] transition hover:-translate-y-px hover:border-signal disabled:opacity-60",
                       s.featured ? "border-signal/60 ring-4 ring-signal/10" : "border-black/5")}>
                       <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-signal font-mono text-xs text-white">{s.n}</span>
                       <span className="min-w-0">
-                        {s.featured ? <span className="mb-1 inline-block rounded-full bg-signal-soft px-2 py-0.5 font-mono text-[10px] uppercase tracking-wider text-signal">The consequence engine · start here</span> : null}
-                        <span className="block font-medium">{s.t} <span className="text-muted-foreground transition group-hover:text-foreground">→</span></span>
+                        <span className="block font-medium">{s.t} <span className="text-muted-foreground transition group-hover:text-foreground">→</span>{s.featured ? <span className="ml-2 rounded-full bg-signal-soft px-2 py-0.5 align-middle font-mono text-[10px] uppercase tracking-wider text-signal">start here</span> : null}</span>
                         <span className="mt-0.5 block text-sm text-muted-foreground">{s.d}</span>
                       </span>
                     </button>
                   </li>
                 ))}
               </ol>
-              <p className="mt-5 text-xs text-muted-foreground">Or write your own plan in the composer (“Break it yourself”) and press <b className="font-medium text-foreground">Rehearse it</b>.</p>
             </div>
           ) : !view ? (
             <div className="flex min-h-[420px] flex-col items-center justify-center gap-3 rounded-2xl border bg-card p-10 text-center">
@@ -620,10 +617,10 @@ export default function AppPage() {
                 <Filmstrip runId={run.id} attempt={attempt.n} steps={attempt.consequences.browser.steps} verdict={run.verdict?.headline} />
               ) : null}
               {run.verdict?.cached && run.status === "review" ? (
-                <div className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-xl border border-signal/30 bg-signal-soft px-4 py-3 text-sm">
-                  <Zap className="size-4 shrink-0 text-signal" />
-                  <span className="min-w-0 flex-1">Instant verdict: the same request, measured effects and data were checked live by the AI at {new Date(run.verdict.cached.at * 1000).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}, which took {Math.round(run.verdict.cached.ms / 1000)} s.</span>
-                  <Button variant="outline" className="h-8 rounded-full bg-background px-3" disabled={busy} onClick={async () => {
+                <div className="flex items-center gap-2 px-1 text-xs text-muted-foreground">
+                  <Zap className="size-3.5 shrink-0 text-signal" />
+                  <span className="min-w-0 flex-1">The AI checked this exact plan live at {new Date(run.verdict.cached.at * 1000).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })} ({Math.round(run.verdict.cached.ms / 1000)} s), so the verdict is instant.</span>
+                  <Button variant="ghost" className="h-7 shrink-0 rounded-full px-2.5 text-xs" disabled={busy} onClick={async () => {
                     setBusy(true);
                     try { await api.recheck(run.id); setRun({ ...run, status: "verifying", verdict: null }); } catch (e) { toast.error((e as Error).message); } finally { setBusy(false); }
                   }}><RotateCcw className="size-3.5" /> Re-check live</Button>
@@ -659,9 +656,9 @@ export default function AppPage() {
                         : needed > 1 ? <><Check className="size-4" /> Second approval and apply</> : <><Check className="size-4" /> Approve and apply</>}
                     </Button>
                     )}
-                    <input value={note} onChange={(e) => setNote(e.target.value)} maxLength={500} aria-label="Decision note"
+                    {aiObjected && !critical ? <input value={note} onChange={(e) => setNote(e.target.value)} maxLength={500} aria-label="Decision note"
                       placeholder={critical ? "Why are you rejecting it? (optional, goes in the audit trail)" : aiObjected ? (brokenPromise ? "A promise made before the plan is broken. To approve anyway, say why (required, goes in the audit trail)" : "The AI verifier objected. To approve anyway, say why (required, goes in the audit trail)") : "Note for the audit trail (optional): why approve or reject"}
-                      className="h-10 w-full rounded-full border bg-background px-4 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring/50" />
+                      className="h-10 w-full rounded-full border bg-background px-4 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring/50" /> : null}
                     {needed > 1 && !critical ? (
                       <div className="flex w-full flex-wrap items-center gap-2 rounded-lg border bg-background px-3 py-2 text-sm">
                         <Users className="size-4 shrink-0" />
@@ -701,27 +698,6 @@ export default function AppPage() {
                 </div>
               ) : null}
 
-              {run.contract && (run.contract.status === "ready" || ACTIVE.has(run.status)) ? (
-                <div id="eng-contract" className="scroll-mt-24 transition"><ContractCard contract={run.contract} result={attempt?.consequences.contract}
-                  onStrike={run.status === "review" && run.contract.status === "ready" ? async (i, reason) => {
-                    try { const r = await api.strike(run.id, i, reason, approver.trim() || undefined); setRun(r); toast.success("Struck. The rehearsal was re-checked against what's left."); }
-                    catch (e) { toast.error((e as Error).message); throw e; }
-                  } : undefined} /></div>
-              ) : null}
-              {attempt?.surgical_of && run.surgical?.offer ? (
-                <div className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-xl border border-safe/30 bg-safe-soft/60 px-4 py-3 text-sm">
-                  <Scissors className="size-4 shrink-0 text-safe" />
-                  <span className="min-w-0 flex-1"><span className="font-medium">Surgical subset of attempt {attempt.surgical_of}.</span> Kept {num(run.surgical.offer.units_kept)} of {num(run.surgical.offer.units_total)} units of work, cut {num(run.surgical.offer.units_dropped)} ({usd(run.surgical.offer.dropped.money_cents)}). Re-measured in a fresh sandbox; no plan code ran again.</span>
-                </div>
-              ) : null}
-              {attempt?.consequences.graph?.units ? (
-                <EffectGraph runId={run.id} attempt={attempt.n} summary={attempt.consequences.graph}
-                  dropped={!attempt.surgical_of && run.surgical?.offer ? run.surgical.offer.dropped_units : undefined} />
-              ) : null}
-              {attempt?.consequences.provenance ? (
-                <div id="eng-proof" className="scroll-mt-24 transition"><ProofPanel runId={run.id} attempt={attempt.n} summary={attempt.consequences.provenance}
-                  highlight={!attempt.surgical_of ? (run.surgical?.offer?.caused_by ?? []).map((c) => c.i) : []} /></div>
-              ) : null}
               {attempt?.consequences.logs?.length && view ? (() => {
                 const said = attempt.consequences.logs.at(-1) ?? "";
                 const changed = Object.values(attempt.consequences.tables).reduce((n, t) => n + t.updated + t.deleted + t.inserted, 0);
@@ -752,21 +728,73 @@ export default function AppPage() {
                       }}>Learn this rule</Button>
                     ) : null}
                   </div>
-                  <p className="mt-2 text-sm text-muted-foreground">
-                    <span className="font-medium text-foreground">{run.verdict.rule.title}.</span> The AI wrote the check it used as SQL. As a rule it runs
-                    deterministically inside the sandbox on every future rehearsal, and it must pass today&apos;s data to be accepted.
-                  </p>
-                  <pre className="mt-3 overflow-x-auto whitespace-pre-wrap break-words rounded-lg bg-foreground px-3 py-2 font-mono text-[11px] leading-relaxed text-background/90">{run.verdict.rule.sql}</pre>
+                  <p className="mt-2 text-sm text-muted-foreground"><span className="font-medium text-foreground">{run.verdict.rule.title}.</span> One click turns the AI&apos;s check into a rule that runs on every rehearsal, without AI.</p>
+                  <details className="mt-2 text-xs text-muted-foreground"><summary className="cursor-pointer hover:text-foreground">See the check</summary>
+                    <pre className="mt-2 overflow-x-auto whitespace-pre-wrap break-words rounded-lg bg-foreground px-3 py-2 font-mono text-[11px] leading-relaxed text-background/90">{run.verdict.rule.sql}</pre></details>
                 </div>
               ) : null}
               {attempt && cloudChanged(attempt.consequences.cloud) ? <CloudDiff cl={attempt.consequences.cloud} /> : null}
-              {attempt ? <BlastRadius c={attempt.consequences} /> : null}
-              {attempt ? <Details attempt={attempt} events={run.events} runId={run.id} cachedAt={run.verdict?.cached?.at} /> : null}
+              {run.contract && ACTIVE.has(run.status) && run.contract.status !== "ready" ? <ContractCard contract={run.contract} /> : null}
+              {attempt && !ACTIVE.has(run.status) ? (
+                <div className="space-y-2 pt-2">
+                  <div className="px-1 font-mono text-[11px] uppercase tracking-[0.14em] text-muted-foreground">How it decided</div>
+                  {run.contract?.status === "ready" ? (
+                    <Fold id="eng-contract" title="The contract" hint={(() => { const r = attempt.consequences.contract; const n = run.contract.promises?.length ?? 0;
+                      return `${n} promises written before the plan${r?.broken ? ` · ${r.broken} broken` : r?.status === "checked" ? " · all kept" : ""}`; })()}>
+                      <ContractCard contract={run.contract} result={attempt.consequences.contract}
+                        onStrike={run.status === "review" ? async (i, reason) => {
+                          try { const r = await api.strike(run.id, i, reason, approver.trim() || undefined); setRun(r); toast.success("Struck. The rehearsal was re-checked against what's left."); }
+                          catch (e) { toast.error((e as Error).message); throw e; }
+                        } : undefined} />
+                    </Fold>
+                  ) : null}
+                  {attempt.consequences.graph?.units ? (
+                    <Fold id="eng-graph" title="The effect graph" hint={`${num(attempt.consequences.graph.units)} units of work, each kept or cut whole`}>
+                      <div className="space-y-3">
+                        {attempt.surgical_of && run.surgical?.offer ? (
+                          <div className="flex items-start gap-3 rounded-xl border border-safe/30 bg-safe-soft/60 px-4 py-3 text-sm">
+                            <Scissors className="mt-0.5 size-4 shrink-0 text-safe" />
+                            <span>Kept {num(run.surgical.offer.units_kept)} of {num(run.surgical.offer.units_total)} units, cut {num(run.surgical.offer.units_dropped)} ({usd(run.surgical.offer.dropped.money_cents)}). Re-measured in a fresh sandbox; the plan never ran again.</span>
+                          </div>
+                        ) : null}
+                        <EffectGraph runId={run.id} attempt={attempt.n} summary={attempt.consequences.graph}
+                          dropped={!attempt.surgical_of && run.surgical?.offer ? run.surgical.offer.dropped_units : undefined} />
+                      </div>
+                    </Fold>
+                  ) : null}
+                  {attempt.consequences.provenance ? (
+                    <Fold id="eng-proof" title="Proof of effect" hint={attempt.consequences.provenance.status === "proven" ? "every change traced to the line that made it" : attempt.consequences.provenance.status}>
+                      <ProofPanel runId={run.id} attempt={attempt.n} summary={attempt.consequences.provenance}
+                        highlight={!attempt.surgical_of ? (run.surgical?.offer?.caused_by ?? []).map((c) => c.i) : []} />
+                    </Fold>
+                  ) : null}
+                  <Fold id="eng-data" title="Everything measured" hint="checks, rows, emails, refunds, the sandbox, the code">
+                    <div className="space-y-4">
+                      <BlastRadius c={attempt.consequences} />
+                      <Details attempt={attempt} events={run.events} runId={run.id} cachedAt={run.verdict?.cached?.at} />
+                    </div>
+                  </Fold>
+                </div>
+              ) : null}
             </>
           )}
         </div>
       </div>
     </div>
+  );
+}
+
+/** One closed line until you want it: the technical cards live here, one click away. */
+function Fold({ id, title, hint, children }: { id: string; title: string; hint: string; children: React.ReactNode }) {
+  return (
+    <details id={id} className="group scroll-mt-24">
+      <summary className="flex cursor-pointer list-none items-center gap-3 rounded-2xl border bg-card px-5 py-3.5 transition hover:border-foreground/20 group-open:mb-3 [&::-webkit-details-marker]:hidden">
+        <span className="shrink-0 font-medium">{title}</span>
+        <span className="min-w-0 flex-1 truncate text-sm text-muted-foreground">{hint}</span>
+        <ChevronDown className="size-4 shrink-0 text-muted-foreground transition group-open:rotate-180" />
+      </summary>
+      {children}
+    </details>
   );
 }
 

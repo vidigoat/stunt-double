@@ -6,6 +6,7 @@ import { num, type Run } from "@/lib/api";
 const go = (id: string) => {
   const el = document.getElementById(id);
   if (!el) return;
+  if (el instanceof HTMLDetailsElement) el.open = true;  // the technical cards sit in folds: open the one asked for
   el.scrollIntoView({ behavior: "smooth", block: "start" });
   el.classList.add("ring-4", "ring-signal/30", "rounded-2xl");
   setTimeout(() => el.classList.remove("ring-4", "ring-signal/30"), 1600);
@@ -23,7 +24,7 @@ export function EngineGuide({ run }: { run: Run }) {
   const steps = [
     { id: "eng-contract", label: work ? `Contract: ${num(work)} to do` : "The contract", done: run.contract?.status === "ready" },
     { id: "eng-plan", label: `Plan did ${num(did)}`, done: !!first },
-    { id: "eng-proof", label: by ? `Statement ${by.i} chose them` : "Every change proven", done: !!first?.consequences.provenance },
+    { id: "eng-proof", label: by ? `Line ${by.i} chose them` : "Every change proven", done: !!first?.consequences.provenance },
     { id: "eng-cut", label: offer ? `Keep ${num(offer.units_kept)} of ${num(offer.units_total)}` : "The cut", done: cutDone },
     { id: "eng-decision", label: cutDone && run.decision?.decision === "approve" ? "All layers pass" : "The decision", done: cutDone && !!run.decision },
   ];

@@ -36,7 +36,7 @@ export function DecisionPanel({ decision, className, children }: { decision: Dec
                 <span className="text-[13px] font-medium">{l.title}</span>
                 <span className="ml-auto font-mono text-[10px] text-muted-foreground">{i + 1}/6</span>
               </div>
-              <p className={cn("mt-1 line-clamp-3 text-[13px] leading-snug text-muted-foreground", l.status === "fail" && "text-damage/90")}>{l.reason}</p>
+              <p title={l.reason} className={cn("mt-1 line-clamp-2 text-[13px] leading-snug text-muted-foreground lg:line-clamp-1", l.status === "fail" && "text-damage/90")}>{l.reason}</p>
             </li>
           );
         })}

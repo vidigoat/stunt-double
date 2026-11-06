@@ -145,14 +145,14 @@ export function ApprovalCard({ view, children, className, label = "Approval requ
               {t === "danger" ? <OctagonX className="mt-0.5 size-5 shrink-0 text-damage" /> : hot ? <AlertTriangle className="mt-0.5 size-5 shrink-0 text-damage" /> : view.verdict?.verdict === "looks_right" && !issues.length ? <CheckCircle2 className="mt-0.5 size-5 shrink-0" /> : <Info className="mt-0.5 size-5 shrink-0 text-muted-foreground" />}
               <div className="min-w-0 space-y-1.5">
                 {view.verdict ? <div className="font-medium">{view.verdict.headline}</div> : null}
-                {view.verdict ? <p className="text-sm text-muted-foreground">{view.verdict.summary}</p> : null}
+                {view.verdict ? <p title={view.verdict.summary} className="line-clamp-2 text-sm text-muted-foreground">{view.verdict.summary}</p> : null}
                 {issues.length ? (
                   <ul className="space-y-1.5 pt-1 text-sm">
-                    {issues.slice(0, 5).map((c, i) => (
-                      <li key={i} className="flex gap-2">
+                    {issues.slice(0, 4).map((c, i) => (
+                      <li key={i} className="flex gap-2" title={`${c.title}. ${c.detail}`}>
                         <span className={cn("mt-1.5 size-1.5 shrink-0 rounded-full", c.severity === "critical" || c.severity === "high" ? "bg-damage" : "bg-muted-foreground")} />
                         {c.severity === "critical" ? <span className="mt-0.5 shrink-0 self-start rounded bg-damage/10 px-1 py-px font-mono text-[10px] uppercase leading-4 text-damage">blocks</span> : null}
-                        <span><span className="font-medium">{c.title}.</span> <span className="text-muted-foreground">{c.detail}</span></span>
+                        <span className="line-clamp-2"><span className="font-medium">{c.title}.</span> <span className="text-muted-foreground">{c.detail}</span></span>
                       </li>
                     ))}
                   </ul>
