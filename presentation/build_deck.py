@@ -668,8 +668,7 @@ def s12_close(prs):
              "Wikimedia Commons, CC BY-SA 4.0.")
 
 
-SLIDES = (s01_cover, s02_problem, s03_how, s04_containment, s05a_question, s05_engine, s06_product, s06b_features, s07_vultr, s08_proof, s09_studies,
-          s10_business, s11_why, s12_close)
+SLIDES = (s01_cover, s02_problem, s03_how, s04_containment, s05a_question, s05_engine, s06_product, s06b_features, s07_vultr, s08_proof, s09_studies, s10_business, s12_close)
 
 
 ALT = {"product.png": "The live Stunt Double console: six decision layers, and 104 of 744 refunds kept",
