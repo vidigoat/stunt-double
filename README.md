@@ -214,7 +214,7 @@ is blocked in seconds, deterministically, with no AI call.
 | Vultr service | What it does here |
 |---|---|
 | **Cloud Compute** | Runs everything: the web app, API, MCP server, and every rehearsal as two fresh **gVisor** containers (median 1.8 s per rehearsal). Provisioned in one command with `infra/provision.py`. |
-| **Serverless Inference** | The ops agent and the **AI jury**: `glm-5.3-flash` (multimodal, reads browser screenshots), `deepseek-v4.1-flash-1017` and `minimax-m3.1-flash`, each investigating with read-only SQL. |
+| **Serverless Inference** | Four labs' models. The **intent contract**: `qwen3.8-flash-next` writes what a request means before any plan exists, and `deepseek-v4.1-flash-1017` reads the request again to cross-check it. The **AI jury**: `glm-5.3-flash` (multimodal, reads browser screenshots), `deepseek-v4.1-flash-1017` and `minimax-m3.1-flash`, each investigating with read-only SQL. And the ops agent. |
 | **Vultr API** | Provisioning and teardown, plus a **read-only double of your real fleet**: paste a key, Stunt Double lists your instances once and forgets the key. A **brand-new VM per high-risk rehearsal** is built and tested, and off on the public demo, which never holds an account key. |
 
 ## The business case
