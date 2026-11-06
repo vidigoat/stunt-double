@@ -468,6 +468,35 @@ def s06_product(prs):
              "right. One click, and those 104 are re-rehearsed in a fresh sandbox and checked again before you approve.")
 
 
+def s06b_features(prs):
+    s = new_slide(prs)
+    kicker(s, "Every core feature")
+    headline(s, [[("Everything a careful team ", False), ("needs.", True)]], h=0.9)
+    underline(s, 1.95)
+    feats = [("db", "Your real systems", "Postgres, a Vultr fleet, any API, a browser."),
+             ("approve", "Plain English", "Money, people, emails, rows. Never code."),
+             ("users", "Two-person sign-off", "For big changes and every undo."),
+             ("undo", "Rehearsed undo", "Regret it? The undo is rehearsed too."),
+             ("brain", "Three-lab AI jury", "Each investigates the data on its own."),
+             ("zap", "Learned rules", "The same mistake, blocked without AI."),
+             ("lock", "Signed evidence", "A record your browser can verify."),
+             ("code", "Any agent plugs in", "MCP, SDK, CLI, REST. No approve tool.")]
+    cw, ch = (W - 2 * MX - 0.66) / 4, 2.0
+    for k, (ic, t, d) in enumerate(feats):
+        r, c = divmod(k, 4)
+        x, y = MX + c * (cw + 0.22), 2.4 + r * (ch + 0.22)
+        box(s, x, y, cw, ch, fill=CARD, line=LINE, radius=0.2)
+        badge(s, ic, x + 0.28, y + 0.28, d=0.58, fill=BLUE_SOFT, tone="blue")
+        text(s, x + 0.28, y + 0.98, cw - 0.45, 0.4, [[R(t, SANS, 17, INK, bold=True)]])
+        para(s, x + 0.28, y + 1.36, cw - 0.45, 0.6, d, size=14)
+    notes(s, "Everything a careful team needs. It works on your real systems: a read-only double of your Postgres, your "
+             "Vultr fleet, any HTTP API and a real browser. A person sees consequences in plain English, never code. Big "
+             "changes need two different people, and every undo is rehearsed and approved too. An AI jury from three labs "
+             "investigates the data with read-only SQL. Every catch can become a rule that blocks the same mistake without "
+             "AI. Every decision is sealed in a signed record your browser can verify. And any agent plugs in over MCP, an "
+             "SDK, a CLI or REST; there is no approve tool, so only a person can say yes.")
+
+
 def s07_vultr(prs):
     s = new_slide(prs, INK)
     kicker(s, "Built on Vultr", dark=True)
@@ -627,7 +656,7 @@ def s12_close(prs):
              "Wikimedia Commons, CC BY-SA 4.0.")
 
 
-SLIDES = (s01_cover, s02_problem, s03_how, s04_containment, s05_engine, s06_product, s07_vultr, s08_proof, s09_studies,
+SLIDES = (s01_cover, s02_problem, s03_how, s04_containment, s05_engine, s06_product, s06b_features, s07_vultr, s08_proof, s09_studies,
           s10_business, s11_why, s12_close)
 
 
