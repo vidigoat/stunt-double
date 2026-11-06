@@ -20,6 +20,7 @@ from dataclasses import dataclass, field
 
 MAX_NODES = 50_000
 HUB_DEGREE = 25   # a context row linked to more consequences than this (a shared store, a plan tier) doesn't join units
+# ...and neither does one linked only to consequences of a single kind (see build, step 6)
 
 
 def _q(ident: str) -> str:
@@ -207,9 +208,15 @@ def build(effects: dict, before_db: str | None) -> Graph:
 
     # 6. units of work: connected components, counting only consequence nodes ----------------------------------------
     degree: dict[str, int] = defaultdict(int)
-    for _, b, _why in g.edges:
+    kinds: dict[str, set[str]] = defaultdict(set)
+    for a, b, _why in g.edges:
         degree[b] += 1
-    hubs = {nid for nid, d in degree.items() if d > HUB_DEGREE and g.nodes[nid].kind == "context"}
+        na = g.nodes[a]
+        kinds[b].add(f"row:{na.table}" if na.kind == "row" else na.kind)
+    # A context row ties consequences together only when they are different kinds of consequence for it (a customer's
+    # refund and that customer's email). Two changed rows of one table that merely share a parent (two students'
+    # enrollments in the same course) are separate pieces of work. And a parent linked to very many is a hub.
+    hubs = {nid for nid, d in degree.items() if g.nodes[nid].kind == "context" and (d > HUB_DEGREE or len(kinds[nid]) < 2)}
     uf = _UnionFind()
     for nid in g.nodes:
         uf.find(nid)

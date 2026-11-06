@@ -60,3 +60,17 @@ def test_export_is_capped_and_self_consistent(tmp_path):
     d = graph.build(_refund_effects(range(1, 41)), _db(tmp_path)).as_dict(max_units=5)
     assert len(d["units"]) == 5
     assert all(a in d["nodes"] and b in d["nodes"] for a, b, _ in d["edges"])
+
+
+def test_rows_that_only_share_a_parent_are_separate_pieces_of_work(tmp_path):
+    # 3 charges in the same store (far fewer than a hub): before, the store glued them into one unit
+    db = _db(tmp_path)
+    eff = _refund_effects([1, 2, 3])
+    eff["payments"], eff["emails"] = [], []
+    g = graph.build(eff, db)
+    assert g.summary()["units"] == 3
+    # but a customer still ties together different kinds of consequence for them: their charge row and their email
+    eff = _refund_effects([1, 2, 3])
+    eff["payments"] = []
+    g = graph.build(eff, db)
+    assert g.summary()["units"] == 3 and g.summary()["largest_unit"] == 2
