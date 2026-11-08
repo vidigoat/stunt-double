@@ -5,13 +5,17 @@
 set -euo pipefail
 STATE=/opt/stunt-double/deployed
 cd /opt/stunt-double/src
-# A secret added after provisioning (the Vultr API key for dedicated rehearsal VMs) arrives through this instance's own
-# metadata user-data, which only this machine can read. It goes into the server's .env, never into git or a sandbox.
+# Secrets added after provisioning (the Vultr API key for dedicated rehearsal VMs, the Object Storage keys for the
+# evidence archive) arrive through this instance's own metadata user-data, which only this machine can read. They go
+# into the server's .env, never into git or a sandbox.
 ENVF=/opt/stunt-double/src/infra/.env
-if [ -f "$ENVF" ] && ! grep -q '^SD_VULTR_API_KEY=' "$ENVF"; then
-  KEYLINE=$( (curl -fs -m 3 http://169.254.169.254/latest/user-data || curl -fs -m 3 http://169.254.169.254/user-data) 2>/dev/null \
-    | grep -E '^SD_VULTR_API_KEY=[A-Za-z0-9]{20,64}$' | head -1 || true)
-  if [ -n "$KEYLINE" ]; then echo "$KEYLINE" >> "$ENVF"; chmod 600 "$ENVF"; rm -f "$STATE"; echo "added SD_VULTR_API_KEY from metadata"; fi
+if [ -f "$ENVF" ]; then
+  META=$( (curl -fs -m 3 http://169.254.169.254/latest/user-data || curl -fs -m 3 http://169.254.169.254/user-data) 2>/dev/null || true)
+  for NAME in SD_VULTR_API_KEY SD_S3_ENDPOINT SD_S3_ACCESS_KEY SD_S3_SECRET_KEY SD_S3_BUCKET; do
+    grep -q "^$NAME=" "$ENVF" && continue
+    LINE=$(printf '%s\n' "$META" | grep -E "^$NAME=(https://[a-z0-9.-]+|[A-Za-z0-9/+=_-]{3,96})$" | head -1 || true)
+    if [ -n "$LINE" ]; then echo "$LINE" >> "$ENVF"; chmod 600 "$ENVF"; rm -f "$STATE"; echo "added $NAME from metadata"; fi
+  done
 fi
 git fetch -q origin main
 TARGET=$(git rev-parse origin/main)

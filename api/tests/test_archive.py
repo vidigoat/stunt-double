@@ -28,16 +28,19 @@ def test_decided_runs_are_archived(fresh_business, monkeypatch):
         assert api.get("/api/health").json()["evidence_archive"] == "vultr-object-storage:stunt-double-evidence"
         rid = api.post("/api/runs/manual", json={"task": "Refund duplicates", "code": CORRECT}).json()["id"]
         for _ in range(80):
-            if api.get(f"/api/runs/{rid}").json()["status"] == "review":
+            if (run := api.get(f"/api/runs/{rid}").json())["status"] == "review" and run.get("archive"):
                 break
             time.sleep(0.25)
+        assert run["archive"]["key"].endswith(f"/{rid}-review-a1.json"), run.get("archive")   # sealed rehearsals are archived too
+        link = api.get(f"/api/runs/{rid}/archive", follow_redirects=False)
+        assert link.status_code == 302 and "sjc1.vultrobjects.com" in link.headers["location"] and "Signature" in link.headers["location"]
         api.post(f"/api/runs/{rid}/approve", json={"approver": "Auditor test"})
         for _ in range(40):
-            if (run := api.get(f"/api/runs/{rid}").json()).get("archive"):
+            if "applied" in ((run := api.get(f"/api/runs/{rid}").json()).get("archive") or {}).get("key", ""):
                 break
             time.sleep(0.25)
         a = run["archive"]
-        assert a["bucket"] == "stunt-double-evidence" and a["key"].endswith(f"/{rid}.json"), a
+        assert a["bucket"] == "stunt-double-evidence" and a["key"].endswith(f"/{rid}-applied-a1.json"), a
         obj = archive._s3().get_object(Bucket=a["bucket"], Key=a["key"])
         body = obj["Body"].read()
         assert hashlib.sha256(body).hexdigest() == a["sha256"] == obj["Metadata"]["sha256"]

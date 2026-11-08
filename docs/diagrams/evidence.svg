@@ -1,0 +1,60 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 420" width="1200" height="420" role="img" aria-label="Signed evidence: a hash chain of seven steps signed with Ed25519, archived on Vultr Object Storage">
+<title>Signed evidence: a hash chain of seven steps signed with Ed25519, archived on Vultr Object Storage</title>
+<defs>
+  <filter id="sh" x="-10%" y="-10%" width="120%" height="140%"><feDropShadow dx="0" dy="6" stdDeviation="9" flood-color="#141e50" flood-opacity="0.07"/></filter>
+  <marker id="ah" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#1463FF"/></marker>
+  <marker id="ahi" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#0A0A0A"/></marker>
+  <marker id="ahr" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#E5484D"/></marker>
+  <pattern id="grid" width="24" height="24" patternUnits="userSpaceOnUse"><path d="M24 0H0V24" fill="none" stroke="#EEEEE9" stroke-width="1"/></pattern>
+  <linearGradient id="fade" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FAFAF8" stop-opacity="0"/><stop offset="1" stop-color="#FAFAF8" stop-opacity="1"/></linearGradient>
+</defs>
+<style>
+.flow { stroke-dasharray: 6 9; animation: flow 1.2s linear infinite; }
+@keyframes flow { to { stroke-dashoffset: -30; } }
+text { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Helvetica, Arial, sans-serif; }
+.bad rect { animation: bad 7s infinite; } .badl path { animation: badl 7s infinite; } .msg { animation: msg 7s infinite; }@keyframes bad { 0%, 40% { stroke: #E6E6E1; fill: #FFFFFF; } 46%, 86% { stroke: #E5484D; fill: #FDECEC; } 92%, 100% { stroke: #E6E6E1; fill: #FFFFFF; } }@keyframes badl { 0%, 40% { stroke: #1463FF; } 46%, 86% { stroke: #E5484D; } 92%, 100% { stroke: #1463FF; } }@keyframes msg { 0%, 42% { opacity: 0; } 48%, 86% { opacity: 1; } 92%, 100% { opacity: 0; } }</style>
+<rect x="0.5" y="0.5" width="1199" height="419" rx="22" fill="#FAFAF8" stroke="#E6E6E1"/>
+<circle cx="53" cy="51" r="4.5" fill="#1463FF"/><text x="66" y="56" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace" font-size="13" fill="#6B6B66" font-weight="700" text-anchor="start" letter-spacing="1.5">SIGNED EVIDENCE</text>
+<text x="48" y="100" font-family="Georgia, 'Times New Roman', serif" font-size="32" fill="#0A0A0A" font-weight="400" text-anchor="start" >Every step sealed. <tspan font-style="italic" fill="#1463FF">Change one cent and it breaks.</tspan></text>
+<g><rect x="48" y="160" width="128" height="96" rx="16" fill="#FFFFFF" stroke="#E6E6E1" filter="url(#sh)" /></g>
+<text x="64" y="194" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="16" fill="#0A0A0A" font-weight="700" text-anchor="start" >request</text>
+<text x="64" y="220" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace" font-size="12" fill="#A3A39B" font-weight="400" text-anchor="start" >sha256</text>
+<text x="64" y="238" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace" font-size="12" fill="#6B6B66" font-weight="400" text-anchor="start" >bd7fb3…</text>
+<g><path d="M179 208 L199 208" stroke="#1463FF" stroke-width="2.5" marker-end="url(#ah)"/></g>
+<g><rect x="202" y="160" width="128" height="96" rx="16" fill="#FFFFFF" stroke="#E6E6E1" filter="url(#sh)" /></g>
+<text x="218" y="194" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="16" fill="#0A0A0A" font-weight="700" text-anchor="start" >contract</text>
+<text x="218" y="220" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace" font-size="12" fill="#A3A39B" font-weight="400" text-anchor="start" >sha256</text>
+<text x="218" y="238" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace" font-size="12" fill="#6B6B66" font-weight="400" text-anchor="start" >fcaa44…</text>
+<g><path d="M333 208 L353 208" stroke="#1463FF" stroke-width="2.5" marker-end="url(#ah)"/></g>
+<g class="bad"><rect x="356" y="160" width="128" height="96" rx="16" fill="#FFFFFF" stroke="#E6E6E1" filter="url(#sh)" /></g>
+<text x="372" y="194" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="16" fill="#0A0A0A" font-weight="700" text-anchor="start" >rehearsal</text>
+<text x="372" y="220" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace" font-size="12" fill="#A3A39B" font-weight="400" text-anchor="start" >sha256</text>
+<text x="372" y="238" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace" font-size="12" fill="#6B6B66" font-weight="400" text-anchor="start" >3bd4d5…</text>
+<g class="badl"><path d="M487 208 L507 208" stroke="#1463FF" stroke-width="2.5" marker-end="url(#ah)"/></g>
+<g class="bad"><rect x="510" y="160" width="128" height="96" rx="16" fill="#FFFFFF" stroke="#E6E6E1" filter="url(#sh)" /></g>
+<text x="526" y="194" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="16" fill="#0A0A0A" font-weight="700" text-anchor="start" >measured</text>
+<text x="526" y="220" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace" font-size="12" fill="#A3A39B" font-weight="400" text-anchor="start" >sha256</text>
+<text x="526" y="238" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace" font-size="12" fill="#6B6B66" font-weight="400" text-anchor="start" >7aff66…</text>
+<g class="badl"><path d="M641 208 L661 208" stroke="#1463FF" stroke-width="2.5" marker-end="url(#ah)"/></g>
+<g class="bad"><rect x="664" y="160" width="128" height="96" rx="16" fill="#FFFFFF" stroke="#E6E6E1" filter="url(#sh)" /></g>
+<text x="680" y="194" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="16" fill="#0A0A0A" font-weight="700" text-anchor="start" >proof</text>
+<text x="680" y="220" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace" font-size="12" fill="#A3A39B" font-weight="400" text-anchor="start" >sha256</text>
+<text x="680" y="238" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace" font-size="12" fill="#6B6B66" font-weight="400" text-anchor="start" >ba29f7…</text>
+<g class="badl"><path d="M795 208 L815 208" stroke="#1463FF" stroke-width="2.5" marker-end="url(#ah)"/></g>
+<g class="bad"><rect x="818" y="160" width="128" height="96" rx="16" fill="#FFFFFF" stroke="#E6E6E1" filter="url(#sh)" /></g>
+<text x="834" y="194" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="16" fill="#0A0A0A" font-weight="700" text-anchor="start" >decision</text>
+<text x="834" y="220" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace" font-size="12" fill="#A3A39B" font-weight="400" text-anchor="start" >sha256</text>
+<text x="834" y="238" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace" font-size="12" fill="#6B6B66" font-weight="400" text-anchor="start" >f95488…</text>
+<g class="badl"><path d="M949 208 L969 208" stroke="#1463FF" stroke-width="2.5" marker-end="url(#ah)"/></g>
+<g class="bad"><rect x="972" y="160" width="128" height="96" rx="16" fill="#FFFFFF" stroke="#E6E6E1" filter="url(#sh)" /></g>
+<text x="988" y="194" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="16" fill="#0A0A0A" font-weight="700" text-anchor="start" >approval</text>
+<text x="988" y="220" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace" font-size="12" fill="#A3A39B" font-weight="400" text-anchor="start" >sha256</text>
+<text x="988" y="238" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace" font-size="12" fill="#6B6B66" font-weight="400" text-anchor="start" >387f19…</text>
+<rect x="48" y="276" width="240" height="28" rx="14.0" fill="#EAF1FF"/><text x="168.0" y="294.5" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace" font-size="12.5" fill="#1463FF" font-weight="600" text-anchor="middle" >signed with Ed25519</text>
+<g class="msg"><text x="310" y="296" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace" font-size="14" fill="#E5484D" font-weight="700" text-anchor="start" >one cent changed in the rehearsal: steps 3–7 no longer verify</text></g>
+<rect x="48" y="330" width="1104" height="62" rx="16" fill="#FFFFFF" stroke="#1463FF" filter="url(#sh)" />
+<path transform="translate(70 349) scale(0.9166666666666666)" fill="#1463FF" d="M8.36 2.172A1.194 1.194 0 007.348 1.6H1.2A1.2 1.2 0 000 2.8a1.211 1.211 0 00.182.64l11.6 18.4a1.206 1.206 0 002.035 0l3.075-4.874a1.229 1.229 0 00.182-.64 1.211 1.211 0 00-.182-.642zm10.349 8.68a1.206 1.206 0 002.035 0L21.8 9.178l2.017-3.2a1.211 1.211 0 00.183-.64 1.229 1.229 0 00-.183-.64l-1.6-2.526a1.206 1.206 0 00-1.016-.571h-6.148a1.2 1.2 0 00-1.201 1.2 1.143 1.143 0 00.188.64z"/>
+<text x="104" y="368" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="16" fill="#0A0A0A" font-weight="700" text-anchor="start" >Vultr Object Storage</text>
+<text x="286" y="368" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="14" fill="#6B6B66" font-weight="400" text-anchor="start" >every sealed rehearsal is archived (Archival tier, sjc1) and downloadable from the console</text>
+<path d="M1036 262 L1036 326" fill="none" stroke="#1463FF" stroke-width="2" stroke-opacity="0.25" stroke-linecap="round"/><path class="" d="M1036 262 L1036 326" fill="none" stroke="#1463FF" stroke-width="2" stroke-linecap="round" marker-end="url(#ah)"/>
+</svg>

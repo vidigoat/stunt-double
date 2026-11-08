@@ -34,15 +34,25 @@ def _s3():
         return _client
 
 
-def archive(run_id: str, bundle: dict) -> dict | None:
+def archive(run_id: str, bundle: dict, stage: str = "") -> dict | None:
     """Upload one evidence bundle. Never raises: archiving must not block an approval."""
     if not enabled():
         return None
     body = json.dumps(bundle, default=str, sort_keys=True).encode()
     digest = hashlib.sha256(body).hexdigest()
-    key = f"evidence/{time.strftime('%Y-%m-%d', time.gmtime())}/{run_id}.json"
+    key = f"evidence/{time.strftime('%Y-%m-%d', time.gmtime())}/{run_id}{'-' + stage if stage else ''}.json"
     try:
         _s3().put_object(Bucket=BUCKET, Key=key, Body=body, ContentType="application/json", Metadata={"sha256": digest})
-        return {"bucket": BUCKET, "key": key, "sha256": digest}
+        return {"bucket": BUCKET, "key": key, "sha256": digest, "host": ENDPOINT.split("//")[-1], "bytes": len(body), "at": time.time()}
     except Exception as e:  # noqa: BLE001
         return {"error": str(e)[:300]}
+
+
+def link(key: str, seconds: int = 900) -> str | None:
+    """A short-lived signed URL that downloads the archived object straight from Vultr Object Storage."""
+    if not enabled():
+        return None
+    try:
+        return _s3().generate_presigned_url("get_object", Params={"Bucket": BUCKET, "Key": key}, ExpiresIn=seconds)
+    except Exception:  # noqa: BLE001
+        return None

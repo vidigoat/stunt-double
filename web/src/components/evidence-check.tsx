@@ -1,15 +1,29 @@
 "use client";
 
-import { useState } from "react";
-import { FileLock2, ShieldCheck, ShieldX } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Cloud, FileLock2, ShieldCheck, ShieldX } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { verifyInBrowser, type Check, type Sealed } from "@/lib/evidence";
+import type { Archived } from "@/lib/api";
 
 type Evidence = { chain: Sealed };
 
 /** "Is this record what the server signed?" answered in the visitor's own browser, then one changed cent to watch it fail. */
-export function EvidenceCheck({ runId }: { runId: string }) {
+export function EvidenceCheck({ runId, archive }: { runId: string; archive?: Archived | null }) {
   const [ev, setEv] = useState<{ ev: Evidence; key: string } | null>(null);
+  const [arch, setArch] = useState<Archived | null>(archive ?? null);
+  useEffect(() => {   // the archive upload finishes a moment after the decision: look for it a few times
+    setArch(archive ?? null);
+    if (archive?.key) return;
+    let n = 0; let alive = true;
+    const tick = async () => {
+      if (!alive || n++ > 6) return;
+      const r = await fetch(`/api/runs/${runId}`).then((x) => x.json()).catch(() => null);
+      if (alive && r?.archive?.key) setArch(r.archive); else setTimeout(tick, 1500);
+    };
+    const t = setTimeout(tick, 1200);
+    return () => { alive = false; clearTimeout(t); };
+  }, [runId, archive]);
   const [res, setRes] = useState<Check | null>(null);
   const [tampered, setTampered] = useState<Check | null>(null);
   const [busy, setBusy] = useState(false);
@@ -42,6 +56,7 @@ export function EvidenceCheck({ runId }: { runId: string }) {
   }
 
   return (
+    <>
     <div className="flex flex-wrap items-center gap-x-3 gap-y-2 border-t px-5 py-3 text-sm">
       <FileLock2 className="size-4 shrink-0 text-muted-foreground" />
       {!res ? (
@@ -66,5 +81,13 @@ export function EvidenceCheck({ runId }: { runId: string }) {
         </>
       )}
     </div>
+    {arch?.key ? (
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-t px-5 py-2.5 text-sm">
+        <Cloud className="size-4 shrink-0 text-signal" />
+        <span className="text-muted-foreground">Stored on <span className="font-medium text-foreground">Vultr Object Storage</span>{arch.host ? <span className="font-mono text-xs"> · {arch.host}</span> : null}{arch.sha256 ? <span className="font-mono text-xs"> · sha256 {arch.sha256.slice(0, 12)}…</span> : null}</span>
+        <a href={`/api/runs/${runId}/archive`} target="_blank" rel="noreferrer" className="font-medium text-signal hover:underline">Download it from Vultr ↗</a>
+      </div>
+    ) : null}
+    </>
   );
 }

@@ -13,7 +13,7 @@ from pathlib import Path
 from typing import Literal
 
 from fastapi import FastAPI, HTTPException, Request
-from fastapi.responses import Response, StreamingResponse
+from fastapi.responses import RedirectResponse, Response, StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
@@ -134,6 +134,8 @@ def _status(run: dict, status: str) -> None:
     with LOCK:
         run["status"] = status
         _save(run)
+    if status == "review":   # every sealed rehearsal is archived, not only the ones a person decides
+        _archive_async(run)
 
 
 def _rehearse(run: dict, code: str, summary: str) -> dict:
@@ -1336,6 +1338,17 @@ def surgical_run(rid: str, req: Request):
     return {"id": rid, "offer": offer.public()}
 
 
+@app.get("/api/runs/{rid}/archive")
+def archived_evidence(rid: str):
+    """Download this run's sealed evidence straight from Vultr Object Storage (a 15-minute signed link)."""
+    run = _get(rid)
+    rec = run.get("archive") or {}
+    url = archive.link(rec["key"]) if rec.get("key") else None
+    if not url:
+        raise HTTPException(404, "This run's evidence is not in the archive")
+    return RedirectResponse(url, status_code=302)
+
+
 @app.post("/api/runs/{rid}/recheck")
 def recheck_run(rid: str, req: Request):
     """Run the AI verifier again, live: when it couldn't finish, or to replace a reused verdict. Never changes the plan or its effects."""
@@ -1594,8 +1607,10 @@ def _archive_async(run: dict) -> None:
     if not archive.enabled():
         return
 
+    stage = f"{run['status']}-a{len(run['attempts'])}"
+
     def job():
-        result = archive.archive(run["id"], _evidence(run))
+        result = archive.archive(run["id"], _evidence(run), stage)
         with LOCK:
             run["archive"] = result
             _save(run)

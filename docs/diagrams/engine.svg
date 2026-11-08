@@ -1,0 +1,60 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 500" width="1200" height="500" role="img" aria-label="The Consequence Engine: contract 104, effect graph 744, proof 640 chosen by line 1, cut to 104, signed decision">
+<title>The Consequence Engine: contract 104, effect graph 744, proof 640 chosen by line 1, cut to 104, signed decision</title>
+<defs>
+  <filter id="sh" x="-10%" y="-10%" width="120%" height="140%"><feDropShadow dx="0" dy="6" stdDeviation="9" flood-color="#141e50" flood-opacity="0.07"/></filter>
+  <marker id="ah" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#1463FF"/></marker>
+  <marker id="ahi" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#0A0A0A"/></marker>
+  <marker id="ahr" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#E5484D"/></marker>
+  <pattern id="grid" width="24" height="24" patternUnits="userSpaceOnUse"><path d="M24 0H0V24" fill="none" stroke="#EEEEE9" stroke-width="1"/></pattern>
+  <linearGradient id="fade" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FAFAF8" stop-opacity="0"/><stop offset="1" stop-color="#FAFAF8" stop-opacity="1"/></linearGradient>
+</defs>
+<style>
+.flow { stroke-dasharray: 6 9; animation: flow 1.2s linear infinite; }
+@keyframes flow { to { stroke-dashoffset: -30; } }
+text { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Helvetica, Arial, sans-serif; }
+.ec { animation: ring 7.5s ease-in-out infinite; } @keyframes ring { 0%, 16%, 100% { stroke: #E6E6E1; stroke-width: 1; } 5%, 11% { stroke: #1463FF; stroke-width: 3; } } .e0 { animation-delay: 0.0s; } .e1 { animation-delay: 1.5s; } .e2 { animation-delay: 3.0s; } .e3 { animation-delay: 4.5s; } .e4 { animation-delay: 6.0s; }</style>
+<rect x="0.5" y="0.5" width="1199" height="499" rx="22" fill="#FAFAF8" stroke="#E6E6E1"/>
+<circle cx="53" cy="51" r="4.5" fill="#1463FF"/><text x="66" y="56" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace" font-size="13" fill="#6B6B66" font-weight="700" text-anchor="start" letter-spacing="1.5">THE CONSEQUENCE ENGINE</text>
+<text x="48" y="100" font-family="Georgia, 'Times New Roman', serif" font-size="32" fill="#0A0A0A" font-weight="400" text-anchor="start" >Not just a sandbox. <tspan font-style="italic" fill="#1463FF">It proves which part is right.</tspan></text>
+<text x="48" y="140" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="17" fill="#6B6B66" font-weight="400" text-anchor="start" font-style="italic">On one real request: &#8220;Refund everyone who was double-charged last week.&#8221;</text>
+<rect x="52" y="196" width="204" height="236" rx="16" fill="#FFFFFF" stroke="#E6E6E1" filter="url(#sh)" class="ec e0"/>
+<circle cx="80" cy="228" r="13" fill="#1463FF"/><text x="80" y="232.6" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace" font-size="13" fill="#FFFFFF" font-weight="700" text-anchor="middle" >1</text>
+<text x="102" y="234" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="16.5" fill="#0A0A0A" font-weight="700" text-anchor="start" >Intent contract</text>
+<text x="72" y="314" font-family="Georgia, 'Times New Roman', serif" font-size="58" fill="#1463FF" font-weight="400" text-anchor="start" >104</text>
+<text x="72" y="350" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="13.5" fill="#6B6B66" font-weight="400" text-anchor="start" >refunds to do, written</text>
+<text x="72" y="371" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="13.5" fill="#6B6B66" font-weight="400" text-anchor="start" >before the plan existed</text>
+<rect x="70" y="392" width="168" height="26" rx="13.0" fill="#EAF1FF"/><text x="154.0" y="409.14" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace" font-size="11.5" fill="#1463FF" font-weight="600" text-anchor="middle" >DeepSeek agrees: 104</text>
+<path d="M258 314 L274 314" fill="none" stroke="#1463FF" stroke-width="2" stroke-opacity="0.25" stroke-linecap="round"/><path class="flow" d="M258 314 L274 314" fill="none" stroke="#1463FF" stroke-width="2" stroke-linecap="round" marker-end="url(#ah)"/>
+<rect x="276" y="196" width="204" height="236" rx="16" fill="#FFFFFF" stroke="#E6E6E1" filter="url(#sh)" class="ec e1"/>
+<circle cx="304" cy="228" r="13" fill="#1463FF"/><text x="304" y="232.6" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace" font-size="13" fill="#FFFFFF" font-weight="700" text-anchor="middle" >2</text>
+<text x="326" y="234" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="16.5" fill="#0A0A0A" font-weight="700" text-anchor="start" >Effect graph</text>
+<text x="296" y="314" font-family="Georgia, 'Times New Roman', serif" font-size="58" fill="#0A0A0A" font-weight="400" text-anchor="start" >744</text>
+<text x="296" y="350" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="13.5" fill="#6B6B66" font-weight="400" text-anchor="start" >units of work: a charge,</text>
+<text x="296" y="371" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="13.5" fill="#6B6B66" font-weight="400" text-anchor="start" >its refund, its email</text>
+<rect x="294" y="392" width="168" height="26" rx="13.0" fill="#EAF1FF"/><text x="378.0" y="409.14" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace" font-size="11.5" fill="#1463FF" font-weight="600" text-anchor="middle" >linked by keys</text>
+<path d="M482 314 L498 314" fill="none" stroke="#1463FF" stroke-width="2" stroke-opacity="0.25" stroke-linecap="round"/><path class="flow" d="M482 314 L498 314" fill="none" stroke="#1463FF" stroke-width="2" stroke-linecap="round" marker-end="url(#ah)"/>
+<rect x="500" y="196" width="204" height="236" rx="16" fill="#FFFFFF" stroke="#E6E6E1" filter="url(#sh)" class="ec e2"/>
+<circle cx="528" cy="228" r="13" fill="#E5484D"/><text x="528" y="232.6" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace" font-size="13" fill="#FFFFFF" font-weight="700" text-anchor="middle" >3</text>
+<text x="550" y="234" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="16.5" fill="#0A0A0A" font-weight="700" text-anchor="start" >Proof of effect</text>
+<text x="520" y="314" font-family="Georgia, 'Times New Roman', serif" font-size="58" fill="#E5484D" font-weight="400" text-anchor="start" >640</text>
+<text x="520" y="350" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="13.5" fill="#6B6B66" font-weight="400" text-anchor="start" >wrong refunds, all</text>
+<text x="520" y="371" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="13.5" fill="#6B6B66" font-weight="400" text-anchor="start" >chosen by line 1</text>
+<rect x="518" y="392" width="168" height="26" rx="13.0" fill="#FDECEC"/><text x="602.0" y="409.14" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace" font-size="11.5" fill="#E5484D" font-weight="600" text-anchor="middle" >1,490 statements replayed</text>
+<path d="M706 314 L722 314" fill="none" stroke="#1463FF" stroke-width="2" stroke-opacity="0.25" stroke-linecap="round"/><path class="flow" d="M706 314 L722 314" fill="none" stroke="#1463FF" stroke-width="2" stroke-linecap="round" marker-end="url(#ah)"/>
+<rect x="724" y="196" width="204" height="236" rx="16" fill="#FFFFFF" stroke="#E6E6E1" filter="url(#sh)" class="ec e3"/>
+<circle cx="752" cy="228" r="13" fill="#12924F"/><text x="752" y="232.6" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace" font-size="13" fill="#FFFFFF" font-weight="700" text-anchor="middle" >4</text>
+<text x="774" y="234" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="16.5" fill="#0A0A0A" font-weight="700" text-anchor="start" >Surgical cut</text>
+<text x="744" y="314" font-family="Georgia, 'Times New Roman', serif" font-size="58" fill="#12924F" font-weight="400" text-anchor="start" >104</text>
+<text x="744" y="350" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="13.5" fill="#6B6B66" font-weight="400" text-anchor="start" >kept ($5,136); 640 cut</text>
+<text x="744" y="371" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="13.5" fill="#6B6B66" font-weight="400" text-anchor="start" >($32,268), re-run fresh</text>
+<rect x="742" y="392" width="168" height="26" rx="13.0" fill="#EAF1FF"/><text x="826.0" y="409.14" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace" font-size="11.5" fill="#1463FF" font-weight="600" text-anchor="middle" >re-measured in gVisor</text>
+<path d="M930 314 L946 314" fill="none" stroke="#1463FF" stroke-width="2" stroke-opacity="0.25" stroke-linecap="round"/><path class="flow" d="M930 314 L946 314" fill="none" stroke="#1463FF" stroke-width="2" stroke-linecap="round" marker-end="url(#ah)"/>
+<rect x="948" y="196" width="204" height="236" rx="16" fill="#FFFFFF" stroke="#E6E6E1" filter="url(#sh)" class="ec e4"/>
+<circle cx="976" cy="228" r="13" fill="#12924F"/><text x="976" y="232.6" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace" font-size="13" fill="#FFFFFF" font-weight="700" text-anchor="middle" >5</text>
+<text x="998" y="234" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="16.5" fill="#0A0A0A" font-weight="700" text-anchor="start" >Signed decision</text>
+<text x="968" y="314" font-family="Georgia, 'Times New Roman', serif" font-size="58" fill="#12924F" font-weight="400" text-anchor="start" >6/6</text>
+<text x="968" y="350" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="13.5" fill="#6B6B66" font-weight="400" text-anchor="start" >layers pass; sealed</text>
+<text x="968" y="371" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="13.5" fill="#6B6B66" font-weight="400" text-anchor="start" >with Ed25519</text>
+<rect x="966" y="392" width="168" height="26" rx="13.0" fill="#EAF1FF"/><text x="1050.0" y="409.14" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace" font-size="11.5" fill="#1463FF" font-weight="600" text-anchor="middle" >archived on Vultr</text>
+<text x="600.0" y="470" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace" font-size="15" fill="#0A0A0A" font-weight="600" text-anchor="middle" >744 planned  →  104 approved, every claim proven, live on Vultr in about 8 seconds</text>
+</svg>

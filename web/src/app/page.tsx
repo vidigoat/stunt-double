@@ -11,6 +11,7 @@ import { ForAgents, Platform } from "@/components/landing-platform";
 import { TryIt } from "@/components/try-it";
 import { Showcase } from "@/components/showcase";
 import { Engine } from "@/components/landing-engine";
+import { Vultr } from "@/components/landing-vultr";
 
 const GITHUB = "https://github.com/vidigoat/stunt-double";
 const pill = (variant: "default" | "outline" = "default") =>
@@ -228,7 +229,7 @@ const PROOF = [
 
 function Proof() {
   return (
-    <section className="mx-auto max-w-6xl px-4 pb-24 pt-20 sm:px-6">
+    <section className="mx-auto max-w-6xl px-4 pb-10 pt-20 sm:px-6">
       <div className="grid gap-px overflow-hidden rounded-2xl border bg-border sm:grid-cols-2 lg:grid-cols-4">
         {PROOF.map((p) => (
           <a key={p.k} href={p.href} target="_blank" rel="noreferrer" className="group bg-card p-6 hover:bg-background">
@@ -237,11 +238,6 @@ function Proof() {
           </a>
         ))}
       </div>
-      <p className="mt-5 flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-center text-[13px] text-muted-foreground">
-        <span className="inline-flex items-center gap-1.5 text-foreground"><BrandLogo name="vultr" tone="brand" className="size-3.5" />Built on Vultr</span>
-        <span>Cloud Compute · Serverless Inference · gVisor sandboxes · MCP</span>
-        <Link href="/control" className="text-signal hover:underline">Watch it live in Mission control →</Link>
-      </p>
     </section>
   );
 }
@@ -336,6 +332,7 @@ export default function Home() {
       <Platform />
       <ForAgents />
       <Proof />
+      <Vultr />
       <Business />
       <Faq />
       <Closing />

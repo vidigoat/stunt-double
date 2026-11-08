@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 420" width="1200" height="420" role="img" aria-label="Containment: the double drops from 1,300 customers to 0; production keeps all 1,300">
+<title>Containment: the double drops from 1,300 customers to 0; production keeps all 1,300</title>
+<defs>
+  <filter id="sh" x="-10%" y="-10%" width="120%" height="140%"><feDropShadow dx="0" dy="6" stdDeviation="9" flood-color="#141e50" flood-opacity="0.07"/></filter>
+  <marker id="ah" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#1463FF"/></marker>
+  <marker id="ahi" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#0A0A0A"/></marker>
+  <marker id="ahr" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#E5484D"/></marker>
+  <pattern id="grid" width="24" height="24" patternUnits="userSpaceOnUse"><path d="M24 0H0V24" fill="none" stroke="#EEEEE9" stroke-width="1"/></pattern>
+  <linearGradient id="fade" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FAFAF8" stop-opacity="0"/><stop offset="1" stop-color="#FAFAF8" stop-opacity="1"/></linearGradient>
+</defs>
+<style>
+.flow { stroke-dasharray: 6 9; animation: flow 1.2s linear infinite; }
+@keyframes flow { to { stroke-dashoffset: -30; } }
+text { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Helvetica, Arial, sans-serif; }
+.n1 { animation: n1 6s infinite; } .n0 { animation: n0 6s infinite; } .hit { animation: hit 6s infinite; }@keyframes n1 { 0%, 30% { opacity: 1; } 36%, 94% { opacity: 0; } 100% { opacity: 1; } }@keyframes n0 { 0%, 30% { opacity: 0; } 36%, 94% { opacity: 1; } 100% { opacity: 0; } }@keyframes hit { 0% { opacity: 0; } 10%, 34% { opacity: 1; } 44%, 100% { opacity: 0; } }</style>
+<rect x="0.5" y="0.5" width="1199" height="419" rx="22" fill="#FAFAF8" stroke="#E6E6E1"/>
+<circle cx="53" cy="51" r="4.5" fill="#1463FF"/><text x="66" y="56" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace" font-size="13" fill="#6B6B66" font-weight="700" text-anchor="start" letter-spacing="1.5">CONTAINMENT · CHALLENGE 01</text>
+<text x="48" y="100" font-family="Georgia, 'Times New Roman', serif" font-size="32" fill="#0A0A0A" font-weight="400" text-anchor="start" >The blast radius is <tspan font-style="italic" fill="#1463FF">zero.</tspan></text>
+<rect x="48" y="150" width="470" height="210" rx="16" fill="#FDECEC" stroke="#E5484D" filter="url(#sh)" />
+<text x="76" y="190" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace" font-size="13" fill="#E5484D" font-weight="700" text-anchor="start" letter-spacing="1.5">THE DOUBLE</text>
+<g class="n1"><text x="76" y="290" font-family="Georgia, 'Times New Roman', serif" font-size="92" fill="#0A0A0A" font-weight="400" text-anchor="start" >1,300</text></g>
+<g class="n0"><text x="76" y="290" font-family="Georgia, 'Times New Roman', serif" font-size="92" fill="#E5484D" font-weight="400" text-anchor="start" >0</text></g>
+<text x="76" y="330" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="14.5" fill="#6B6B66" font-weight="400" text-anchor="start" >customers, after the plan ran DELETE FROM customers</text>
+<rect x="562" y="140" width="16" height="230" rx="8" fill="#0A0A0A"/>
+<text x="570" y="396" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace" font-size="13" fill="#0A0A0A" font-weight="700" text-anchor="middle" >gVisor wall</text>
+<rect x="622" y="150" width="530" height="210" rx="16" fill="#FFFFFF" stroke="#E6E6E1" filter="url(#sh)" />
+<text x="650" y="190" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace" font-size="13" fill="#6B6B66" font-weight="700" text-anchor="start" letter-spacing="1.5">PRODUCTION</text>
+<text x="650" y="290" font-family="Georgia, 'Times New Roman', serif" font-size="92" fill="#0A0A0A" font-weight="400" text-anchor="start" >1,300</text>
+<text x="650" y="330" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="14.5" fill="#6B6B66" font-weight="400" text-anchor="start" >customers, untouched. Nothing real happened.</text>
+<rect x="938" y="172" width="190" height="28" rx="14.0" fill="#FDECEC"/><text x="1033.0" y="190.5" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace" font-size="12.5" fill="#E5484D" font-weight="600" text-anchor="middle" >approval locked</text>
+<g class="hit"><text x="384" y="136" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace" font-size="15" fill="#E5484D" font-weight="700" text-anchor="middle" >DELETE FROM customers</text></g>
+</svg>

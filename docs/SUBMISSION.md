@@ -16,13 +16,13 @@ Stunt Double: Let the Double Take the Hit
 Every AI agent now holds the keys to something real. Stunt Double lets it try every action on a perfect copy of your business first, on Vultr. Nothing real happens until a person says yes.
 ```
 
-## Step 1 · Long Description (600–2000 chars and 100+ words, this is 1987 chars, 358 words)
+## Step 1 · Long Description (600–2000 chars and 100+ words, this is 1,972 chars, 353 words)
 ```
 In the movies, the star never jumps from the burning building. The stunt double does.
 
-AI agents are becoming the stars of our businesses. They refund customers, send emails, click through admin pages and delete servers. When they are wrong, they are wrong with real money, real inboxes and real data. There is no second take.
+AI agents are becoming the stars of our businesses. They refund customers, send emails, click through admin pages and delete servers. When they are wrong, it is real money, real inboxes and real data. There is no second take.
 
-Stunt Double gives every agent a double. Before any action touches the real world, it is rehearsed on a copy of the business, sealed inside a Vultr sandbox with no internet and no secrets. Then a second sandbox measures what truly changed, so the agent cannot hide a single thing.
+Stunt Double gives every agent a double. Before any action touches the real world, it is rehearsed on a copy of the business, sealed in a Vultr sandbox with no internet or secrets. Then a second sandbox measures what truly changed, so the agent cannot hide anything.
 
 Ask it to refund everyone who was charged twice. Before the agent writes a line, Stunt Double writes down what you meant: 104 refunds, and nothing else. The agent's plan refunds 744. A jury of three AI models from different labs agrees it is wrong. Stunt Double proves which line of the plan chose the 640 wrong people, cuts them out, and hands back exactly the 104. $32,268 saved, and every right customer still paid.
 
@@ -30,7 +30,7 @@ A person sees it all in plain words, not code. Only what they approve happens, s
 
 And it learns: every catch becomes a rule, so the same mistake is stopped instantly next time, without AI.
 
-Built on Vultr end to end: every rehearsal runs in two gVisor sandboxes on Vultr Cloud Compute; Qwen, DeepSeek, GLM and MiniMax on Vultr Serverless Inference write the contract, cross-check it and judge the outcome; the Vultr API gives a read-only double of your real server fleet. It also rehearses your own Postgres, any API and a real browser, and any agent connects over MCP. Measured live: 12 of 12 bad plans stopped, 8 of 8 correct ones approved, 8 of 8 wrong plans stopped on cases it never saw. $49 per approver a month at a 73% gross margin, and the approval record the EU AI Act and SOC 2 ask for.
+All on Vultr: every rehearsal runs in two gVisor sandboxes on Vultr Cloud Compute; Qwen, DeepSeek, GLM and MiniMax on Vultr Serverless Inference write the contract, cross-check it and judge; sealed evidence is archived on Vultr Object Storage; the Vultr API gives a read-only double of your real fleet. It also rehearses your Postgres, any API and a real browser; any agent connects over MCP. Measured live: 12 of 12 bad plans stopped, 8 of 8 correct ones approved, 8 of 8 wrong plans stopped on cases it never saw. $49 per approver a month at a 73% gross margin, and the approval record the EU AI Act and SOC 2 ask for.
 
 Agents should be bold. Businesses should be safe. Now they can be both.
 
@@ -59,7 +59,7 @@ Humans approve consequences, not code: "refunds $37,404 to 744 people, 640 of wh
 
 Every catch becomes a rule: the AI writes the SQL check it used, Stunt Double proves it would not block work the AI judged correct, and one click makes it a rule that blocks the same mistake instantly, without AI. Every approval is the human-oversight and change record the EU AI Act (Art. 14) and SOC 2 (CC8.1) ask for. Measured on Vultr: $0.02–0.044 per AI jury check, 73% gross margin at $49 per approver; one caught mistake pays for a seat for decades.
 
-On the live Vultr server it caught 48 of 48 bad plans with 0 false alarms on 26 correct ones. Agents connect over MCP, an SDK, a CLI or REST; there is no approve tool. Built on Vultr Cloud Compute, Serverless Inference and the Vultr API, with gVisor, FastAPI, Next.js and Playwright; 205 API tests and an end-to-end test that passes against production.
+On the live Vultr server it caught 48 of 48 bad plans with 0 false alarms on 26 correct ones. Agents connect over MCP, an SDK, a CLI or REST; there is no approve tool. Built on Vultr Cloud Compute, Serverless Inference, Object Storage and the Vultr API, with gVisor, FastAPI, Next.js and Playwright; 205 API tests and an end-to-end test that passes against production.
 ```
 
 
@@ -72,7 +72,7 @@ Online.
 Pick Challenge 01 / Blast Radius Zero if it is listed, plus anything like AI agents, security or developer tools.
 
 ## Step 1 · Technologies Used
-Vultr · Vultr Cloud Compute · Vultr Serverless Inference · Vultr API · gVisor · Docker · Python · FastAPI · Next.js · Playwright · PostgreSQL ·
+Vultr · Vultr Cloud Compute · Vultr Serverless Inference · Vultr Object Storage · Vultr API · gVisor · Docker · Python · FastAPI · Next.js · Playwright · PostgreSQL ·
 MCP · SQLite · Qwen · DeepSeek · GLM · MiniMax · Ed25519
 
 ## Links

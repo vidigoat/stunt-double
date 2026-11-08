@@ -56,8 +56,10 @@ export type Run = {
   surgical?: Surgical;
   contract?: Contract;
   decision?: Decision | null;
+  archive?: Archived | null;
   apply_result: null | { rows_written?: number; refunds?: number; refund_total_cents?: number; emails_sent?: number; emails_failed?: number; http_delivered?: number; http_failed?: number; drift_count?: number; drifted?: unknown[]; error?: string };
 };
+export type Archived = { bucket?: string; key?: string; sha256?: string; host?: string; bytes?: number; error?: string };
 export type SurgicalCounts = { rows: number; refunds: number; money_cents: number; emails: number; api_calls: number };
 export type SurgicalOffer = { check_title: string; units_total: number; units_kept: number; units_dropped: number; flagged_rows: number;
   kept: SurgicalCounts; dropped: SurgicalCounts; dropped_units: number[]; checks?: { title: string; source: string }[]; caused_by?: { i: number; rows: number; how?: "chose" | "wrote" }[] };

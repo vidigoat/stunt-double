@@ -639,7 +639,7 @@ export default function AppPage() {
                   }}><RotateCcw className="size-3.5" /> Re-check live</Button>
                 </div>
               ) : null}
-              {run.decision && !ACTIVE.has(run.status) ? <div id="eng-decision" className="scroll-mt-24 transition"><DecisionPanel decision={run.decision}><EvidenceCheck runId={run.id} /></DecisionPanel></div> : null}
+              {run.decision && !ACTIVE.has(run.status) ? <div id="eng-decision" className="scroll-mt-24 transition"><DecisionPanel decision={run.decision}><EvidenceCheck runId={run.id} archive={run.archive} /></DecisionPanel></div> : null}
               {run.status === "review" && run.surgical?.offer && !attempt?.surgical_of ? (
                 <div id="eng-cut" className="scroll-mt-24 transition"><SurgicalCard offer={run.surgical.offer} check={run.surgical.check} busy={busy || running} onCut={async () => {
                   setBusy(true);
