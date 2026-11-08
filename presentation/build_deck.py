@@ -531,21 +531,22 @@ def s07_vultr(prs):
     s = new_slide(prs, INK)
     kicker(s, "Built on Vultr", dark=True)
     headline(s, [[("One VM. Four labs. ", False), ("Disposable doubles.", True)]], dark=True, h=0.9)
-    y, hh = 2.3, 2.75
+    y, hh = 2.3, 3.2
     box(s, MX, y, W - 2 * MX, hh, fill=None, line=D_LINE, width=1.25)
     box(s, MX + 0.3, y - 0.22, 1.25, 0.44, fill=INK, line=None, radius=0)
     vultr_mark(s, MX + 0.42, y - 0.15, 0.3)
     text(s, MX + 0.8, y - 0.17, 0.8, 0.34, [[R("Vultr", SANS, 15, "FAFAF8", bold=True)]])
-    cw = (W - 2 * MX - 0.5 - 0.5) / 3
-    for i, (ic, t, d) in enumerate([("cpu", "Cloud Compute", "Every rehearsal runs in two fresh gVisor sandboxes."),
+    cw = (W - 2 * MX - 0.5 - 0.6) / 4
+    for i, (ic, t, d) in enumerate([("cpu", "Cloud Compute", "Two gVisor sandboxes per rehearsal."),
                                     ("brain", "Serverless Inference", "Four labs' models write, check and judge."),
-                                    ("cloud", "Vultr API", "A read-only double of your real server fleet.")]):
-        x = MX + 0.25 + i * (cw + 0.25)
+                                    ("lock", "Object Storage", "Every rehearsal, signed and archived."),
+                                    ("cloud", "Vultr API", "A read-only double of your real fleet.")]):
+        x = MX + 0.25 + i * (cw + 0.2)
         box(s, x, y + 0.3, cw, hh - 0.55, fill=D_CARD, line=D_LINE)
-        badge(s, ic, x + 0.3, y + 0.55, d=0.6, fill=BLUE, tone="white")
-        text(s, x + 0.3, y + 1.3, cw - 0.5, 0.45, [[R(t, SANS, 20, "FAFAF8", bold=True)]])
-        para(s, x + 0.3, y + 1.75, cw - 0.55, 0.7, d, size=15, color=D_MUTED)
-    y2 = 5.45
+        badge(s, ic, x + 0.28, y + 0.55, d=0.6, fill=BLUE, tone="white")
+        text(s, x + 0.28, y + 1.28, cw - 0.4, 0.75, [[R(t, SANS, 18, "FAFAF8", bold=True)]], spacing=1.0)
+        para(s, x + 0.28, y + 2.02, cw - 0.45, 0.8, d, size=15, color=D_MUTED)
+    y2 = 5.75
     half = (W - 2 * MX - 0.25) / 2
     box(s, MX, y2, half, 1.15, fill=D_CARD, line=D_LINE)
     for k, b in enumerate(["claude", "cursor", "mcp", "python"]):
@@ -558,7 +559,7 @@ def s07_vultr(prs):
     notes(s, "All of it runs on Vultr. Cloud Compute runs the web app, the API, the MCP server and every rehearsal in two "
              "fresh gVisor sandboxes. Serverless Inference runs four labs' models: Qwen writes the intent contract, DeepSeek "
              "cross-checks it, and GLM, DeepSeek and MiniMax judge the outcome; GLM also reads browser screenshots. The "
-             "Vultr API gives a read-only double of your real fleet. Agents connect over MCP, an SDK, a CLI or REST. The "
+             "Object Storage archives every sealed rehearsal with its signature. The Vultr API gives a read-only double of your real fleet. Agents connect over MCP, an SDK, a CLI or REST. The "
              "whole build, every test run included, cost $8.64.")
 
 
