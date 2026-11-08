@@ -29,7 +29,8 @@
 </p>
 
 <p align="center">
-  <a href="https://149-28-206-186.sslip.io/app"><b>▶ Try it live: judge mode, eight clicks</b></a> &nbsp;·&nbsp;
+  <a href="https://lablab.build/ai-hackathons/vultr-hackathon/dragon/stunt-double-let-the-double-take-the-hit"><b>🎬 Watch the 90-second video</b></a> &nbsp;·&nbsp;
+  <a href="https://149-28-206-186.sslip.io/app"><b>▶ Try it live: judge mode</b></a> &nbsp;·&nbsp;
   <a href="#4-how-it-works">How it works</a> &nbsp;·&nbsp;
   <a href="#6-built-on-vultr">Built on Vultr</a> &nbsp;·&nbsp;
   <a href="presentation/StuntDouble.pdf">Deck (PDF)</a> &nbsp;·&nbsp;
